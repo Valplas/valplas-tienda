@@ -1,7 +1,5 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { env } from '@/env.js';
 
 const { Pool } = pg;
 
@@ -9,13 +7,12 @@ const { Pool } = pg;
  * Pool de conexiones a PostgreSQL
  */
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl:
-    process.env.NODE_ENV === 'production'
-      ? {
-          rejectUnauthorized: false
-        }
-      : false,
+  connectionString: env.DATABASE_URL,
+  ssl: env.IS_PRODUCTION
+    ? {
+        rejectUnauthorized: false
+      }
+    : false,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000
@@ -42,7 +39,7 @@ export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
     const result = await pool.query(text, params);
     const duration = Date.now() - start;
 
-    if (process.env.NODE_ENV === 'development') {
+    if (env.IS_DEVELOPMENT) {
       console.log('📊 Query ejecutada:', {
         text,
         duration: `${duration}ms`,

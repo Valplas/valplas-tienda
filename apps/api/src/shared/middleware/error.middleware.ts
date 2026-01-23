@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { ApiResponseBuilder } from '../utils/api-response.js';
-import { logger } from '../../infrastructure/logger/index.js';
+import { ApiResponseBuilder } from '@/shared/utils/api-response.js';
+import { logger } from '@/infrastructure/logger/index.js';
+import { env } from '@/env.js';
 
 /**
  * Error personalizado de la aplicacion
@@ -60,14 +61,13 @@ export function errorHandler(error: Error, req: Request, res: Response, _next: N
   }
 
   // Error no manejado
-  const isDev = process.env.NODE_ENV === 'development';
   res
     .status(500)
     .json(
       ApiResponseBuilder.error(
         'INTERNAL_ERROR',
-        isDev ? error.message : 'Error interno del servidor',
-        isDev ? { stack: error.stack } : undefined
+        env.IS_DEVELOPMENT ? error.message : 'Error interno del servidor',
+        env.IS_DEVELOPMENT ? { stack: error.stack } : undefined
       )
     );
 }

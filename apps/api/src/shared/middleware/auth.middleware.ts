@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { ApiResponseBuilder } from '../utils/api-response.js';
+import { ApiResponseBuilder } from '@/shared/utils/api-response.js';
 import ms, { StringValue } from 'ms';
+import { env } from '@/env.js';
 
 import 'express-serve-static-core';
 
@@ -12,7 +13,7 @@ declare module 'express-serve-static-core' {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
+const JWT_SECRET = env.JWT_SECRET;
 
 /**
  * Valida y convierte un string a formato de tiempo válido para JWT
@@ -104,7 +105,7 @@ export function createToken(payload: Omit<JwtPayload, 'sessionId'>): string {
     },
     JWT_SECRET,
     {
-      expiresIn: validateTimeString(process.env.JWT_EXPIRES_IN || '15m')
+      expiresIn: validateTimeString(env.JWT_EXPIRES_IN)
     }
   );
 }
@@ -120,7 +121,7 @@ export function createRefreshToken(payload: Omit<JwtPayload, 'sessionId'>): stri
     },
     JWT_SECRET,
     {
-      expiresIn: validateTimeString(process.env.JWT_REFRESH_EXPIRES_IN || '7d')
+      expiresIn: validateTimeString(env.JWT_REFRESH_EXPIRES_IN)
     }
   );
 }

@@ -4,6 +4,8 @@
  * Proporciona logging con diferentes niveles y estructura consistente
  */
 
+import { env } from '@/env.js';
+
 export enum LogLevel {
   DEBUG = 'debug',
   INFO = 'info',
@@ -26,7 +28,7 @@ class Logger {
   private isDevelopment: boolean;
 
   constructor() {
-    this.isDevelopment = process.env.NODE_ENV === 'development';
+    this.isDevelopment = env.IS_DEVELOPMENT;
   }
 
   private formatLog(entry: LogEntry): string {
