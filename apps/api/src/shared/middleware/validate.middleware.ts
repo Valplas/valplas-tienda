@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import 'express-serve-static-core';
-import { z, type ZodTypeAny } from 'zod';
+import { z } from 'zod';
 
 // Extendemos Request para guardar los datos validados
 declare module 'express-serve-static-core' {
@@ -37,7 +37,7 @@ export type ValidatedRequest<Body = unknown, Query = unknown, Params = unknown> 
 /**
  * Middleware para validar body con Zod
  */
-export function validateBody<S extends ZodTypeAny>(schema: S) {
+export function validateBody<S extends z.ZodSchema>(schema: S) {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const parsed = await schema.parseAsync(req.body);
@@ -56,7 +56,7 @@ export function validateBody<S extends ZodTypeAny>(schema: S) {
 /**
  * Middleware para validar query params con Zod
  */
-export function validateQuery<S extends ZodTypeAny>(schema: S) {
+export function validateQuery<S extends z.ZodSchema>(schema: S) {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const parsed = await schema.parseAsync(req.query);
@@ -74,7 +74,7 @@ export function validateQuery<S extends ZodTypeAny>(schema: S) {
 /**
  * Middleware para validar params con Zod
  */
-export function validateParams<S extends ZodTypeAny>(schema: S) {
+export function validateParams<S extends z.ZodSchema>(schema: S) {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const parsed = await schema.parseAsync(req.params);
