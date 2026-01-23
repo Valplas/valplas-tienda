@@ -32,7 +32,7 @@ export function errorHandler(error: Error, req: Request, res: Response, _next: N
   if (error instanceof ZodError) {
     res.status(400).json(
       ApiResponseBuilder.error('VALIDATION_ERROR', 'Datos invalidos', {
-        issues: error.errors.map((err) => ({
+        issues: error.issues.map((err) => ({
           path: err.path.join('.'),
           message: err.message
         }))
