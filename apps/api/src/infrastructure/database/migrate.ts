@@ -26,9 +26,7 @@ async function createMigrationsTable() {
  * Obtiene migraciones ya ejecutadas
  */
 async function getExecutedMigrations(): Promise<string[]> {
-  const result = await query<{ filename: string }>(
-    'SELECT filename FROM schema_migrations ORDER BY filename'
-  );
+  const result = await query('SELECT filename FROM schema_migrations ORDER BY filename');
   return result.rows.map((row) => row.filename);
 }
 
