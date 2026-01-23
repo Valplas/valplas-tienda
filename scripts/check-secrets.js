@@ -55,7 +55,11 @@ const ALLOWED_PATTERNS = [
   /example/i,
   /placeholder/i,
   /ci-test/i,
-  /\$\{[^}]+\}/ // Variables con ${VAR}
+  /\$\{[^}]+\}/, // Variables con ${VAR}
+  /DATABASE_URL.*dummy/i, // URLs de test con dummy
+  /JWT_SECRET.*test/i, // Secrets de test
+  /localhost:\d+/, // URLs locales
+  /127\.0\.0\.1:\d+/ // IPs locales
 ];
 
 function getStagedFiles() {

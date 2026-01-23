@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { ApiResponseBuilder } from '../utils/api-response.js';
-import { StringValue } from 'ms';
+import ms, { StringValue } from 'ms';
 
 import 'express-serve-static-core';
 
@@ -13,6 +13,27 @@ declare module 'express-serve-static-core' {
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
+
+/**
+ * Valida y convierte un string a formato de tiempo válido para JWT
+ * @param value - String con el tiempo (ej: '15m', '7d', '1h')
+ * @returns StringValue válido para JWT
+ * @throws Error si el formato no es válido
+ */
+function validateTimeString(value: string): StringValue {
+  // ms() acepta StringValue, así que hacemos la conversión y verificamos
+  const timeValue = value as StringValue;
+  try {
+    // Intenta parsear - si el formato es inválido, ms lanzará error
+    const result = ms(timeValue);
+    if (typeof result !== 'number' || isNaN(result)) {
+      throw new Error('Invalid result');
+    }
+    return timeValue;
+  } catch {
+    throw new Error(`Invalid time format: ${value}. Use formats like '15m', '7d', '1h'`);
+  }
+}
 
 export interface JwtPayload {
   userId: string;
@@ -83,7 +104,7 @@ export function createToken(payload: Omit<JwtPayload, 'sessionId'>): string {
     },
     JWT_SECRET,
     {
-      expiresIn: (process.env.JWT_EXPIRES_IN || '15m') as StringValue
+      expiresIn: validateTimeString(process.env.JWT_EXPIRES_IN || '15m')
     }
   );
 }
@@ -99,7 +120,7 @@ export function createRefreshToken(payload: Omit<JwtPayload, 'sessionId'>): stri
     },
     JWT_SECRET,
     {
-      expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as StringValue
+      expiresIn: validateTimeString(process.env.JWT_REFRESH_EXPIRES_IN || '7d')
     }
   );
 }

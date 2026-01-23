@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import 'express-serve-static-core';
-import { z, type ZodType } from 'zod';
+import { z, type ZodTypeAny } from 'zod';
 
 // Extendemos Request para guardar los datos validados
 declare module 'express-serve-static-core' {
@@ -14,9 +14,30 @@ declare module 'express-serve-static-core' {
 }
 
 /**
+ * Helper type para requests con datos validados
+ *
+ * @example
+ * type CreateProductBody = { name: string; price: number };
+ *
+ * function createProduct(
+ *   req: ValidatedRequest<CreateProductBody>,
+ *   res: Response
+ * ) {
+ *   const { name, price } = req.validated.body!; // Type-safe!
+ * }
+ */
+export type ValidatedRequest<Body = unknown, Query = unknown, Params = unknown> = Request & {
+  validated: {
+    body?: Body;
+    query?: Query;
+    params?: Params;
+  };
+};
+
+/**
  * Middleware para validar body con Zod
  */
-export function validateBody<S extends ZodType<any, any>>(schema: S) {
+export function validateBody<S extends ZodTypeAny>(schema: S) {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const parsed = await schema.parseAsync(req.body);
@@ -35,7 +56,7 @@ export function validateBody<S extends ZodType<any, any>>(schema: S) {
 /**
  * Middleware para validar query params con Zod
  */
-export function validateQuery<S extends ZodType<any, any>>(schema: S) {
+export function validateQuery<S extends ZodTypeAny>(schema: S) {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const parsed = await schema.parseAsync(req.query);
@@ -53,7 +74,7 @@ export function validateQuery<S extends ZodType<any, any>>(schema: S) {
 /**
  * Middleware para validar params con Zod
  */
-export function validateParams<S extends ZodType<any, any>>(schema: S) {
+export function validateParams<S extends ZodTypeAny>(schema: S) {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const parsed = await schema.parseAsync(req.params);

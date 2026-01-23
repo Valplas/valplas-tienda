@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { ApiResponseBuilder } from '../utils/api-response.js';
+import { logger } from '../../infrastructure/logger/index.js';
 
 /**
  * Error personalizado de la aplicacion
@@ -21,11 +22,20 @@ export class AppError extends Error {
  * Middleware global de manejo de errores
  */
 export function errorHandler(error: Error, req: Request, res: Response, _next: NextFunction): void {
-  console.error('❌ Error:', {
-    message: error.message,
-    stack: error.stack,
-    path: req.path,
-    method: req.method
+  // Log estructurado del error
+  logger.error('Request error', {
+    error: {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    },
+    request: {
+      method: req.method,
+      url: req.url,
+      path: req.path,
+      ip: req.ip,
+      userAgent: req.get('user-agent')
+    }
   });
 
   // Error de validacion Zod

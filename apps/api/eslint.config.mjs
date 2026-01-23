@@ -19,8 +19,9 @@ export default [
       parser: tsParser,
       parserOptions: {
         ecmaVersion: 'latest',
-        sourceType: 'module',
-        project: './tsconfig.json'
+        sourceType: 'module'
+        // project: './tsconfig.json' - Removido para mejorar performance
+        // Solo habilitar si usas reglas que requieren type information
       },
       globals: {
         ...globals.node,

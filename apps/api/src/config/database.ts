@@ -2,8 +2,20 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+/**
+ * Valida que una variable de entorno exista
+ * @throws Error si la variable no está definida
+ */
+function requireEnv(key: string): string {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  return value;
+}
+
 export const databaseConfig = {
-  url: process.env.DATABASE_URL!,
+  url: requireEnv('DATABASE_URL'),
   directUrl: process.env.DIRECT_URL,
   poolConfig: {
     max: 20,
@@ -14,7 +26,7 @@ export const databaseConfig = {
 };
 
 export const supabaseConfig = {
-  url: process.env.SUPABASE_URL!,
-  anonKey: process.env.SUPABASE_ANON_KEY!,
-  serviceKey: process.env.SUPABASE_SERVICE_KEY!
+  url: requireEnv('SUPABASE_URL'),
+  anonKey: requireEnv('SUPABASE_ANON_KEY'),
+  serviceKey: requireEnv('SUPABASE_SERVICE_KEY')
 };

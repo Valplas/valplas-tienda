@@ -23,7 +23,10 @@
     "typecheck": "bun --filter '*' typecheck",
     "db:migrate": "bun --filter @valplas/api db:migrate",
     "db:migrate:create": "bun --filter @valplas/api db:migrate:create",
+    "db:migrate:rollback": "bun --filter @valplas/api db:migrate:rollback",
+    "db:migrate:status": "bun --filter @valplas/api db:migrate:status",
     "db:seed": "bun --filter @valplas/api db:seed",
+    "db:reset": "bun db:migrate:rollback && bun db:migrate && bun db:seed",
     "prepare": "husky",
     "check-secrets": "node scripts/check-secrets.js"
   },
