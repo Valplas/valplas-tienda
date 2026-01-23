@@ -33,17 +33,18 @@ pool.on('error', (err) => {
 /**
  * Helper para ejecutar queries
  */
-export async function query<T = any>(
-  text: string,
-  params?: any[]
-): Promise<pg.QueryResult<T>> {
+export async function query(text: string, params?: any[]): Promise<pg.QueryResult> {
   const start = Date.now();
   try {
-    const result = await pool.query<T>(text, params);
+    const result = await pool.query(text, params);
     const duration = Date.now() - start;
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('📊 Query ejecutada:', { text, duration: `${duration}ms`, rows: result.rowCount });
+      console.log('📊 Query ejecutada:', {
+        text,
+        duration: `${duration}ms`,
+        rows: result.rowCount
+      });
     }
 
     return result;
@@ -56,9 +57,7 @@ export async function query<T = any>(
 /**
  * Helper para transacciones
  */
-export async function transaction<T>(
-  callback: (client: pg.PoolClient) => Promise<T>
-): Promise<T> {
+export async function transaction<T>(callback: (client: pg.PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

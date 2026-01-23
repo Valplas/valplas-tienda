@@ -3,20 +3,21 @@ import jwt from 'jsonwebtoken';
 import { ApiResponseBuilder } from '../utils/api-response.js';
 import { StringValue } from 'ms';
 
+import 'express-serve-static-core';
+
+// Extender Request de Express para incluir user
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: JwtPayload;
+  }
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
 
 export interface JwtPayload {
   userId: string;
   role: 'owner' | 'admin' | 'driver' | 'customer';
   sessionId: string;
-}
-
-// Extender Request de Express para incluir user
-
-declare module 'express' {
-  export interface Request {
-    user?: JwtPayload;
-  }
 }
 
 /**
