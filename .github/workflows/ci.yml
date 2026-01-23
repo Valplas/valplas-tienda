@@ -73,13 +73,29 @@ jobs:
         run: |
           echo "🔍 Buscando posibles secrets en el código..."
 
-          # Patrones sospechosos
-          if git grep -i -E "(api_key|api-key|apikey).*=.*['\"][a-zA-Z0-9]{20,}" -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json'; then
+          # Patrones sospechosos - excluir archivos de seguridad y patrones legítimos
+          if git grep -i -E "(api_key|api-key|apikey).*=.*['\"][a-zA-Z0-9]{20,}" -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' | grep -v "scripts/check-secrets.js"; then
             echo "❌ ERROR: Posible API key encontrada en el código"
             exit 1
           fi
 
-          if git grep -i -E "(secret|password|token).*=.*['\"][^'\"]+" -- '*.ts' '*.tsx' '*.js' '*.jsx' | grep -v "SECRET}" | grep -v "\.env" | grep -v "example" | grep -v "dummy" | grep -v "test" | grep -v "ci-"; then
+          # Excluir:
+          # - scripts/check-secrets.js (contiene los patrones de búsqueda)
+          # - req.cookies, req.headers (código que LEE tokens de requests)
+          # - pattern: (definiciones de regex)
+          # - process.env (variables de entorno)
+          # - .env, example, dummy, test, ci- (valores de prueba)
+          if git grep -i -E "(secret|password|token).*=.*['\"][^'\"]+" -- '*.ts' '*.tsx' '*.js' '*.jsx' \
+              | grep -v "scripts/check-secrets.js" \
+              | grep -v "req\." \
+              | grep -v "pattern:" \
+              | grep -v "process\.env" \
+              | grep -v "SECRET}" \
+              | grep -v "\.env" \
+              | grep -v "example" \
+              | grep -v "dummy" \
+              | grep -v "test" \
+              | grep -v "ci-"; then
             echo "❌ ERROR: Posible secret/password encontrado en el código"
             exit 1
           fi
