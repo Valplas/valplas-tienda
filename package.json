@@ -17,16 +17,39 @@
     "test": "bun --filter '*' test",
     "test:watch": "bun --filter '*' test:watch",
     "lint": "bun --filter '*' lint",
+    "lint:staged": "lint-staged",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "typecheck": "bun --filter '*' typecheck",
     "db:migrate": "bun --filter @valplas/api db:migrate",
     "db:migrate:create": "bun --filter @valplas/api db:migrate:create",
-    "db:seed": "bun --filter @valplas/api db:seed"
+    "db:migrate:rollback": "bun --filter @valplas/api db:migrate:rollback",
+    "db:migrate:status": "bun --filter @valplas/api db:migrate:status",
+    "db:seed": "bun --filter @valplas/api db:seed",
+    "db:reset": "bun db:migrate:rollback && bun db:migrate && bun db:seed",
+    "prepare": "husky",
+    "check-secrets": "node scripts/check-secrets.js"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@typescript-eslint/eslint-plugin": "^8.24.0",
+    "@typescript-eslint/parser": "^8.24.0",
     "concurrently": "^9.1.2",
+    "eslint": "^9.39.2",
+    "globals": "^15.14.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.11",
     "prettier": "^3.4.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.9.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "engines": {
     "node": ">=22.0.0",

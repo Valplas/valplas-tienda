@@ -1,10 +1,8 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { env } from '@/env.js';
 
 export const databaseConfig = {
-  url: process.env.DATABASE_URL!,
-  directUrl: process.env.DIRECT_URL,
+  url: env.DATABASE_URL,
+  directUrl: env.DIRECT_URL,
   poolConfig: {
     max: 20,
     min: 5,
@@ -14,7 +12,7 @@ export const databaseConfig = {
 };
 
 export const supabaseConfig = {
-  url: process.env.SUPABASE_URL!,
-  anonKey: process.env.SUPABASE_ANON_KEY!,
-  serviceKey: process.env.SUPABASE_SERVICE_KEY!
+  url: env.SUPABASE_URL,
+  anonKey: env.SUPABASE_ANON_KEY,
+  serviceKey: env.SUPABASE_SERVICE_KEY
 };

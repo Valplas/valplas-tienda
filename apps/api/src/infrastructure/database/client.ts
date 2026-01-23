@@ -1,7 +1,5 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { env } from '@/env.js';
 
 const { Pool } = pg;
 
@@ -9,13 +7,12 @@ const { Pool } = pg;
  * Pool de conexiones a PostgreSQL
  */
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl:
-    process.env.NODE_ENV === 'production'
-      ? {
-          rejectUnauthorized: false
-        }
-      : false,
+  connectionString: env.DATABASE_URL,
+  ssl: env.IS_PRODUCTION
+    ? {
+        rejectUnauthorized: false
+      }
+    : false,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000
@@ -33,17 +30,21 @@ pool.on('error', (err) => {
 /**
  * Helper para ejecutar queries
  */
-export async function query<T = any>(
+export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
-  params?: any[]
+  params?: unknown[]
 ): Promise<pg.QueryResult<T>> {
   const start = Date.now();
   try {
-    const result = await pool.query<T>(text, params);
+    const result = await pool.query(text, params);
     const duration = Date.now() - start;
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📊 Query ejecutada:', { text, duration: `${duration}ms`, rows: result.rowCount });
+    if (env.IS_DEVELOPMENT) {
+      console.log('📊 Query ejecutada:', {
+        text,
+        duration: `${duration}ms`,
+        rows: result.rowCount
+      });
     }
 
     return result;
@@ -56,9 +57,7 @@ export async function query<T = any>(
 /**
  * Helper para transacciones
  */
-export async function transaction<T>(
-  callback: (client: pg.PoolClient) => Promise<T>
-): Promise<T> {
+export async function transaction<T>(callback: (client: pg.PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

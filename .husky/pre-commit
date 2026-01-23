@@ -1,0 +1,15 @@
+echo "🪝 Pre-commit hook ejecutándose..."
+
+# Verificar secrets
+echo "🔒 Verificando secrets..."
+bun run check-secrets || exit 1
+
+# Type check
+echo "🔍 Verificando tipos TypeScript..."
+bun run typecheck || exit 1
+
+# Lint staged files
+echo "🧹 Ejecutando lint-staged..."
+bun run lint-staged || exit 1
+
+echo "✅ Pre-commit checks pasaron"

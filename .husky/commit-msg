@@ -1,0 +1,42 @@
+# Obtener el mensaje del commit
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Verificar formato de conventional commits
+PATTERN="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+"
+
+if ! echo "$COMMIT_MSG" | grep -qE "$PATTERN"; then
+  echo "❌ ERROR: Mensaje de commit no sigue el formato de Conventional Commits"
+  echo ""
+  echo "Formato requerido:"
+  echo "  tipo(scope): descripción"
+  echo ""
+  echo "Tipos permitidos:"
+  echo "  - feat: nueva funcionalidad"
+  echo "  - fix: corrección de bug"
+  echo "  - docs: cambios en documentación"
+  echo "  - style: formato, punto y coma, etc (no afecta código)"
+  echo "  - refactor: refactorización de código"
+  echo "  - test: agregar o modificar tests"
+  echo "  - chore: actualizar dependencias, configuración, etc"
+  echo "  - perf: mejoras de performance"
+  echo "  - ci: cambios en CI/CD"
+  echo "  - build: cambios en build system"
+  echo "  - revert: revertir commit anterior"
+  echo ""
+  echo "Ejemplos:"
+  echo "  feat(products): add filter by category"
+  echo "  fix(auth): resolve token expiration issue"
+  echo "  docs: update README with setup instructions"
+  echo ""
+  exit 1
+fi
+
+# Verificar que no sea muy corto
+MSG_LENGTH=${#COMMIT_MSG}
+if [ "$MSG_LENGTH" -lt 10 ]; then
+  echo "❌ ERROR: Mensaje de commit muy corto (mínimo 10 caracteres)"
+  exit 1
+fi
+
+echo "✅ Mensaje de commit válido"

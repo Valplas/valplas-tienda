@@ -10,6 +10,13 @@ const __dirname = dirname(__filename);
 const MIGRATIONS_DIR = join(__dirname, 'migrations');
 
 /**
+ * Estructura de la tabla schema_migrations
+ */
+interface MigrationRow {
+  filename: string;
+}
+
+/**
  * Tabla para trackear migraciones ejecutadas
  */
 async function createMigrationsTable() {
@@ -26,7 +33,7 @@ async function createMigrationsTable() {
  * Obtiene migraciones ya ejecutadas
  */
 async function getExecutedMigrations(): Promise<string[]> {
-  const result = await query<{ filename: string }>(
+  const result = await query<MigrationRow>(
     'SELECT filename FROM schema_migrations ORDER BY filename'
   );
   return result.rows.map((row) => row.filename);

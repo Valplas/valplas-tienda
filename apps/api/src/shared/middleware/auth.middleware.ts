@@ -1,23 +1,45 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { ApiResponseBuilder } from '../utils/api-response.js';
-import { AppError } from './error.middleware.js';
+import { ApiResponseBuilder } from '@/shared/utils/api-response.js';
+import ms, { StringValue } from 'ms';
+import { env } from '@/env.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
+import 'express-serve-static-core';
+
+// Extender Request de Express para incluir user
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: JwtPayload;
+  }
+}
+
+const JWT_SECRET = env.JWT_SECRET;
+
+/**
+ * Valida y convierte un string a formato de tiempo válido para JWT
+ * @param value - String con el tiempo (ej: '15m', '7d', '1h')
+ * @returns StringValue válido para JWT
+ * @throws Error si el formato no es válido
+ */
+function validateTimeString(value: string): StringValue {
+  // ms() acepta StringValue, así que hacemos la conversión y verificamos
+  const timeValue = value as StringValue;
+  try {
+    // Intenta parsear - si el formato es inválido, ms lanzará error
+    const result = ms(timeValue);
+    if (typeof result !== 'number' || isNaN(result)) {
+      throw new Error('Invalid result');
+    }
+    return timeValue;
+  } catch {
+    throw new Error(`Invalid time format: ${value}. Use formats like '15m', '7d', '1h'`);
+  }
+}
 
 export interface JwtPayload {
   userId: string;
   role: 'owner' | 'admin' | 'driver' | 'customer';
   sessionId: string;
-}
-
-// Extender Request de Express para incluir user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
-  }
 }
 
 /**
@@ -83,7 +105,7 @@ export function createToken(payload: Omit<JwtPayload, 'sessionId'>): string {
     },
     JWT_SECRET,
     {
-      expiresIn: process.env.JWT_EXPIRES_IN || '15m'
+      expiresIn: validateTimeString(env.JWT_EXPIRES_IN)
     }
   );
 }
@@ -99,7 +121,7 @@ export function createRefreshToken(payload: Omit<JwtPayload, 'sessionId'>): stri
     },
     JWT_SECRET,
     {
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+      expiresIn: validateTimeString(env.JWT_REFRESH_EXPIRES_IN)
     }
   );
 }
