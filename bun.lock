@@ -13,8 +13,8 @@
         "husky": "^9.1.7",
         "lint-staged": "^15.2.11",
         "prettier": "^3.4.2",
-        "typescript": "^5.9.3",
-      },
+        "typescript": "^5.9.3"
+      }
     },
     "apps/api": {
       "name": "@valplas/api",
@@ -32,7 +32,7 @@
         "morgan": "^1.10.0",
         "ms": "^2.1.3",
         "pg": "^8.13.1",
-        "zod": "^4.3.6",
+        "zod": "^4.3.6"
       },
       "devDependencies": {
         "@eslint/js": "^9.39.2",
@@ -52,8 +52,8 @@
         "prettier": "^3.4.2",
         "tsx": "^4.19.2",
         "typescript": "^5.9.3",
-        "vitest": "^4.0.17",
-      },
+        "vitest": "^4.0.17"
+      }
     },
     "apps/web": {
       "name": "@valplas/web",
@@ -71,7 +71,7 @@
         "tailwind-merge": "^2.6.0",
         "tailwindcss-animate": "^1.0.7",
         "zod": "^4.3.6",
-        "zustand": "^5.0.10",
+        "zustand": "^5.0.10"
       },
       "devDependencies": {
         "@tailwindcss/postcss": "^4",
@@ -83,23 +83,23 @@
         "postcss": "^8.5.6",
         "prettier": "^3.4.2",
         "tailwindcss": "^4",
-        "typescript": "^5",
-      },
+        "typescript": "^5"
+      }
     },
     "packages/shared": {
       "name": "@valplas/shared",
       "version": "0.1.0",
       "dependencies": {
-        "zod": "^3.24.1",
+        "zod": "^3.24.1"
       },
       "devDependencies": {
-        "typescript": "^5.9.3",
-      },
-    },
+        "typescript": "^5.9.3"
+      }
+    }
   },
   "trustedDependencies": [
     "sharp",
-    "unrs-resolver",
+    "unrs-resolver"
   ],
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
