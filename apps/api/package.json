@@ -1,0 +1,48 @@
+{
+  "name": "@valplas/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx src/infrastructure/database/migrate.ts",
+    "db:migrate:create": "tsx src/infrastructure/database/scripts/create-migration.ts",
+    "db:seed": "tsx src/infrastructure/database/seed.ts"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "zod": "^3.24.1",
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "dayjs": "^1.11.13",
+    "libphonenumber-js": "^1.11.14"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/cors": "^2.8.17",
+    "@types/morgan": "^1.9.9",
+    "@types/cookie-parser": "^1.4.7",
+    "@types/bcrypt": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/pg": "^8.11.10",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.8",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2"
+  }
+}

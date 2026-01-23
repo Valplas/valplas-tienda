@@ -1,0 +1,6 @@
+# Migrations directory
+# Migration files will be placed here
+
+# Migration naming convention:
+# NNN_description.sql
+# Example: 001_initial_schema.sql

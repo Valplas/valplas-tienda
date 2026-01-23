@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.lcov
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Production
+build/
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Secrets and Credentials (NEVER COMMIT)
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+credentials.json
+secrets.*
+.secrets/
+config/secrets.*
+keys/
+certificates/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Railway
+.railway/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

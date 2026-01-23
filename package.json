@@ -1,0 +1,35 @@
+{
+  "name": "valplas-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"bun --filter @valplas/api dev\" \"bun --filter @valplas/web dev\"",
+    "dev:web": "bun --filter @valplas/web dev",
+    "dev:api": "bun --filter @valplas/api dev",
+    "build": "bun --filter '*' build",
+    "build:web": "bun --filter @valplas/web build",
+    "build:api": "bun --filter @valplas/api build",
+    "test": "bun --filter '*' test",
+    "test:watch": "bun --filter '*' test:watch",
+    "lint": "bun --filter '*' lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "typecheck": "bun --filter '*' typecheck",
+    "db:migrate": "bun --filter @valplas/api db:migrate",
+    "db:migrate:create": "bun --filter @valplas/api db:migrate:create",
+    "db:seed": "bun --filter @valplas/api db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "bun": ">=1.0.0"
+  }
+}
