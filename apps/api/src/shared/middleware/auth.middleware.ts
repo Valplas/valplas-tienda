@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { ApiResponseBuilder } from '../utils/api-response.js';
-import { AppError } from './error.middleware.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
 
@@ -12,11 +11,10 @@ export interface JwtPayload {
 }
 
 // Extender Request de Express para incluir user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
+
+declare module 'express' {
+  export interface Request {
+    user?: JwtPayload;
   }
 }
 
@@ -83,7 +81,7 @@ export function createToken(payload: Omit<JwtPayload, 'sessionId'>): string {
     },
     JWT_SECRET,
     {
-      expiresIn: process.env.JWT_EXPIRES_IN || '15m'
+      expiresIn: (process.env.JWT_EXPIRES_IN || '15m') as string
     }
   );
 }
@@ -99,7 +97,7 @@ export function createRefreshToken(payload: Omit<JwtPayload, 'sessionId'>): stri
     },
     JWT_SECRET,
     {
-      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+      expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as string
     }
   );
 }
