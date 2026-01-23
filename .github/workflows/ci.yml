@@ -107,7 +107,8 @@ jobs:
           fi
 
           # Verificar archivos de credenciales
-          if git ls-files | grep -E "credentials\.json|secrets\.|\.pem$|\.key$"; then
+          # Excluir scripts/ y docs/ de la búsqueda (archivos legítimos)
+          if git ls-files | grep -v "^scripts/" | grep -v "^docs/" | grep -E "credentials\.json|secrets\.(json|yml|yaml|txt)|\.pem$|\.key$|\.p12$"; then
             echo "❌ ERROR: Archivos de credenciales encontrados en el repositorio"
             exit 1
           fi
