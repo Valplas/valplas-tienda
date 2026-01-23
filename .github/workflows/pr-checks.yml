@@ -1,0 +1,125 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check PR title format
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+
+          # Verificar conventional commits format
+          if echo "$PR_TITLE" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+"; then
+            echo "✅ PR title sigue el formato de conventional commits"
+          else
+            echo "❌ ERROR: PR title debe seguir el formato: tipo(scope): descripción"
+            echo "Ejemplos:"
+            echo "  - feat(products): add filter by category"
+            echo "  - fix(auth): resolve token expiration issue"
+            echo "  - docs: update README with setup instructions"
+            exit 1
+          fi
+
+      - name: Check PR description
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+
+          if [ -z "$PR_BODY" ]; then
+            echo "⚠️ WARNING: PR no tiene descripción"
+            echo "Se recomienda agregar:"
+            echo "  - Qué cambia este PR"
+            echo "  - Por qué es necesario"
+            echo "  - Cómo probar los cambios"
+          else
+            echo "✅ PR tiene descripción"
+          fi
+
+      - name: Check for breaking changes
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY="${{ github.event.pull_request.body }}"
+
+          if echo "$PR_TITLE" | grep -qi "breaking\|BREAKING"; then
+            echo "⚠️ Este PR contiene BREAKING CHANGES"
+            echo "Asegúrate de:"
+            echo "  - Documentar los cambios incompatibles"
+            echo "  - Actualizar la versión mayor"
+            echo "  - Notificar al equipo"
+          fi
+
+  size-check:
+    name: PR Size Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check PR size
+        run: |
+          # Contar líneas cambiadas
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          LINES_CHANGED=$(git diff --shortstat $BASE_SHA..$HEAD_SHA | grep -oE "[0-9]+ insertion|[0-9]+ deletion" | awk '{s+=$1} END {print s}')
+
+          echo "Líneas cambiadas: $LINES_CHANGED"
+
+          if [ "$LINES_CHANGED" -gt 1000 ]; then
+            echo "⚠️ WARNING: PR muy grande (>1000 líneas)"
+            echo "Considera dividir este PR en PRs más pequeños para facilitar el review"
+          elif [ "$LINES_CHANGED" -gt 500 ]; then
+            echo "⚠️ PR grande (>500 líneas). Considera si se puede dividir"
+          else
+            echo "✅ PR de tamaño razonable"
+          fi
+
+  migration-check:
+    name: Migration Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for modified migrations
+        run: |
+          echo "🔍 Verificando que no se modifiquen migraciones existentes..."
+
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          # Buscar archivos de migración modificados (no nuevos)
+          MODIFIED_MIGRATIONS=$(git diff --name-only --diff-filter=M $BASE_SHA..$HEAD_SHA | grep "migrations/.*\.sql$" || true)
+
+          if [ -n "$MODIFIED_MIGRATIONS" ]; then
+            echo "❌ ERROR: Se detectaron migraciones existentes modificadas:"
+            echo "$MODIFIED_MIGRATIONS"
+            echo ""
+            echo "NUNCA modifiques una migración existente."
+            echo "En su lugar, crea una nueva migración con el cambio."
+            exit 1
+          fi
+
+          # Listar nuevas migraciones (esto está OK)
+          NEW_MIGRATIONS=$(git diff --name-only --diff-filter=A $BASE_SHA..$HEAD_SHA | grep "migrations/.*\.sql$" || true)
+
+          if [ -n "$NEW_MIGRATIONS" ]; then
+            echo "✅ Nuevas migraciones detectadas:"
+            echo "$NEW_MIGRATIONS"
+          else
+            echo "ℹ️ No hay migraciones en este PR"
+          fi

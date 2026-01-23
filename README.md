@@ -78,17 +78,69 @@ bun db:seed
 
 ## Scripts Disponibles
 
-| Comando | Descripción |
-|---------|-------------|
-| `bun dev` | Inicia desarrollo (frontend + backend) |
-| `bun dev:web` | Solo frontend |
-| `bun dev:api` | Solo backend |
-| `bun build` | Build de todo el proyecto |
-| `bun test` | Ejecuta todos los tests |
-| `bun lint` | Ejecuta linter |
-| `bun format` | Formatea código |
-| `bun typecheck` | Verifica tipos TypeScript |
-| `bun db:migrate` | Ejecuta migraciones |
+| Comando          | Descripción                            |
+| ---------------- | -------------------------------------- |
+| `bun dev`        | Inicia desarrollo (frontend + backend) |
+| `bun dev:web`    | Solo frontend                          |
+| `bun dev:api`    | Solo backend                           |
+| `bun build`      | Build de todo el proyecto              |
+| `bun test`       | Ejecuta todos los tests                |
+| `bun lint`       | Ejecuta linter                         |
+| `bun format`     | Formatea código                        |
+| `bun typecheck`  | Verifica tipos TypeScript              |
+| `bun db:migrate` | Ejecuta migraciones                    |
+
+## Git Hooks y CI/CD
+
+### Git Hooks (Husky)
+
+El proyecto usa Husky para ejecutar verificaciones antes de commits y pushes:
+
+**Pre-commit:**
+
+- Verifica secrets (API keys, tokens, passwords)
+- Ejecuta lint-staged (prettier + eslint)
+
+**Commit-msg:**
+
+- Valida formato de Conventional Commits
+
+**Pre-push:**
+
+- Type check completo
+- Lint completo
+- Build completo
+
+**Formato de commits:**
+
+```bash
+tipo(scope): descripción
+
+# Ejemplos:
+git commit -m "feat(products): add filter by category"
+git commit -m "fix(auth): resolve token expiration"
+```
+
+Ver más en: [.husky/README.md](.husky/README.md)
+
+### GitHub Actions
+
+**CI Workflow** (`.github/workflows/ci.yml`):
+
+- Type check, lint, format check
+- Build de frontend y backend
+- Security checks (detección de secrets)
+- Dependency audit
+
+**PR Checks** (`.github/workflows/pr-checks.yml`):
+
+- Validación de título del PR (Conventional Commits)
+- Check de tamaño del PR
+- **Verificación de migraciones** (asegura que no se modifiquen existentes)
+
+**Deploy Preview** (`.github/workflows/deploy-preview.yml`):
+
+- Deploy de preview en Vercel para cada PR
 
 ## Configuración de shadcn/ui
 

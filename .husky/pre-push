@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🪝 Pre-push hook ejecutándose..."
+
+# Type check
+echo "📝 Type checking..."
+bun run typecheck || {
+  echo "❌ Type check falló. Fix los errores antes de push."
+  exit 1
+}
+
+# Lint
+echo "🧹 Linting..."
+bun run lint || {
+  echo "❌ Lint falló. Fix los errores antes de push."
+  exit 1
+}
+
+# Build (para asegurar que compila)
+echo "🏗️ Verificando build..."
+bun run build || {
+  echo "❌ Build falló. Fix los errores antes de push."
+  exit 1
+}
+
+echo "✅ Pre-push checks pasaron. Pusheando..."
