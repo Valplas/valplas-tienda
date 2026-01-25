@@ -255,3 +255,11 @@ export interface PaginatedResponse<T> {
     hasMore: boolean;
   };
 }
+
+// ============================================================================
+// FRONTEND-SPECIFIC TYPES
+// ============================================================================
+
+export * from './toast.types';
+export * from './filter.types';
+export * from './cart.types';
