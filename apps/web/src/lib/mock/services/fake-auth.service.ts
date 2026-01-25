@@ -7,10 +7,12 @@ import { ApiResponse } from '@/lib/api';
 import { User, LoginCredentials, RegisterData, AuthSession, UserRole } from '@/types';
 import { fakeFetch } from '../utils/fake-fetch';
 import { getOrInit, setItem, getItem, removeItem } from '../utils/local-storage';
+import { setCookie, deleteCookie } from '../utils/cookie';
 import { MOCK_USERS, MOCK_CREDENTIALS } from '../data';
 
 const STORAGE_KEY_USERS = 'users';
 const STORAGE_KEY_SESSION = 'session';
+const COOKIE_SESSION_NAME = 'mock_session';
 
 /**
  * Inicializa usuarios en localStorage si no existen
@@ -29,9 +31,7 @@ function generateToken(user: User): string {
 /**
  * Login - Verifica credenciales y genera sesión
  */
-export async function fake_login(
-  credentials: LoginCredentials
-): Promise<ApiResponse<AuthSession>> {
+export async function fake_login(credentials: LoginCredentials): Promise<ApiResponse<AuthSession>> {
   return fakeFetch(() => {
     const users = initUsers();
     const { identifier, password } = credentials;
@@ -63,6 +63,9 @@ export async function fake_login(
 
     // Guardar sesión en localStorage
     setItem(STORAGE_KEY_SESSION, session);
+
+    // También guardar en cookie para que middleware SSR pueda leer
+    setCookie(COOKIE_SESSION_NAME, JSON.stringify(session), 7);
 
     return {
       success: true,
@@ -131,6 +134,9 @@ export async function fake_register(data: RegisterData): Promise<ApiResponse<Aut
 
     setItem(STORAGE_KEY_SESSION, session);
 
+    // También guardar en cookie para que middleware SSR pueda leer
+    setCookie(COOKIE_SESSION_NAME, JSON.stringify(session), 7);
+
     return {
       success: true,
       data: session
@@ -144,6 +150,7 @@ export async function fake_register(data: RegisterData): Promise<ApiResponse<Aut
 export async function fake_logout(): Promise<ApiResponse<void>> {
   return fakeFetch(() => {
     removeItem(STORAGE_KEY_SESSION);
+    deleteCookie(COOKIE_SESSION_NAME);
     return {
       success: true
     };
@@ -199,6 +206,9 @@ export async function fake_refreshToken(): Promise<ApiResponse<AuthSession>> {
     };
 
     setItem(STORAGE_KEY_SESSION, newSession);
+
+    // También actualizar cookie
+    setCookie(COOKIE_SESSION_NAME, JSON.stringify(newSession), 7);
 
     return {
       success: true,
