@@ -1,0 +1,208 @@
+/**
+ * Fake Auth Service - Autenticación mock
+ * Simula autenticación con localStorage
+ */
+
+import { ApiResponse } from '@/lib/api';
+import { User, LoginCredentials, RegisterData, AuthSession, UserRole } from '@/types';
+import { fakeFetch } from '../utils/fake-fetch';
+import { getOrInit, setItem, getItem, removeItem } from '../utils/local-storage';
+import { MOCK_USERS, MOCK_CREDENTIALS } from '../data';
+
+const STORAGE_KEY_USERS = 'users';
+const STORAGE_KEY_SESSION = 'session';
+
+/**
+ * Inicializa usuarios en localStorage si no existen
+ */
+function initUsers(): User[] {
+  return getOrInit(STORAGE_KEY_USERS, MOCK_USERS);
+}
+
+/**
+ * Genera un token fake (en producción sería JWT real)
+ */
+function generateToken(user: User): string {
+  return `fake_token_${user.id}_${Date.now()}`;
+}
+
+/**
+ * Login - Verifica credenciales y genera sesión
+ */
+export async function fake_login(
+  credentials: LoginCredentials
+): Promise<ApiResponse<AuthSession>> {
+  return fakeFetch(() => {
+    const users = initUsers();
+    const { identifier, password } = credentials;
+
+    // Buscar usuario por email o username
+    const user = users.find(
+      (u) =>
+        (u.email === identifier || u.username === identifier) &&
+        u.is_active &&
+        MOCK_CREDENTIALS[identifier] === password
+    );
+
+    if (!user) {
+      return {
+        success: false,
+        error: {
+          code: 'INVALID_CREDENTIALS',
+          message: 'Email/usuario o contraseña incorrectos'
+        }
+      };
+    }
+
+    // Generar sesión
+    const session: AuthSession = {
+      user,
+      access_token: generateToken(user),
+      refresh_token: `refresh_${generateToken(user)}`
+    };
+
+    // Guardar sesión en localStorage
+    setItem(STORAGE_KEY_SESSION, session);
+
+    return {
+      success: true,
+      data: session
+    };
+  });
+}
+
+/**
+ * Register - Crea nuevo usuario
+ */
+export async function fake_register(data: RegisterData): Promise<ApiResponse<AuthSession>> {
+  return fakeFetch(() => {
+    const users = initUsers();
+
+    // Verificar email duplicado
+    if (users.some((u) => u.email === data.email)) {
+      return {
+        success: false,
+        error: {
+          code: 'EMAIL_EXISTS',
+          message: 'El email ya está registrado'
+        }
+      };
+    }
+
+    // Verificar username duplicado
+    if (users.some((u) => u.username === data.username)) {
+      return {
+        success: false,
+        error: {
+          code: 'USERNAME_EXISTS',
+          message: 'El nombre de usuario ya está en uso'
+        }
+      };
+    }
+
+    // Crear nuevo usuario
+    const newUser: User = {
+      id: `user-${Date.now()}`,
+      email: data.email,
+      username: data.username,
+      phone: data.phone,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      role: UserRole.CUSTOMER,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Guardar usuario
+    users.push(newUser);
+    setItem(STORAGE_KEY_USERS, users);
+
+    // Guardar credential (en producción sería hash)
+    MOCK_CREDENTIALS[data.email] = data.password;
+    MOCK_CREDENTIALS[data.username] = data.password;
+
+    // Generar sesión
+    const session: AuthSession = {
+      user: newUser,
+      access_token: generateToken(newUser),
+      refresh_token: `refresh_${generateToken(newUser)}`
+    };
+
+    setItem(STORAGE_KEY_SESSION, session);
+
+    return {
+      success: true,
+      data: session
+    };
+  });
+}
+
+/**
+ * Logout - Elimina sesión
+ */
+export async function fake_logout(): Promise<ApiResponse<void>> {
+  return fakeFetch(() => {
+    removeItem(STORAGE_KEY_SESSION);
+    return {
+      success: true
+    };
+  });
+}
+
+/**
+ * Get current session
+ */
+export async function fake_getCurrentSession(): Promise<ApiResponse<AuthSession>> {
+  return fakeFetch(() => {
+    const session = getItem<AuthSession>(STORAGE_KEY_SESSION);
+
+    if (!session) {
+      return {
+        success: false,
+        error: {
+          code: 'NO_SESSION',
+          message: 'No hay sesión activa'
+        }
+      };
+    }
+
+    return {
+      success: true,
+      data: session
+    };
+  });
+}
+
+/**
+ * Refresh token (simulado)
+ */
+export async function fake_refreshToken(): Promise<ApiResponse<AuthSession>> {
+  return fakeFetch(() => {
+    const session = getItem<AuthSession>(STORAGE_KEY_SESSION);
+
+    if (!session) {
+      return {
+        success: false,
+        error: {
+          code: 'NO_SESSION',
+          message: 'No hay sesión activa'
+        }
+      };
+    }
+
+    // Generar nuevos tokens
+    const newSession: AuthSession = {
+      ...session,
+      access_token: generateToken(session.user),
+      refresh_token: `refresh_${generateToken(session.user)}`
+    };
+
+    setItem(STORAGE_KEY_SESSION, newSession);
+
+    return {
+      success: true,
+      data: newSession
+    };
+  });
+}
