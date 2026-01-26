@@ -1,0 +1,239 @@
+/**
+ * Payment Step Component
+ * Step 3: Order review and payment
+ */
+
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { formatPrice } from '@/lib/formatters';
+import { Address, ShippingOption, CartItem } from '@/types';
+import { Loader2, CreditCard } from 'lucide-react';
+import { fake_createOrder } from '@/lib/mock/services';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+
+interface PaymentStepProps {
+  items: CartItem[];
+  shippingAddress: Address;
+  shippingOption: ShippingOption;
+  subtotal: number;
+  isAuthenticated: boolean;
+  userId?: string;
+  onBack: () => void;
+}
+
+const FREE_SHIPPING_THRESHOLD = 10000;
+
+export function PaymentStep({
+  items,
+  shippingAddress,
+  shippingOption,
+  subtotal,
+  isAuthenticated,
+  userId,
+  onBack
+}: PaymentStepProps) {
+  const router = useRouter();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const isFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD;
+  const shippingCost = isFreeShipping ? 0 : shippingOption.cost;
+  const total = subtotal + shippingCost;
+
+  const handlePayment = async () => {
+    // Check authentication
+    if (!isAuthenticated) {
+      toast.error('Debés iniciar sesión para continuar');
+      return;
+    }
+
+    if (!userId) {
+      toast.error('Error de autenticación');
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Simulate payment processing delay
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Create order
+      const orderData = {
+        user_id: userId,
+        items: items.map((item) => ({
+          product_id: item.product_id,
+          quantity: item.quantity
+        })),
+        shipping_address: shippingAddress,
+        shipping_carrier: shippingOption.carrier_name,
+        shipping_cost: shippingCost,
+        payment_method: 'mercadopago'
+      };
+
+      const response = await fake_createOrder(orderData);
+
+      if (response.success && response.data) {
+        toast.success('¡Pedido creado exitosamente!');
+        router.push(`/confirmacion/${response.data.id}`);
+      } else {
+        throw new Error(response.error?.message || 'Error al crear el pedido');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error al procesar el pago');
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold mb-2">Revisá tu pedido</h2>
+        <p className="text-muted-foreground text-sm">
+          Verificá que todo esté correcto antes de confirmar
+        </p>
+      </div>
+
+      {/* Order Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Items */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Productos ({items.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {items.map((item) => {
+              const product = item.product;
+              if (!product) return null;
+
+              return (
+                <div key={item.product_id} className="flex justify-between text-sm">
+                  <div className="flex-1">
+                    <div className="font-medium">{product.name}</div>
+                    <div className="text-muted-foreground">
+                      {item.quantity} x {formatPrice(product.final_price)}
+                    </div>
+                  </div>
+                  <div className="font-medium">
+                    {formatPrice(product.final_price * item.quantity)}
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        {/* Shipping Address */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Dirección de envío</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm space-y-1">
+              <div className="font-medium">{shippingAddress.label}</div>
+              <div>
+                {shippingAddress.street} {shippingAddress.street_number}
+                {shippingAddress.floor && `, Piso ${shippingAddress.floor}`}
+                {shippingAddress.apartment && ` Dpto ${shippingAddress.apartment}`}
+              </div>
+              <div>
+                {shippingAddress.city}, {shippingAddress.province}
+              </div>
+              <div>CP {shippingAddress.postcode}</div>
+            </div>
+
+            <Separator className="my-4" />
+
+            <div className="text-sm">
+              <div className="font-medium mb-1">Método de envío</div>
+              <div className="text-muted-foreground">{shippingOption.carrier_name}</div>
+              <div className="text-muted-foreground text-xs">
+                Entrega en {shippingOption.estimated_days}{' '}
+                {shippingOption.estimated_days === 1 ? 'día hábil' : 'días hábiles'}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Total Summary */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="font-medium">{formatPrice(subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Envío</span>
+              {isFreeShipping ? (
+                <span className="font-medium text-green-600">Gratis</span>
+              ) : (
+                <span className="font-medium">{formatPrice(shippingCost)}</span>
+              )}
+            </div>
+            <Separator />
+            <div className="flex justify-between text-lg font-bold">
+              <span>Total</span>
+              <span>{formatPrice(total)}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Authentication Check */}
+      {!isAuthenticated && (
+        <Card className="border-yellow-500 bg-yellow-50">
+          <CardContent className="p-6">
+            <p className="font-medium mb-3">Creá una cuenta o iniciá sesión para continuar</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button asChild variant="default">
+                <Link href="/auth/login">Iniciar sesión</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/auth/registro">Registrarme</Link>
+              </Button>
+              <Button variant="ghost">Continuar como invitado</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Payment Button */}
+      {isAuthenticated && (
+        <Card>
+          <CardContent className="p-6">
+            <Button size="lg" className="w-full" onClick={handlePayment} disabled={isProcessing}>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Procesando pago...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="mr-2 h-5 w-5" />
+                  Pagar con Mercado Pago
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              Al confirmar, aceptás nuestros términos y condiciones
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Actions */}
+      <div className="flex justify-between pt-4">
+        <Button type="button" variant="outline" onClick={onBack} disabled={isProcessing}>
+          Volver
+        </Button>
+      </div>
+    </div>
+  );
+}
