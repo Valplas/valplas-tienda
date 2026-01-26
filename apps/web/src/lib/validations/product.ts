@@ -15,9 +15,9 @@ export const productSchema = z.object({
   stock: z.number().min(0, 'Stock no puede ser negativo'),
   category_id: z.string().min(1, 'Seleccioná una categoría'),
   brand_id: z.string().min(1, 'Seleccioná una marca'),
-  unit: z.string().min(1, 'Unidad requerida'),
-  is_featured: z.boolean().default(false),
-  is_active: z.boolean().default(true)
+  unit: z.string().optional(),
+  is_featured: z.boolean(),
+  is_active: z.boolean()
 });
 
 export type ProductFormData = z.infer<typeof productSchema>;

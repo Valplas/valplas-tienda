@@ -5,6 +5,7 @@
 
 export * from './fake-auth.service';
 export * from './fake-product.service';
+// Note: fake-product-admin.service is imported directly where needed to avoid naming conflicts
 export * from './fake-cart.service';
 export * from './fake-user.service';
 export * from './fake-shipping.service';
