@@ -29,18 +29,18 @@ interface ProductFiltersProps {
 }
 
 export function ProductFilters({ className }: ProductFiltersProps) {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [searchInput, setSearchInput] = useState('');
-  const [minPriceInput, setMinPriceInput] = useState('');
-  const [maxPriceInput, setMaxPriceInput] = useState('');
-
   // Filter store
   const search = useFilterStore((state) => state.search);
   const categoryId = useFilterStore((state) => state.category_id);
   const brandId = useFilterStore((state) => state.brand_id);
   const minPrice = useFilterStore((state) => state.min_price);
   const maxPrice = useFilterStore((state) => state.max_price);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [searchInput, setSearchInput] = useState(search || '');
+  const [minPriceInput, setMinPriceInput] = useState(minPrice?.toString() || '');
+  const [maxPriceInput, setMaxPriceInput] = useState(maxPrice?.toString() || '');
 
   const setSearch = useFilterStore((state) => state.setSearch);
   const setCategoryId = useFilterStore((state) => state.setCategoryId);
@@ -75,13 +75,6 @@ export function ProductFilters({ className }: ProductFiltersProps) {
   useEffect(() => {
     setSearch(debouncedSearch);
   }, [debouncedSearch, setSearch]);
-
-  // Initialize inputs from store
-  useEffect(() => {
-    setSearchInput(search || '');
-    setMinPriceInput(minPrice?.toString() || '');
-    setMaxPriceInput(maxPrice?.toString() || '');
-  }, [search, minPrice, maxPrice]);
 
   const handlePriceChange = () => {
     const min = minPriceInput ? parseFloat(minPriceInput) : undefined;
