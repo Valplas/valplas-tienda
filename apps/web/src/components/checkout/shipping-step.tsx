@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ShippingOption } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,11 +31,7 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadShippingOptions();
-  }, [postcode, cartTotal]);
-
-  const loadShippingOptions = async () => {
+  const loadShippingOptions = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -52,13 +48,17 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
         setError(response.error?.message || 'Error al cargar opciones de envío');
         toast.error(response.error?.message || 'Error al cargar opciones de envío');
       }
-    } catch (err) {
+    } catch {
       setError('Error al cargar opciones de envío');
       toast.error('Error al cargar opciones de envío');
     } finally {
       setLoading(false);
     }
-  };
+  }, [postcode, cartTotal]);
+
+  useEffect(() => {
+    loadShippingOptions();
+  }, [loadShippingOptions]);
 
   const handleNext = () => {
     if (selectedOption) {

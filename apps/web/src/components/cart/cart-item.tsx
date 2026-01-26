@@ -22,7 +22,6 @@ interface CartItemProps {
 
 export function CartItem({ item }: CartItemProps) {
   const { updateQuantity, removeItem } = useCartStore();
-  const [isUpdating, setIsUpdating] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
 
   const product = item.product;
@@ -34,13 +33,10 @@ export function CartItem({ item }: CartItemProps) {
   const handleQuantityChange = async (newQuantity: number) => {
     if (newQuantity === item.quantity) return;
 
-    setIsUpdating(true);
     try {
       await updateQuantity(product.id, newQuantity);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Error al actualizar cantidad');
-    } finally {
-      setIsUpdating(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al actualizar cantidad');
     }
   };
 
@@ -49,7 +45,7 @@ export function CartItem({ item }: CartItemProps) {
     try {
       await removeItem(product.id);
       toast.success('Producto eliminado del carrito');
-    } catch (error) {
+    } catch {
       toast.error('Error al eliminar producto');
       setIsRemoving(false);
     }
