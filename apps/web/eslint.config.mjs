@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Archivos de ejemplo/documentación del mock system:
+    "src/lib/mock/EXAMPLE_USAGE.tsx",
+    "src/lib/mock/VERIFY.ts",
   ]),
 ]);
 
