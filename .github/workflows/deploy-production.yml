@@ -35,13 +35,33 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
-      # Descomentar cuando Railway esté configurado
-      # - name: Deploy to Railway
-      #   run: |
-      #     npm install -g railway
-      #     railway up --service api --environment production
-      #   env:
-      #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway Production
+        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --environment production
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Run database migrations
+        run: railway run --service ${{ secrets.RAILWAY_SERVICE_ID }} --environment production bun db:migrate
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Health check API
+        run: |
+          sleep 15
+          curl -f ${{ secrets.PROD_API_URL }}/health || exit 1
+
+      - name: Create Sentry release
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: valplas
+          SENTRY_PROJECT: valplas-api
+        with:
+          environment: production
+          version: ${{ github.sha }}
 
       - name: Notify deployment status
         if: success()
@@ -78,15 +98,29 @@ jobs:
           NEXT_PUBLIC_MP_PUBLIC_KEY: ${{ secrets.MP_PUBLIC_KEY }}
           NEXT_PUBLIC_GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
 
-      # Descomentar cuando Vercel esté configurado
-      # - name: Deploy to Vercel Production
-      #   run: |
-      #     npm install -g vercel
-      #     vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
-      #   env:
-      #     VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      #     VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      #     VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Deploy to Vercel Production
+        working-directory: apps/web
+        run: |
+          npm install -g vercel
+          vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Create Sentry release
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: valplas
+          SENTRY_PROJECT: valplas-web
+        with:
+          environment: production
+          version: ${{ github.sha }}
+
+      - name: Health check Web
+        run: |
+          sleep 10
+          curl -f https://valplas.net || exit 1
 
       - name: Notify deployment status
         if: success()
@@ -98,19 +132,12 @@ jobs:
     needs: [deploy-api, deploy-web]
 
     steps:
-      - name: Health check API
+      - name: Final health checks
         run: |
-          echo "🔍 Verificando salud del API..."
-          # Descomentar cuando el API esté deployed
-          # curl -f ${{ secrets.PROD_API_URL }}/health || exit 1
-          echo "✅ API health check passed"
-
-      - name: Health check Web
-        run: |
-          echo "🔍 Verificando sitio web..."
-          # Descomentar cuando esté deployed
-          # curl -f https://valplas.net || exit 1
-          echo "✅ Web health check passed"
+          echo "🔍 Verificando todos los servicios..."
+          curl -f ${{ secrets.PROD_API_URL }}/health || exit 1
+          curl -f https://valplas.net || exit 1
+          echo "✅ All health checks passed"
 
       - name: Notify team
         if: success()
@@ -118,9 +145,11 @@ jobs:
           echo "🎉 Deployment to production completed successfully!"
           echo "API: ${{ secrets.PROD_API_URL }}"
           echo "Web: https://valplas.net"
+          echo "Release: ${{ github.sha }}"
 
       - name: Notify on failure
         if: failure()
         run: |
           echo "❌ Deployment to production failed!"
           echo "Check the logs above for details."
+          echo "Consider rolling back if necessary."
