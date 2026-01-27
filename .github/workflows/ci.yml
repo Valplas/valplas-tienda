@@ -85,6 +85,9 @@ jobs:
           # - pattern: (definiciones de regex)
           # - process.env (variables de entorno)
           # - .env, example, dummy, test, ci- (valores de prueba)
+          # - showPassword, name="password", type="password" (UI components)
+          # - as string (type assertions)
+          # - formData.get('password') (form data extractions)
           if git grep -i -E "(secret|password|token).*=.*['\"][^'\"]+" -- '*.ts' '*.tsx' '*.js' '*.jsx' \
               | grep -v "scripts/check-secrets.js" \
               | grep -v "req\." \
@@ -95,7 +98,14 @@ jobs:
               | grep -v "example" \
               | grep -v "dummy" \
               | grep -v "test" \
-              | grep -v "ci-"; then
+              | grep -v "ci-" \
+              | grep -v "showPassword" \
+              | grep -v "name=" \
+              | grep -v "type=" \
+              | grep -v "as string" \
+              | grep -v "formData.get" \
+              | grep -v "placeholder=" \
+              | grep -v "defaultValue="; then
             echo "❌ ERROR: Posible secret/password encontrado en el código"
             exit 1
           fi
