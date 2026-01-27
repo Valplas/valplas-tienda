@@ -3,8 +3,6 @@
  * Copy these patterns to your components
  */
 
- 
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
