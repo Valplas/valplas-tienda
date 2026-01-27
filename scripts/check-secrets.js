@@ -43,7 +43,31 @@ const PATTERNS = [
   { pattern: /eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*/g, message: 'JWT Token' },
 
   // Mercado Pago
-  { pattern: /(APP|TEST)-\d{13,16}-\d{6,8}-[a-f0-9]{32}/gi, message: 'Mercado Pago Token' }
+  { pattern: /(APP|TEST)-\d{13,16}-\d{6,8}-[a-f0-9]{32}/gi, message: 'Mercado Pago Token' },
+
+  // Supabase
+  {
+    pattern: /eyJ[a-zA-Z0-9_-]{20,}\.eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}/g,
+    message: 'Supabase JWT/Service Key'
+  },
+
+  // Resend API Key
+  { pattern: /re_[a-zA-Z0-9]{24,}/g, message: 'Resend API Key' },
+
+  // Stripe Keys
+  {
+    pattern: /(sk|pk)_(live|test)_[a-zA-Z0-9]{24,}/g,
+    message: 'Stripe API Key'
+  },
+
+  // Google API Keys
+  { pattern: /AIza[a-zA-Z0-9_-]{35}/g, message: 'Google API Key' },
+
+  // Generic high-entropy strings (potential secrets)
+  {
+    pattern: /['"][a-zA-Z0-9+/]{32,}={0,2}['"]/g,
+    message: 'Potential Base64 Secret'
+  }
 ];
 
 const ALLOWED_PATTERNS = [
@@ -59,7 +83,17 @@ const ALLOWED_PATTERNS = [
   /DATABASE_URL.*dummy/i, // URLs de test con dummy
   /JWT_SECRET.*test/i, // Secrets de test
   /localhost:\d+/, // URLs locales
-  /127\.0\.0\.1:\d+/ // IPs locales
+  /127\.0\.0\.1:\d+/, // IPs locales
+  /mock/i, // Valores mock
+  /fake[_-]/i, // Funciones fake_
+  /pattern:/i, // Definiciones de patterns (este mismo archivo)
+  /COLORS\./i, // Constantes de colores
+  /message:/i, // Mensajes descriptivos
+  /['"]xxx['"]/i, // Placeholder obvio
+  /SECRET_KEY}/i, // Template variables ${SECRET_KEY}
+  /API_KEY}/i, // Template variables ${API_KEY}
+  /\/\*/i, // Comentarios
+  /\*\//i // Comentarios
 ];
 
 function getStagedFiles() {
