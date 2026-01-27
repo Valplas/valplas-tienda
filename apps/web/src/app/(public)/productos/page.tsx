@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
 import { Product, ProductFilters as ProductFiltersType } from '@/types';
 import { ProductGrid, ProductFilters, ProductSort } from '@/components/product';
@@ -26,7 +26,7 @@ import { useSearchParams } from 'next/navigation';
 
 const ITEMS_PER_PAGE = 20;
 
-export default function ProductsPage() {
+function ProductsContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [sortedProducts, setSortedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -237,5 +237,21 @@ export default function ProductsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex min-h-[400px] items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </div>
+      }
+    >
+      <ProductsContent />
+    </Suspense>
   );
 }
