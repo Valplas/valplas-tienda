@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { DataTable } from '@/components/admin/data-table';
@@ -68,11 +68,7 @@ export default function UsuariosPage() {
   }, [currentUser, router]);
 
   // Load users
-  useEffect(() => {
-    loadUsers();
-  }, [roleFilter]);
-
-  async function loadUsers() {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     const response = await fake_getUsers({
       role: roleFilter === 'all' ? undefined : roleFilter
@@ -81,7 +77,11 @@ export default function UsuariosPage() {
       setUsers(response.data);
     }
     setLoading(false);
-  }
+  }, [roleFilter]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   const handleCreate = () => {
     setSelectedUser(null);
@@ -121,16 +121,19 @@ export default function UsuariosPage() {
     }
   };
 
-  const handleDelete = (user: User) => {
-    // Prevent self-delete
-    if (currentUser && user.id === currentUser.id) {
-      toast.error('No podés eliminar tu propia cuenta');
-      return;
-    }
+  const handleDelete = useCallback(
+    (user: User) => {
+      // Prevent self-delete
+      if (currentUser && user.id === currentUser.id) {
+        toast.error('No podés eliminar tu propia cuenta');
+        return;
+      }
 
-    setUserToDelete(user);
-    setDeleteDialogOpen(true);
-  };
+      setUserToDelete(user);
+      setDeleteDialogOpen(true);
+    },
+    [currentUser]
+  );
 
   const confirmDelete = async () => {
     if (!userToDelete || !currentUser) return;
@@ -239,7 +242,7 @@ export default function UsuariosPage() {
         enableSorting: false
       }
     ],
-    [currentUser]
+    [currentUser, handleDelete]
   );
 
   // Don't render if not owner

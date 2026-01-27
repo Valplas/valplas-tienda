@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Pencil, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
-import { DataTable, createCheckboxColumn } from '@/components/admin/data-table';
+import { DataTable } from '@/components/admin/data-table';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -39,7 +39,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default function EnviosPage() {
   // Zones state
@@ -217,78 +216,6 @@ export default function EnviosPage() {
       return next;
     });
   };
-
-  // Zone columns
-  const zoneColumns = useMemo<ColumnDef<ShippingZone>[]>(
-    () => [
-      {
-        id: 'expand',
-        header: '',
-        cell: ({ row }) => (
-          <button
-            onClick={() => toggleZoneExpansion(row.original.id)}
-            className="p-1 hover:bg-muted rounded"
-          >
-            {expandedZones.has(row.original.id) ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </button>
-        ),
-        enableSorting: false
-      },
-      {
-        accessorKey: 'name',
-        header: 'Zona'
-      },
-      {
-        id: 'postcodes_count',
-        header: 'Códigos Postales',
-        cell: ({ row }) => (
-          <span className="text-muted-foreground">
-            {row.original.postcodes.length} código{row.original.postcodes.length !== 1 ? 's' : ''}
-          </span>
-        )
-      },
-      {
-        accessorKey: 'is_active',
-        header: 'Estado',
-        cell: ({ row }) =>
-          row.original.is_active ? (
-            <Badge variant="default">Activa</Badge>
-          ) : (
-            <Badge variant="secondary">Inactiva</Badge>
-          )
-      },
-      {
-        id: 'actions',
-        header: '',
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2 justify-end">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleEditZone(row.original)}
-              className="h-8 w-8 p-0"
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleDeleteZone(row.original)}
-              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        ),
-        enableSorting: false
-      }
-    ],
-    [expandedZones]
-  );
 
   // Carrier columns
   const carrierColumns = useMemo<ColumnDef<Carrier>[]>(

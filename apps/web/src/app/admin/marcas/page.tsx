@@ -70,8 +70,9 @@ export default function MarcasPage() {
       }
       setSheetOpen(false);
       loadBrands();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar marca');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al guardar marca';
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -85,8 +86,9 @@ export default function MarcasPage() {
         `${items.length} marca${items.length > 1 ? 's' : ''} eliminada${items.length > 1 ? 's' : ''} correctamente`
       );
       loadBrands();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar marcas');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al eliminar marcas';
+      toast.error(message);
     }
   };
 

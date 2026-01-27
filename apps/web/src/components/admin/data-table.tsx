@@ -68,17 +68,6 @@ export function DataTable<TData>({
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState('');
 
-  // Debounced search
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchKey) {
-        table.getColumn(String(searchKey))?.setFilterValue(searchValue);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchValue, searchKey]);
-
   const table = useReactTable({
     data,
     columns,
@@ -102,9 +91,20 @@ export function DataTable<TData>({
 
   const selectedRows = table.getFilteredSelectedRowModel().rows.map((row) => row.original);
 
+  // Debounced search
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchKey) {
+        table.getColumn(String(searchKey))?.setFilterValue(searchValue);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchValue, searchKey, table]);
+
   React.useEffect(() => {
     onSelectionChange?.(selectedRows);
-  }, [rowSelection]);
+  }, [rowSelection, onSelectionChange, selectedRows]);
 
   const handleDelete = async () => {
     if (!onDelete || selectedRows.length === 0) return;

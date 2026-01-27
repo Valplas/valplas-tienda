@@ -4,7 +4,7 @@
  */
 
 import { ApiResponse } from '@/lib/api';
-import { ShippingZone, ShippingRate } from '@/types';
+import { ShippingZone } from '@/types';
 import { MOCK_SHIPPING_ZONES, MOCK_SHIPPING_RATES } from '../data';
 import { ShippingZoneFormData, CarrierFormData } from '@/lib/validations/shipping';
 
@@ -96,7 +96,7 @@ export async function fake_getShippingZones(): Promise<ApiResponse<ShippingZone[
       success: true,
       data: zones
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -135,7 +135,7 @@ export async function fake_createShippingZone(
       success: true,
       data: newZone
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -183,7 +183,7 @@ export async function fake_updateShippingZone(
       success: true,
       data: zones[index]
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -206,7 +206,7 @@ export async function fake_deleteShippingZone(id: string): Promise<ApiResponse<v
       success: true,
       data: undefined
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -230,7 +230,7 @@ export async function fake_getCarriers(): Promise<ApiResponse<Carrier[]>> {
       success: true,
       data: carriers
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -264,7 +264,7 @@ export async function fake_createCarrier(data: CarrierFormData): Promise<ApiResp
       success: true,
       data: newCarrier
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -310,7 +310,7 @@ export async function fake_updateCarrier(
       success: true,
       data: carriers[index]
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -333,7 +333,7 @@ export async function fake_deleteCarrier(id: string): Promise<ApiResponse<void>>
       success: true,
       data: undefined
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {

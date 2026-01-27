@@ -87,8 +87,9 @@ export default function CategoriasPage() {
       toast.success('Categoría eliminada correctamente');
       setDeleteDialogOpen(false);
       loadCategories();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al eliminar categoría');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al eliminar categoría';
+      toast.error(message);
     }
   };
 
@@ -105,8 +106,9 @@ export default function CategoriasPage() {
       }
       setSheetOpen(false);
       loadCategories();
-    } catch (error: any) {
-      toast.error(error.message || 'Error al guardar categoría');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al guardar categoría';
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }

@@ -29,8 +29,14 @@ export function buildTree<T extends { id: string; parent_id: string | null }>(
     }))
     .sort((a, b) => {
       // Sort by display_order if available
-      const orderA = (a.item as any).display_order ?? 0;
-      const orderB = (b.item as any).display_order ?? 0;
+      const orderA =
+        'display_order' in a.item && typeof a.item.display_order === 'number'
+          ? a.item.display_order
+          : 0;
+      const orderB =
+        'display_order' in b.item && typeof b.item.display_order === 'number'
+          ? b.item.display_order
+          : 0;
       return orderA - orderB;
     });
 }

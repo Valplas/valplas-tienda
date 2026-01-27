@@ -62,7 +62,7 @@ export async function fake_getUsers(filters?: UserFilters): Promise<ApiResponse<
       success: true,
       data: users
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -94,7 +94,7 @@ export async function fake_getUserById(id: string): Promise<ApiResponse<User>> {
       success: true,
       data: user
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -156,7 +156,7 @@ export async function fake_createUser(data: CreateUserFormData): Promise<ApiResp
       success: true,
       data: newUser
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -230,7 +230,7 @@ export async function fake_updateUser(
       success: true,
       data: users[index]
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {
@@ -267,7 +267,7 @@ export async function fake_deleteUser(
       success: true,
       data: undefined
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: {

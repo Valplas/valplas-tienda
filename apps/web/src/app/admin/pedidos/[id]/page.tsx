@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Order, OrderStatus } from '@/types';
 import {
   fake_getOrderById,
@@ -46,7 +46,7 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // Load order
-  const loadOrder = async () => {
+  const loadOrder = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await fake_getOrderById(params.id);
@@ -62,11 +62,11 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [params.id, router]);
 
   useEffect(() => {
     loadOrder();
-  }, [params.id]);
+  }, [loadOrder]);
 
   // Handle status change confirmation
   const handleStatusChangeClick = (newStatus: OrderStatus) => {
@@ -84,8 +84,9 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
       toast.success('Estado del pedido actualizado correctamente');
       loadOrder();
       setConfirmDialogOpen(false);
-    } catch (error: any) {
-      toast.error(error.message || 'Error al actualizar estado');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al actualizar estado';
+      toast.error(message);
     } finally {
       setIsUpdating(false);
     }
