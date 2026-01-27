@@ -213,8 +213,7 @@ export const MOCK_PRODUCTS: Product[] = [
     sku: 'DES-AYU-5L',
     name: 'Ayudín Lavandina 5L',
     slug: 'ayudin-lavandina-5l',
-    description:
-      'Lavandina Ayudín concentrada formato mayorista. Ideal para comercios. 5 litros.',
+    description: 'Lavandina Ayudín concentrada formato mayorista. Ideal para comercios. 5 litros.',
     category_id: 'cat-007',
     brand_id: 'brand-007',
     base_price: 3200,

@@ -5,19 +5,23 @@
 Complete mock data system implemented for Valplas E-commerce frontend development. This allows full-stack development without backend dependencies.
 
 **Total Code**: ~3,800 lines of TypeScript
+
 - Mock System: 3,548 lines
 - Type Definitions: 257 lines
 
 ## Files Created
 
 ### Type Definitions (1 file)
+
 - `src/types/index.ts` - Complete TypeScript interfaces and enums
 
 ### Mock Utilities (2 files)
+
 - `src/lib/mock/utils/fake-fetch.ts` - Async simulator with 300-800ms delay
 - `src/lib/mock/utils/local-storage.ts` - localStorage helpers with namespace
 
 ### Mock Data (8 files)
+
 - `src/lib/mock/data/users.ts` - 9 users (owner, admin, driver, 6 customers)
 - `src/lib/mock/data/brands.ts` - 7 Argentine brands
 - `src/lib/mock/data/categories.ts` - 10 categories (hierarchical tree)
@@ -28,6 +32,7 @@ Complete mock data system implemented for Valplas E-commerce frontend developmen
 - `src/lib/mock/data/index.ts` - Barrel export
 
 ### Mock Services (7 files)
+
 - `src/lib/mock/services/fake-auth.service.ts` - Auth & session (7 functions)
 - `src/lib/mock/services/fake-product.service.ts` - Product CRUD (8 functions)
 - `src/lib/mock/services/fake-cart.service.ts` - Cart operations (7 functions)
@@ -37,18 +42,21 @@ Complete mock data system implemented for Valplas E-commerce frontend developmen
 - `src/lib/mock/services/index.ts` - Barrel export
 
 ### Documentation (2 files)
+
 - `src/lib/mock/README.md` - Complete usage guide
 - `src/lib/mock/VERIFY.ts` - Verification/testing script
 
 ## Features Implemented
 
 ### ✅ Authentication
+
 - Login by email or username
 - Registration with validation
 - Session management in localStorage
 - Refresh token simulation
 
 ### ✅ Products
+
 - List with filters (category, brand, price, search)
 - Pagination (cursor or offset-based)
 - Featured products
@@ -57,6 +65,7 @@ Complete mock data system implemented for Valplas E-commerce frontend developmen
 - Always ordered by `final_price`
 
 ### ✅ Shopping Cart
+
 - Add/update/remove items
 - Stock validation
 - Guest cart support
@@ -64,12 +73,14 @@ Complete mock data system implemented for Valplas E-commerce frontend developmen
 - Automatic total calculation
 
 ### ✅ Shipping
+
 - Zone detection by postal code
 - Rate calculation by cart amount
 - Free shipping thresholds
 - Real Argentine zones (CABA, GBA, provinces)
 
 ### ✅ Orders
+
 - Create with stock reservation
 - List by user (paginated)
 - List all (admin, filtered)
@@ -78,6 +89,7 @@ Complete mock data system implemented for Valplas E-commerce frontend developmen
 - Payment webhook simulation
 
 ### ✅ User Management
+
 - Profile updates
 - Address CRUD
 - Default address management
@@ -85,6 +97,7 @@ Complete mock data system implemented for Valplas E-commerce frontend developmen
 ## Data Characteristics
 
 ### Realistic Argentine Data
+
 - **Products**: Bolsas plásticas, productos de limpieza, electrodomésticos
 - **Brands**: Bragulat, Ariel, Magistral, Philips, Liliana, Ayudín
 - **Prices**: ARS $500 - $15,000 (formatted as $1.234,56)
@@ -93,6 +106,7 @@ Complete mock data system implemented for Valplas E-commerce frontend developmen
 - **Shipping**: Actual postal code ranges for provinces
 
 ### Product Categories (Hierarchical)
+
 ```
 Artículos Plásticos
   ├── Bolsas
@@ -109,29 +123,33 @@ Electrodomésticos
 ```
 
 ### Test Users
-| Email | Username | Password | Role |
-|-------|----------|----------|------|
-| owner@valplas.net | owner_valplas | Valplas123 | owner |
-| admin@valplas.net | admin_valplas | Admin123 | admin |
-| driver@valplas.net | driver_valplas | Driver123 | driver |
-| cliente1@gmail.com | juanperez | Customer123 | customer |
-| cliente2@gmail.com | analopez | Customer123 | customer |
-| (+ 4 more customers) | ... | Customer123 | customer |
+
+| Email                | Username       | Password    | Role     |
+| -------------------- | -------------- | ----------- | -------- |
+| owner@valplas.net    | owner_valplas  | Valplas123  | owner    |
+| admin@valplas.net    | admin_valplas  | Admin123    | admin    |
+| driver@valplas.net   | driver_valplas | Driver123   | driver   |
+| cliente1@gmail.com   | juanperez      | Customer123 | customer |
+| cliente2@gmail.com   | analopez       | Customer123 | customer |
+| (+ 4 more customers) | ...            | Customer123 | customer |
 
 ## Technical Details
 
 ### Persistence
+
 - All data stored in `localStorage` with `valplas_*` namespace
 - Initial load from static MOCK_DATA
 - Modifications persist between page reloads
 - Can be cleared with `clearAll()` utility
 
 ### Async Simulation
+
 - Random delay: 300-800ms on all operations
 - Realistic network latency
 - Implemented via `fakeFetch()` utility
 
 ### Validation
+
 - Stock availability before adding to cart
 - Email/username uniqueness on registration
 - SKU/slug uniqueness for products
@@ -139,7 +157,9 @@ Electrodomésticos
 - Default address enforcement (only one per user)
 
 ### API Response Format
+
 Consistent with production API:
+
 ```typescript
 // Success
 { success: true, data: {...} }
@@ -171,6 +191,7 @@ Consistent with production API:
 ## Function Naming Convention
 
 All mock functions prefixed with `fake_`:
+
 - `fake_login()`
 - `fake_getProducts()`
 - `fake_addToCart()`
@@ -198,13 +219,16 @@ Simulates real database triggers:
 5. Free shipping when cart ≥ threshold
 
 Example:
+
 - CABA (CP 1043): $2,500 base, FREE at $15,000
 - Mendoza (CP 5500): $6,500 base, FREE at $40,000
 
 ## Testing
 
 ### Manual Verification
+
 Run `verifyMockSystem()` from `VERIFY.ts`:
+
 ```typescript
 import { verifyMockSystem } from '@/lib/mock/VERIFY';
 
@@ -213,6 +237,7 @@ await verifyMockSystem();
 ```
 
 ### Quick Test
+
 ```typescript
 import { quickTest } from '@/lib/mock/VERIFY';
 
@@ -225,6 +250,7 @@ await quickTest();
 When backend is ready:
 
 1. **Update imports**:
+
 ```typescript
 // Before (mock)
 import { fake_getProducts } from '@/lib/mock/services';
@@ -253,6 +279,7 @@ These are acceptable for frontend development phase.
 ## Next Steps
 
 This mock system enables development of:
+
 - ✅ Auth flows (Task #4)
 - ✅ Product catalog (Task #6)
 - ✅ Shopping cart (Task #7)

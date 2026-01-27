@@ -178,9 +178,7 @@ export async function fake_getProductBySlug(slug: string): Promise<ApiResponse<P
 /**
  * Obtener productos destacados
  */
-export async function fake_getFeaturedProducts(
-  limit: number = 8
-): Promise<ApiResponse<Product[]>> {
+export async function fake_getFeaturedProducts(limit: number = 8): Promise<ApiResponse<Product[]>> {
   return fakeFetch(() => {
     const products = initProducts();
     const featured = products

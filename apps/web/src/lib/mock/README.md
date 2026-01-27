@@ -31,21 +31,25 @@ lib/mock/
 ## Características
 
 ### ✅ Datos Realistas
+
 - **Productos argentinos**: Bolsas plásticas, productos de limpieza, electrodomésticos
 - **Precios en ARS**: $500 - $15,000 (formato: $1.234,56)
 - **Teléfonos E.164**: +5491122334455
 - **Zonas de envío reales**: CABA, GBA, provincias con CPs correctos
 
 ### ✅ Persistencia
+
 - Todos los datos en `localStorage` con namespace `valplas_*`
 - Carga inicial de MOCK_DATA si no existe
 - Modificaciones persisten entre recargas
 
 ### ✅ Async Simulado
+
 - Delay aleatorio 300-800ms en todas las operaciones
 - Simula latencia de red realista
 
 ### ✅ Validaciones
+
 - Stock disponible (`available_stock = stock - reserved_stock`)
 - Duplicados (email, username, SKU, slug)
 - Zonas de envío por código postal
@@ -53,13 +57,13 @@ lib/mock/
 
 ## Usuarios de Prueba
 
-| Email | Username | Password | Rol |
-|-------|----------|----------|-----|
-| owner@valplas.net | owner_valplas | Valplas123 | owner |
-| admin@valplas.net | admin_valplas | Admin123 | admin |
-| driver@valplas.net | driver_valplas | Driver123 | driver |
-| cliente1@gmail.com | juanperez | Customer123 | customer |
-| cliente2@gmail.com | analopez | Customer123 | customer |
+| Email              | Username       | Password    | Rol      |
+| ------------------ | -------------- | ----------- | -------- |
+| owner@valplas.net  | owner_valplas  | Valplas123  | owner    |
+| admin@valplas.net  | admin_valplas  | Admin123    | admin    |
+| driver@valplas.net | driver_valplas | Driver123   | driver   |
+| cliente1@gmail.com | juanperez      | Customer123 | customer |
+| cliente2@gmail.com | analopez       | Customer123 | customer |
 
 ## Uso Básico
 
@@ -86,7 +90,11 @@ const session = await fake_getCurrentSession();
 ### Productos
 
 ```typescript
-import { fake_getProducts, fake_getProductById, fake_getFeaturedProducts } from '@/lib/mock/services';
+import {
+  fake_getProducts,
+  fake_getProductById,
+  fake_getFeaturedProducts
+} from '@/lib/mock/services';
 
 // Listar con filtros y paginación
 const products = await fake_getProducts(
@@ -164,13 +172,17 @@ const orders = await fake_getUserOrders('user-004', { page: 1, limit: 10 });
 ## Convenciones
 
 ### Nombres de Funciones
+
 Todas las funciones mock están prefijadas con `fake_`:
+
 - ✅ `fake_login()`
 - ✅ `fake_getProducts()`
 - ✅ `fake_createOrder()`
 
 ### LocalStorage Keys
+
 Namespace `valplas_*`:
+
 - `valplas_users`
 - `valplas_products`
 - `valplas_cart_user-004` (con user ID)
@@ -178,10 +190,13 @@ Namespace `valplas_*`:
 - `valplas_session`
 
 ### Ordenamiento de Productos
+
 **SIEMPRE** ordenar por `final_price` (precio con descuentos), no `base_price`.
 
 ### Paginación
+
 Todos los listados soportan paginación:
+
 ```typescript
 {
   page: 1,
@@ -190,7 +205,9 @@ Todos los listados soportan paginación:
 ```
 
 ### Respuestas API
+
 Formato consistente con `ApiResponse<T>`:
+
 ```typescript
 // Éxito
 { success: true, data: {...} }
@@ -226,6 +243,7 @@ clearAll();
 Para integrar con backend real:
 
 1. Reemplazar imports:
+
 ```typescript
 // Antes
 import { fake_getProducts } from '@/lib/mock/services';

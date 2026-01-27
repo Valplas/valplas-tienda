@@ -96,10 +96,7 @@ export async function verifyMockSystem() {
     console.log(`✅ Filtered products: ${filteredResponse.data?.length} items`);
 
     // Test search
-    const searchResponse = await fake_getProducts(
-      { search: 'bolsas' },
-      { page: 1, limit: 10 }
-    );
+    const searchResponse = await fake_getProducts({ search: 'bolsas' }, { page: 1, limit: 10 });
     if (!searchResponse.success) {
       throw new Error('Product search failed');
     }
@@ -167,9 +164,7 @@ export async function verifyMockSystem() {
       throw new Error('Free shipping test failed');
     }
     const freeOption = freeShippingResponse.data[0];
-    console.log(
-      `✅ Free shipping for $20000: Cost = $${freeOption.cost} (should be $0)`
-    );
+    console.log(`✅ Free shipping for $20000: Cost = $${freeOption.cost} (should be $0)`);
 
     // Test invalid postcode
     const invalidPostcodeResponse = await fake_getShippingOptions('99999', 10000);

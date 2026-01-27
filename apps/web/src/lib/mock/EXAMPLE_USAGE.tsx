@@ -3,12 +3,11 @@
  * Copy these patterns to your components
  */
 
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @next/next/no-img-element */
+ 
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   fake_login,
   fake_getProducts,
@@ -65,7 +64,12 @@ export function ExampleLogin() {
             placeholder="Email o usuario"
             defaultValue="owner@valplas.net"
           />
-          <input name="password" type="password" placeholder="Contraseña" defaultValue="Valplas123" />
+          <input
+            name="password"
+            type="password"
+            placeholder="Contraseña"
+            defaultValue="Valplas123"
+          />
           <button type="submit" disabled={loading}>
             {loading ? 'Cargando...' : 'Ingresar'}
           </button>
@@ -121,7 +125,10 @@ export function ExampleProductList() {
       <h2>Productos ({total} total)</h2>
       <div>
         {products.map((product) => (
-          <div key={product.id} style={{ border: '1px solid #ccc', padding: '10px', margin: '10px' }}>
+          <div
+            key={product.id}
+            style={{ border: '1px solid #ccc', padding: '10px', margin: '10px' }}
+          >
             <h3>{product.name}</h3>
             <p>{product.description}</p>
             <p>
