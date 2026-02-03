@@ -28,16 +28,17 @@ export const env = {
 
   // Servidor
   PORT: getEnvNumber('PORT', 3001),
+  API_URL: getEnv('API_URL', `http://localhost:${getEnvNumber('PORT', 3001)}`),
   FRONTEND_URL: getEnv('FRONTEND_URL', 'http://localhost:3000'),
 
   // Base de datos
   DATABASE_URL: requireEnv('DATABASE_URL'),
   DIRECT_URL: getEnv('DIRECT_URL'),
 
-  // Supabase
-  SUPABASE_URL: requireEnv('SUPABASE_URL'),
-  SUPABASE_ANON_KEY: requireEnv('SUPABASE_ANON_KEY'),
-  SUPABASE_SERVICE_KEY: requireEnv('SUPABASE_SERVICE_KEY'),
+  // Supabase (solo SERVICE_KEY es obligatoria para Storage)
+  SUPABASE_URL: getEnv('SUPABASE_URL', ''),
+  SUPABASE_ANON_KEY: getEnv('SUPABASE_ANON_KEY', ''), // No usada en MVP (frontend no se conecta directamente)
+  SUPABASE_SERVICE_KEY: getEnv('SUPABASE_SERVICE_KEY', ''), // Para Storage en Iteración 2
 
   // Autenticación
   JWT_SECRET: requireEnv('JWT_SECRET'),

@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { ApiResponseBuilder } from '@/shared/utils/api-response.js';
-import { logger } from '@/infrastructure/logger/index.js';
-import { env } from '@/env.js';
+import { ApiResponse } from '../utils/api-response.js';
+import { logger } from '../../infrastructure/logger/index.js';
+import { env } from '../../env.js';
 
 /**
  * Error personalizado de la aplicacion
@@ -42,7 +42,7 @@ export function errorHandler(error: Error, req: Request, res: Response, _next: N
   // Error de validacion Zod
   if (error instanceof ZodError) {
     res.status(400).json(
-      ApiResponseBuilder.error('VALIDATION_ERROR', 'Datos invalidos', {
+      ApiResponse.error('VALIDATION_ERROR', 'Datos invalidos', {
         issues: error.issues.map((err) => ({
           path: err.path.join('.'),
           message: err.message
@@ -54,22 +54,18 @@ export function errorHandler(error: Error, req: Request, res: Response, _next: N
 
   // Error personalizado de la app
   if (error instanceof AppError) {
-    res
-      .status(error.statusCode)
-      .json(ApiResponseBuilder.error(error.code, error.message, error.details));
+    res.status(error.statusCode).json(ApiResponse.error(error.code, error.message, error.details));
     return;
   }
 
   // Error no manejado
-  res
-    .status(500)
-    .json(
-      ApiResponseBuilder.error(
-        'INTERNAL_ERROR',
-        env.IS_DEVELOPMENT ? error.message : 'Error interno del servidor',
-        env.IS_DEVELOPMENT ? { stack: error.stack } : undefined
-      )
-    );
+  res.status(500).json(
+    ApiResponse.error(
+      'INTERNAL_ERROR',
+      env.IS_DEVELOPMENT ? error.message : 'Error interno del servidor',
+      env.IS_DEVELOPMENT ? { stack: error.stack } : undefined
+    )
+  );
 }
 
 /**

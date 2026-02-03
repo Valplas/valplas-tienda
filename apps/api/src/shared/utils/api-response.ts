@@ -76,3 +76,6 @@ export class ApiResponseBuilder {
     };
   }
 }
+
+// Alias para compatibilidad
+export { ApiResponseBuilder as ApiResponse };

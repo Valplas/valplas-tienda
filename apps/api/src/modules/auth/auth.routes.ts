@@ -1,0 +1,39 @@
+import { Router } from 'express';
+import * as authController from './auth.controller.js';
+import { validate } from '../../shared/middleware/validation.middleware.js';
+import { authMiddleware } from '../../shared/middleware/auth.middleware.js';
+import { registerSchema, loginSchema } from './auth.validator.js';
+
+const router = Router();
+
+/**
+ * POST /api/auth/register
+ * Registrar nuevo usuario
+ */
+router.post('/register', validate(registerSchema), authController.register);
+
+/**
+ * POST /api/auth/login
+ * Iniciar sesión
+ */
+router.post('/login', validate(loginSchema), authController.login);
+
+/**
+ * POST /api/auth/logout
+ * Cerrar sesión (opcional auth, solo limpia cookie)
+ */
+router.post('/logout', authController.logout);
+
+/**
+ * GET /api/auth/me
+ * Obtener usuario actual (requiere autenticación)
+ */
+router.get('/me', authMiddleware, authController.getCurrentUser);
+
+/**
+ * POST /api/auth/refresh
+ * Renovar access token
+ */
+router.post('/refresh', authController.refreshToken);
+
+export default router;
