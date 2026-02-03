@@ -3,8 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import { errorHandler } from '@/shared/middleware/error.middleware.js';
-import { env, validateEnv } from '@/env.js';
+import swaggerUi from 'swagger-ui-express';
+import { errorHandler } from './shared/middleware/error.middleware.js';
+import { env, validateEnv } from './env.js';
+import { swaggerSpec } from './config/swagger.js';
 
 // Validar variables de entorno al inicio
 validateEnv();
@@ -44,11 +46,37 @@ app.get('/api', (_req, res) => {
   });
 });
 
-// TODO: Importar y montar rutas de modulos
-// import authRoutes from './modules/auth/auth.routes.js';
-// import productRoutes from './modules/products/product.routes.js';
-// app.use('/api/auth', authRoutes);
-// app.use('/api/products', productRoutes);
+// Importar rutas de módulos
+import authRoutes from './modules/auth/auth.routes.js';
+import productRoutes from './modules/products/product.routes.js';
+import categoryRoutes from './modules/categories/category.routes.js';
+import brandRoutes from './modules/brands/brand.routes.js';
+import cartRoutes from './modules/cart/cart.routes.js';
+import shippingRoutes from './modules/shipping/shipping.routes.js';
+import addressRoutes from './modules/addresses/address.routes.js';
+import orderRoutes from './modules/orders/order.routes.js';
+import userRoutes from './modules/users/user.routes.js';
+
+// Montar rutas
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/brands', brandRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/shipping', shippingRoutes);
+app.use('/api/addresses', addressRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/users', userRoutes);
+
+// Swagger documentation
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Valplas API Docs',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true
+  }
+}));
 
 // Manejo de errores (debe ir al final)
 app.use(errorHandler);

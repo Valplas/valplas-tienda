@@ -42,7 +42,7 @@ export class ApiResponseBuilder {
   }
 
   /**
-   * Respuesta paginada
+   * Respuesta paginada (con objeto)
    */
   static paginated<T>(
     data: T[],
@@ -54,11 +54,57 @@ export class ApiResponseBuilder {
       cursor?: string;
       hasMore: boolean;
     }
+  ): ApiPaginatedResponse<T>;
+
+  /**
+   * Respuesta paginada (con argumentos separados)
+   */
+  static paginated<T>(
+    data: T[],
+    page: number,
+    limit: number,
+    total: number
+  ): ApiPaginatedResponse<T>;
+
+  /**
+   * Implementación
+   */
+  static paginated<T>(
+    data: T[],
+    paginationOrPage:
+      | {
+          page?: number;
+          limit: number;
+          total: number;
+          totalPages?: number;
+          cursor?: string;
+          hasMore: boolean;
+        }
+      | number,
+    limit?: number,
+    total?: number
   ): ApiPaginatedResponse<T> {
+    // Si el segundo argumento es un número, usar la firma con argumentos separados
+    if (typeof paginationOrPage === 'number') {
+      const page = paginationOrPage;
+      return {
+        success: true,
+        data,
+        pagination: {
+          page,
+          limit: limit!,
+          total: total!,
+          totalPages: Math.ceil(total! / limit!),
+          hasMore: page * limit! < total!
+        }
+      };
+    }
+
+    // Usar la firma con objeto
     return {
       success: true,
       data,
-      pagination
+      pagination: paginationOrPage
     };
   }
 
