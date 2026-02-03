@@ -5,7 +5,27 @@
 import { useEffect, useState } from 'react';
 import { useProducts } from '@/hooks/useProducts';
 import { useAuth } from '@/hooks/useAuth';
-import * as authService from '@/lib/services/auth.service';
+
+// Move StatusBadge outside component to fix React Compiler error
+const StatusBadge = ({ status }: { status: 'pending' | 'success' | 'error' }) => {
+  const colors = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    success: 'bg-green-100 text-green-800',
+    error: 'bg-red-100 text-red-800'
+  };
+
+  const labels = {
+    pending: '⏳ Pendiente',
+    success: '✅ OK',
+    error: '❌ Error'
+  };
+
+  return (
+    <span className={`px-3 py-1 rounded-full text-sm font-medium ${colors[status]}`}>
+      {labels[status]}
+    </span>
+  );
+};
 
 export default function ApiTestPage() {
   const { products, isLoading, error, pagination } = useProducts({ limit: 5 });
@@ -24,17 +44,27 @@ export default function ApiTestPage() {
     // Test backend connection
     fetch('http://localhost:3001/health')
       .then((res) => res.json())
-      .then(() => setTestStatus((prev) => ({ ...prev, backend: 'success' })))
-      .catch(() => setTestStatus((prev) => ({ ...prev, backend: 'error' })));
+      .then(() => {
+        queueMicrotask(() => {
+          setTestStatus((prev) => ({ ...prev, backend: 'success' }));
+        });
+      })
+      .catch(() => {
+        queueMicrotask(() => {
+          setTestStatus((prev) => ({ ...prev, backend: 'error' }));
+        });
+      });
   }, []);
 
   useEffect(() => {
     if (!isLoading) {
-      if (error) {
-        setTestStatus((prev) => ({ ...prev, products: 'error' }));
-      } else if (products.length > 0) {
-        setTestStatus((prev) => ({ ...prev, products: 'success' }));
-      }
+      queueMicrotask(() => {
+        if (error) {
+          setTestStatus((prev) => ({ ...prev, products: 'error' }));
+        } else if (products.length > 0) {
+          setTestStatus((prev) => ({ ...prev, products: 'success' }));
+        }
+      });
     }
   }, [products, isLoading, error]);
 
@@ -49,26 +79,6 @@ export default function ApiTestPage() {
       console.error('Login error:', err);
       setTestStatus((prev) => ({ ...prev, auth: 'error' }));
     }
-  };
-
-  const StatusBadge = ({ status }: { status: 'pending' | 'success' | 'error' }) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      success: 'bg-green-100 text-green-800',
-      error: 'bg-red-100 text-red-800'
-    };
-
-    const labels = {
-      pending: '⏳ Pendiente',
-      success: '✅ OK',
-      error: '❌ Error'
-    };
-
-    return (
-      <span className={`px-3 py-1 rounded-full text-sm font-medium ${colors[status]}`}>
-        {labels[status]}
-      </span>
-    );
   };
 
   return (

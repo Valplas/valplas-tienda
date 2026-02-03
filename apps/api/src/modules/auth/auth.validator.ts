@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
+import { isValidPhoneNumber } from 'libphonenumber-js';
 
 /**
  * Esquema de validación para registro

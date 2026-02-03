@@ -2,7 +2,6 @@ import { AppError } from '../../shared/middleware/error.middleware.js';
 import * as categoryRepository from './category.repository.js';
 import type {
   CategoryWithChildren,
-  CategoryWithCount,
   CreateCategoryData,
   UpdateCategoryData,
   ReorderCategoryData

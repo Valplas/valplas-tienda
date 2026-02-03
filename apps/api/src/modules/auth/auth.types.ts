@@ -57,6 +57,7 @@ export interface AuthenticatedUser {
 
 // Extender el tipo Request de Express
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: AuthenticatedUser;

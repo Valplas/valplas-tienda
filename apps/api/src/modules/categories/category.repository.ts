@@ -2,7 +2,6 @@ import { query } from '../../infrastructure/database/client.js';
 import type { Category } from '@valplas/shared/types';
 import type {
   CategoryWithChildren,
-  CategoryWithCount,
   CreateCategoryData,
   UpdateCategoryData
 } from './category.types.js';
@@ -26,7 +25,7 @@ export async function findAllCategories(): Promise<Category[]> {
  */
 export async function findCategoryById(id: string): Promise<Category | null> {
   const result = await query<Category>(
-    `SELECT * FROM categories WHERE id = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM categories WHERE id = $1 AND deleted_at IS NULL',
     [id]
   );
 
@@ -38,7 +37,7 @@ export async function findCategoryById(id: string): Promise<Category | null> {
  */
 export async function findCategoryBySlug(slug: string): Promise<Category | null> {
   const result = await query<Category>(
-    `SELECT * FROM categories WHERE slug = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM categories WHERE slug = $1 AND deleted_at IS NULL',
     [slug]
   );
 
@@ -206,7 +205,7 @@ export async function updateDisplayOrders(
   // Usar transacción para actualizar todos
   for (const cat of categories) {
     await query(
-      `UPDATE categories SET display_order = $1 WHERE id = $2 AND deleted_at IS NULL`,
+      'UPDATE categories SET display_order = $1 WHERE id = $2 AND deleted_at IS NULL',
       [cat.displayOrder, cat.id]
     );
   }
@@ -217,7 +216,7 @@ export async function updateDisplayOrders(
  */
 export async function deleteCategory(id: string): Promise<boolean> {
   const result = await query(
-    `UPDATE categories SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
+    'UPDATE categories SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL',
     [id]
   );
 

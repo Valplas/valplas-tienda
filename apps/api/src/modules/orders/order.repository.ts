@@ -8,7 +8,6 @@ import type {
   OrderWithDetails,
   OrderItemWithProduct,
   CreateOrderInput,
-  CreateOrderItemInput,
   UpdateOrderStatusInput,
   OrderFilters,
   OrderStatus
@@ -108,7 +107,7 @@ export async function findOrders(
  */
 export async function findOrderById(id: string): Promise<Order | null> {
   const result = await query<Order>(
-    `SELECT * FROM orders WHERE id = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM orders WHERE id = $1 AND deleted_at IS NULL',
     [id]
   );
 
@@ -120,7 +119,7 @@ export async function findOrderById(id: string): Promise<Order | null> {
  */
 export async function findOrderByNumber(orderNumber: string): Promise<Order | null> {
   const result = await query<Order>(
-    `SELECT * FROM orders WHERE order_number = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM orders WHERE order_number = $1 AND deleted_at IS NULL',
     [orderNumber]
   );
 
@@ -232,7 +231,7 @@ export async function updateOrderStatus(
 ): Promise<Order | null> {
   return transaction(async (client) => {
     // Update order
-    const updates: string[] = [`status = $1`, `updated_at = NOW()`];
+    const updates: string[] = ['status = $1', 'updated_at = NOW()'];
     const params: any[] = [data.status];
     let paramIndex = 2;
 
@@ -271,7 +270,7 @@ export async function updateOrderStatus(
  */
 export async function findOrderItems(orderId: string): Promise<OrderItem[]> {
   const result = await query<OrderItem>(
-    `SELECT * FROM order_items WHERE order_id = $1 ORDER BY created_at`,
+    'SELECT * FROM order_items WHERE order_id = $1 ORDER BY created_at',
     [orderId]
   );
 

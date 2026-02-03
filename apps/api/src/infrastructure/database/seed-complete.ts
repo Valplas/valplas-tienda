@@ -29,7 +29,7 @@ async function seedComplete() {
 
     // Get user IDs
     const allUsers = await query('SELECT id, email FROM users LIMIT 5');
-    const userMap = new Map(allUsers.rows.map((u: any) => [u.email, u.id]));
+    const _userMap = new Map(allUsers.rows.map((u: any) => [u.email, u.id]));
 
     // 2. CATEGORIES & BRANDS
     console.log('\n📁 Creando categorías y marcas...');

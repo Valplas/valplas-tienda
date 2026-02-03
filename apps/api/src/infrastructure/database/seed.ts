@@ -129,7 +129,7 @@ async function seedCategories(): Promise<void> {
   }
 
   // Get parent IDs for subcategories
-  const limpiezaResult = await query(`SELECT id FROM categories WHERE slug = 'limpieza'`);
+  const limpiezaResult = await query('SELECT id FROM categories WHERE slug = \'limpieza\'');
   const limpiezaId = limpiezaResult.rows[0]?.id;
 
   if (limpiezaId) {
@@ -191,12 +191,12 @@ async function seedProducts(): Promise<void> {
   logger.info('Seeding products...');
 
   // Get category and brand IDs
-  const limpiezaResult = await query(`SELECT id FROM categories WHERE slug = 'limpieza'`);
-  const detergentesResult = await query(`SELECT id FROM categories WHERE slug = 'detergentes'`);
-  const lavandResult = await query(`SELECT id FROM categories WHERE slug = 'lavandinas'`);
-  const magistralResult = await query(`SELECT id FROM brands WHERE slug = 'magistral'`);
-  const ayudinResult = await query(`SELECT id FROM brands WHERE slug = 'ayudin'`);
-  const skipResult = await query(`SELECT id FROM brands WHERE slug = 'skip'`);
+  const limpiezaResult = await query('SELECT id FROM categories WHERE slug = \'limpieza\'');
+  const detergentesResult = await query('SELECT id FROM categories WHERE slug = \'detergentes\'');
+  const lavandResult = await query('SELECT id FROM categories WHERE slug = \'lavandinas\'');
+  const magistralResult = await query('SELECT id FROM brands WHERE slug = \'magistral\'');
+  const ayudinResult = await query('SELECT id FROM brands WHERE slug = \'ayudin\'');
+  const skipResult = await query('SELECT id FROM brands WHERE slug = \'skip\'');
 
   const limpiezaId = limpiezaResult.rows[0]?.id;
   const detergentesId = detergentesResult.rows[0]?.id;
@@ -320,7 +320,7 @@ async function seedProductImages(): Promise<void> {
   logger.info('Seeding product images...');
 
   // Get product IDs
-  const products = await query(`SELECT id, sku FROM products LIMIT 7`);
+  const products = await query('SELECT id, sku FROM products LIMIT 7');
 
   for (const product of products.rows) {
     // Primary image
@@ -360,7 +360,7 @@ async function seedUserAddresses(): Promise<void> {
   logger.info('Seeding user addresses...');
 
   // Get customer user ID
-  const userResult = await query(`SELECT id FROM users WHERE email = 'cliente@test.com'`);
+  const userResult = await query('SELECT id FROM users WHERE email = \'cliente@test.com\'');
   const userId = userResult.rows[0]?.id;
 
   if (!userId) {

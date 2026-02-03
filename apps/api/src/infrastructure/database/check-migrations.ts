@@ -25,7 +25,7 @@ async function checkMigrations() {
 
     // Get migration files
     const files = await readdir(MIGRATIONS_DIR);
-    const migrationFiles = files.filter(f => f.endsWith('.sql')).sort();
+    const migrationFiles = files.filter((f) => f.endsWith('.sql')).sort();
 
     console.log('\n📁 Archivos de migración disponibles:');
     console.log('================================');
@@ -34,7 +34,7 @@ async function checkMigrations() {
       console.log(`  ${executed ? '✓' : '⏳'} ${file}`);
     });
 
-    const pending = migrationFiles.filter(f => !result.rows.some((row: any) => row.filename === f));
+    const pending = migrationFiles.filter((f) => !result.rows.some((row: any) => row.filename === f));
 
     console.log('\n📊 Resumen:');
     console.log('================================');
@@ -43,7 +43,7 @@ async function checkMigrations() {
 
     if (pending.length > 0) {
       console.log('\n⏳ Migraciones pendientes:');
-      pending.forEach(f => console.log(`  - ${f}`));
+      pending.forEach((f) => console.log(`  - ${f}`));
     }
 
   } catch (error) {

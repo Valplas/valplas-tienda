@@ -89,7 +89,7 @@ export async function findAddresses(
  */
 export async function findAddressById(id: string): Promise<UserAddress | null> {
   const result = await query<UserAddress>(
-    `SELECT * FROM user_addresses WHERE id = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM user_addresses WHERE id = $1 AND deleted_at IS NULL',
     [id]
   );
 
@@ -262,7 +262,7 @@ export async function updateAddress(
 
     if (updates.length === 0) return null;
 
-    updates.push(`updated_at = NOW()`);
+    updates.push('updated_at = NOW()');
     params.push(id, userId);
 
     const result = await client.query<UserAddress>(

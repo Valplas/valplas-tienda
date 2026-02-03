@@ -72,7 +72,7 @@ export async function findBrands(filters: BrandFilters = {}) {
  */
 export async function findBrandById(id: string): Promise<Brand | null> {
   const result = await query<Brand>(
-    `SELECT * FROM brands WHERE id = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM brands WHERE id = $1 AND deleted_at IS NULL',
     [id]
   );
 
@@ -84,7 +84,7 @@ export async function findBrandById(id: string): Promise<Brand | null> {
  */
 export async function findBrandBySlug(slug: string): Promise<Brand | null> {
   const result = await query<Brand>(
-    `SELECT * FROM brands WHERE slug = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM brands WHERE slug = $1 AND deleted_at IS NULL',
     [slug]
   );
 
@@ -211,7 +211,7 @@ export async function updateBrand(id: string, data: UpdateBrandData): Promise<Br
  */
 export async function deleteBrand(id: string): Promise<boolean> {
   const result = await query(
-    `UPDATE brands SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
+    'UPDATE brands SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL',
     [id]
   );
 

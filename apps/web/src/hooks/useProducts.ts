@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import * as productsService from '@/lib/services/products.service';
 import type { Product, ProductFilters } from '@/lib/services/products.service';
 
@@ -26,7 +26,7 @@ export function useProducts(filters?: ProductFilters): UseProductsResult {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<UseProductsResult['pagination']>(null);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -42,11 +42,11 @@ export function useProducts(filters?: ProductFilters): UseProductsResult {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
     fetchProducts();
-  }, [JSON.stringify(filters)]);
+  }, [fetchProducts]);
 
   return {
     products,

@@ -1,6 +1,6 @@
 // apps/api/src/tests/auth/auth.service.test.ts
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import * as authService from '../../modules/auth/auth.service.js';
 import { query } from '../../infrastructure/database/client.js';
 

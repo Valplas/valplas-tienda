@@ -60,7 +60,7 @@ export async function findAllZones(params: {
 
 export async function findZoneById(id: string): Promise<ShippingZone | null> {
   const result = await query<ShippingZone>(
-    `SELECT * FROM shipping_zones WHERE id = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM shipping_zones WHERE id = $1 AND deleted_at IS NULL',
     [id]
   );
 
@@ -69,7 +69,7 @@ export async function findZoneById(id: string): Promise<ShippingZone | null> {
 
 export async function findZoneByPostcode(postcode: string): Promise<ShippingZone | null> {
   const result = await query<any>(
-    `SELECT * FROM shipping_zones WHERE is_active = true AND deleted_at IS NULL`,
+    'SELECT * FROM shipping_zones WHERE is_active = true AND deleted_at IS NULL',
     []
   );
 
@@ -137,7 +137,7 @@ export async function updateZone(
 
   if (updates.length === 0) return null;
 
-  updates.push(`updated_at = NOW()`);
+  updates.push('updated_at = NOW()');
   params.push(id);
 
   const result = await query<ShippingZone>(
@@ -209,7 +209,7 @@ export async function findAllCarriers(params: {
 
 export async function findCarrierById(id: string): Promise<ShippingCarrier | null> {
   const result = await query<ShippingCarrier>(
-    `SELECT * FROM shipping_carriers WHERE id = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM shipping_carriers WHERE id = $1 AND deleted_at IS NULL',
     [id]
   );
 
@@ -218,7 +218,7 @@ export async function findCarrierById(id: string): Promise<ShippingCarrier | nul
 
 export async function findCarrierByCode(code: string): Promise<ShippingCarrier | null> {
   const result = await query<ShippingCarrier>(
-    `SELECT * FROM shipping_carriers WHERE code = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM shipping_carriers WHERE code = $1 AND deleted_at IS NULL',
     [code]
   );
 
@@ -282,7 +282,7 @@ export async function updateCarrier(
 
   if (updates.length === 0) return null;
 
-  updates.push(`updated_at = NOW()`);
+  updates.push('updated_at = NOW()');
   params.push(id);
 
   const result = await query<ShippingCarrier>(
@@ -368,7 +368,7 @@ export async function findAllRates(params: {
 
 export async function findRateById(id: string): Promise<ShippingRate | null> {
   const result = await query<ShippingRate>(
-    `SELECT * FROM shipping_rates WHERE id = $1 AND deleted_at IS NULL`,
+    'SELECT * FROM shipping_rates WHERE id = $1 AND deleted_at IS NULL',
     [id]
   );
 
@@ -474,7 +474,7 @@ export async function updateRate(
 
   if (updates.length === 0) return null;
 
-  updates.push(`updated_at = NOW()`);
+  updates.push('updated_at = NOW()');
   params.push(id);
 
   const result = await query<ShippingRate>(

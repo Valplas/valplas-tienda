@@ -170,7 +170,7 @@ describe('Complete Purchase Flow (Integration)', () => {
     const address = await addressDomain.create(addressData);
 
     // 4. Get initial stock
-    const initialStock = await query(
+    const _initialStock = await query(
       'SELECT stock, reserved_stock FROM products WHERE id = $1',
       [productId]
     );

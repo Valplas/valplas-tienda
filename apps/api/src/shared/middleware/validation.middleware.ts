@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { ZodObject, ZodError } from 'zod';
+import type { ZodError } from 'zod';
 import type { z } from 'zod';
 import { ApiResponseBuilder as ApiResponse } from '../utils/api-response.js';
 

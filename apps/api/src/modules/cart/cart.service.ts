@@ -3,7 +3,6 @@ import { AppError } from '../../shared/middleware/error.middleware.js';
 import * as cartRepository from './cart.repository.js';
 import type {
   Cart,
-  CartItem,
   CartItemWithProduct,
   CartSummary,
   AddToCartData,
@@ -226,7 +225,7 @@ export function clearCart(): Cart {
  * Sincronizar carrito de guest a usuario autenticado
  * (En MVP, simplemente mantener el carrito actual en cookie)
  */
-export async function syncCart(guestCart: Cart, userId: string): Promise<Cart> {
+export async function syncCart(guestCart: Cart, _userId: string): Promise<Cart> {
   // En MVP sin Redis/DB, simplemente retornar el carrito guest
   // En iteraciones futuras, aquí se haría merge con carrito persistido en DB/Redis
   return guestCart;

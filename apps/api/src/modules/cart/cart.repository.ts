@@ -1,5 +1,4 @@
 import { query } from '../../infrastructure/database/client.js';
-import type { Product } from '@valplas/shared/types';
 
 /**
  * Obtener stock disponible de un producto

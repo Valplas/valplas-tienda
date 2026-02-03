@@ -10,8 +10,7 @@ import type {
   OrderWithDetails,
   CreateOrderInput,
   UpdateOrderStatusInput,
-  OrderFilters,
-  OrderSummary
+  OrderFilters
 } from './order.types.js';
 
 /**
@@ -266,7 +265,7 @@ export async function getUserOrderSummary(userId: string): Promise<{
   return {
     total_orders: total,
     pending_payment: pending,
-    processing: processing,
-    delivered: delivered
+    processing,
+    delivered
   };
 }

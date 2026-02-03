@@ -231,7 +231,7 @@ export async function updateUser(id: string, data: UpdateUserInput): Promise<Use
 
   if (updates.length === 0) return null;
 
-  updates.push(`updated_at = NOW()`);
+  updates.push('updated_at = NOW()');
   params.push(id);
 
   const result = await query<User>(
@@ -306,16 +306,16 @@ export async function countUsersByRole(): Promise<Record<UserRole, number>> {
 export async function getUserStats(): Promise<UserStats> {
   const [totalResult, byRole, activeResult, verifiedResult] = await Promise.all([
     query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL`,
+      'SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL',
       []
     ),
     countUsersByRole(),
     query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM users WHERE is_active = true AND deleted_at IS NULL`,
+      'SELECT COUNT(*) as count FROM users WHERE is_active = true AND deleted_at IS NULL',
       []
     ),
     query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM users WHERE email_verified = true AND deleted_at IS NULL`,
+      'SELECT COUNT(*) as count FROM users WHERE email_verified = true AND deleted_at IS NULL',
       []
     )
   ]);

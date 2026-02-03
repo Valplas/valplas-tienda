@@ -67,12 +67,12 @@ export async function findProducts(
 
   // Filtro por stock disponible
   if (inStock) {
-    conditions.push(`(p.stock - p.reserved_stock) > 0`);
+    conditions.push('(p.stock - p.reserved_stock) > 0');
   }
 
   // Filtro por destacados
   if (featured) {
-    conditions.push(`p.is_featured = true`);
+    conditions.push('p.is_featured = true');
   }
 
   // Determinar ordenamiento
