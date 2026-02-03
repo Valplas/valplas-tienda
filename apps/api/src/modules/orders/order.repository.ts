@@ -203,10 +203,11 @@ export async function createOrder(
 
     // Create order items
     for (const item of data.items) {
+      const itemWithPrice = item as any; // Items are enriched in domain layer with unit_price and subtotal
       await client.query(
         `INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
          VALUES ($1, $2, $3, $4, $5)`,
-        [order.id, item.product_id, item.quantity, item.unit_price, item.subtotal]
+        [order.id, itemWithPrice.product_id, itemWithPrice.quantity, itemWithPrice.unit_price, itemWithPrice.subtotal]
       );
     }
 

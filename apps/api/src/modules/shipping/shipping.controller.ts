@@ -2,7 +2,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import * as shippingDomain from './shipping.domain.js';
-import { ApiResponse } from '../../shared/utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
 // ============= SHIPPING ZONES =============
 
@@ -26,7 +26,7 @@ export async function getAllZones(req: Request, res: Response, next: NextFunctio
 
 export async function getZoneById(req: Request, res: Response, next: NextFunction) {
   try {
-    const zone = await shippingDomain.getZoneById(req.params.id);
+    const zone = await shippingDomain.getZoneById(req.params.id as string as string);
     return res.json(ApiResponse.success(zone));
   } catch (error) {
     next(error);
@@ -44,7 +44,7 @@ export async function createZone(req: Request, res: Response, next: NextFunction
 
 export async function updateZone(req: Request, res: Response, next: NextFunction) {
   try {
-    const zone = await shippingDomain.updateZone(req.params.id, req.body);
+    const zone = await shippingDomain.updateZone(req.params.id as string as string, req.body);
     return res.json(ApiResponse.success(zone));
   } catch (error) {
     next(error);
@@ -53,7 +53,7 @@ export async function updateZone(req: Request, res: Response, next: NextFunction
 
 export async function deleteZone(req: Request, res: Response, next: NextFunction) {
   try {
-    await shippingDomain.deleteZone(req.params.id);
+    await shippingDomain.deleteZone(req.params.id as string as string);
     return res.json(ApiResponse.success({ message: 'Zona eliminada correctamente' }));
   } catch (error) {
     next(error);
@@ -87,7 +87,7 @@ export async function getAllCarriers(req: Request, res: Response, next: NextFunc
 
 export async function getCarrierById(req: Request, res: Response, next: NextFunction) {
   try {
-    const carrier = await shippingDomain.getCarrierById(req.params.id);
+    const carrier = await shippingDomain.getCarrierById(req.params.id as string as string);
     return res.json(ApiResponse.success(carrier));
   } catch (error) {
     next(error);
@@ -105,7 +105,7 @@ export async function createCarrier(req: Request, res: Response, next: NextFunct
 
 export async function updateCarrier(req: Request, res: Response, next: NextFunction) {
   try {
-    const carrier = await shippingDomain.updateCarrier(req.params.id, req.body);
+    const carrier = await shippingDomain.updateCarrier(req.params.id as string as string, req.body);
     return res.json(ApiResponse.success(carrier));
   } catch (error) {
     next(error);
@@ -114,7 +114,7 @@ export async function updateCarrier(req: Request, res: Response, next: NextFunct
 
 export async function deleteCarrier(req: Request, res: Response, next: NextFunction) {
   try {
-    await shippingDomain.deleteCarrier(req.params.id);
+    await shippingDomain.deleteCarrier(req.params.id as string as string);
     return res.json(ApiResponse.success({ message: 'Transportista eliminado correctamente' }));
   } catch (error) {
     next(error);
@@ -145,7 +145,7 @@ export async function getAllRates(req: Request, res: Response, next: NextFunctio
 
 export async function getRateById(req: Request, res: Response, next: NextFunction) {
   try {
-    const rate = await shippingDomain.getRateById(req.params.id);
+    const rate = await shippingDomain.getRateById(req.params.id as string as string);
     return res.json(ApiResponse.success(rate));
   } catch (error) {
     next(error);
@@ -163,7 +163,7 @@ export async function createRate(req: Request, res: Response, next: NextFunction
 
 export async function updateRate(req: Request, res: Response, next: NextFunction) {
   try {
-    const rate = await shippingDomain.updateRate(req.params.id, req.body);
+    const rate = await shippingDomain.updateRate(req.params.id as string as string, req.body);
     return res.json(ApiResponse.success(rate));
   } catch (error) {
     next(error);
@@ -172,7 +172,7 @@ export async function updateRate(req: Request, res: Response, next: NextFunction
 
 export async function deleteRate(req: Request, res: Response, next: NextFunction) {
   try {
-    await shippingDomain.deleteRate(req.params.id);
+    await shippingDomain.deleteRate(req.params.id as string as string);
     return res.json(ApiResponse.success({ message: 'Tarifa eliminada correctamente' }));
   } catch (error) {
     next(error);

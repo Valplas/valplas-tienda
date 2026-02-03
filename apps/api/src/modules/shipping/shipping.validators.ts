@@ -20,18 +20,18 @@ export const updateShippingZoneSchema = z.object({
 // Shipping Carrier validators
 export const createShippingCarrierSchema = z.object({
   name: z.string().min(2).max(100),
-  code: z.string().min(2).max(50).regex(/^[a-z0-9_-]+$/),
+  code: z.string().min(2).max(50).regex(/^[a-z0-9_-]+$/, 'Code must contain only lowercase letters, numbers, hyphens and underscores'),
   logo_url: z.string().url().optional(),
   is_active: z.boolean().optional().default(true),
-  config: z.record(z.any()).optional()
+  config: z.record(z.string(), z.any()).optional()
 });
 
 export const updateShippingCarrierSchema = z.object({
   name: z.string().min(2).max(100).optional(),
-  code: z.string().min(2).max(50).regex(/^[a-z0-9_-]+$/).optional(),
+  code: z.string().min(2).max(50).regex(/^[a-z0-9_-]+$/, 'Code must contain only lowercase letters, numbers, hyphens and underscores').optional(),
   logo_url: z.string().url().optional(),
   is_active: z.boolean().optional(),
-  config: z.record(z.any()).optional()
+  config: z.record(z.string(), z.any()).optional()
 });
 
 // Shipping Rate validators

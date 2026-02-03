@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { ApiResponse } from '../utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../utils/api-response.js';
 import { logger } from '../../infrastructure/logger/index.js';
 import { env } from '../../env.js';
 

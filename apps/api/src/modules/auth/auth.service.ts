@@ -113,7 +113,7 @@ export async function getCurrentUser(userId: string) {
   }
 
   // Remover password_hash
-  const { passwordHash: _, ...userWithoutPassword } = user;
+  const { password_hash: _, ...userWithoutPassword } = user as any;
 
   return userWithoutPassword;
 }
@@ -129,7 +129,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<string> 
     // Buscar usuario
     const user = await authRepository.findUserById(payload.userId);
 
-    if (!user || !user.isActive) {
+    if (!user || !user.is_active) {
       throw new AppError('INVALID_TOKEN', 'Token inválido', 401);
     }
 
@@ -154,8 +154,8 @@ function generateAccessToken(user: { id: string; email: string; role: string }):
   };
 
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN // 15m
-  });
+    expiresIn: env.JWT_EXPIRES_IN
+  } as jwt.SignOptions);
 }
 
 /**
@@ -168,8 +168,8 @@ function generateRefreshToken(userId: string): string {
   };
 
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_REFRESH_EXPIRES_IN // 7d
-  });
+    expiresIn: env.JWT_REFRESH_EXPIRES_IN
+  } as jwt.SignOptions);
 }
 
 /**

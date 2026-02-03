@@ -387,15 +387,15 @@ function transformProductRow(row: any): ProductWithDetails {
     categoryName: row.category_name,
     brandId: row.brand_id,
     brandName: row.brand_name,
-    basePrice: row.base_price,
+    base_price: row.base_price,
     stock: row.stock,
-    reservedStock: row.reserved_stock,
+    reserved_stock: row.reserved_stock,
     availableStock: row.available_stock,
-    isFeatured: row.is_featured,
-    isActive: row.is_active,
+    is_featured: row.is_featured,
+    is_active: row.is_active,
     images: row.images || [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    deletedAt: row.deleted_at
-  };
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    deleted_at: row.deleted_at
+  } as any; // Type mismatch between API types and shared types
 }

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as productService from './product.service.js';
-import { ApiResponse } from '../../shared/utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
 /**
  * GET /api/products
@@ -32,7 +32,7 @@ export async function listProducts(req: Request, res: Response, next: NextFuncti
 export async function getProductById(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const product = await productService.getProductById(id);
+    const product = await productService.getProductById(id as string);
 
     return res.json(ApiResponse.success({ product }));
   } catch (error) {
@@ -47,7 +47,7 @@ export async function getProductById(req: Request, res: Response, next: NextFunc
 export async function getProductBySlug(req: Request, res: Response, next: NextFunction) {
   try {
     const { slug } = req.params;
-    const product = await productService.getProductBySlug(slug);
+    const product = await productService.getProductBySlug(slug as string);
 
     return res.json(ApiResponse.success({ product }));
   } catch (error) {
@@ -76,7 +76,7 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
 export async function updateProduct(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const product = await productService.updateProduct(id, req.body);
+    const product = await productService.updateProduct(id as string, req.body);
 
     return res.json(ApiResponse.success({ product }));
   } catch (error) {
@@ -91,7 +91,7 @@ export async function updateProduct(req: Request, res: Response, next: NextFunct
 export async function deleteProduct(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    await productService.deleteProduct(id);
+    await productService.deleteProduct(id as string);
 
     return res.json(
       ApiResponse.success({

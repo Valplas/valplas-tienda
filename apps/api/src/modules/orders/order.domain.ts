@@ -111,25 +111,25 @@ export async function createOrder(
       throw new Error(`Producto ${item.product_id} no encontrado`);
     }
 
-    if (!product.isActive) {
+    if (!product.is_active) {
       throw new Error(`Producto ${product.name} no está disponible`);
     }
 
     // Check stock availability
-    const availableStock = product.stock - product.reservedStock;
+    const availableStock = product.stock - product.reserved_stock;
     if (availableStock < item.quantity) {
       throw new Error(
         `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, solicitado: ${item.quantity}`
       );
     }
 
-    const itemSubtotal = product.basePrice * item.quantity;
+    const itemSubtotal = product.base_price * item.quantity;
     subtotal += itemSubtotal;
 
     itemsWithPrices.push({
       product_id: item.product_id,
       quantity: item.quantity,
-      unit_price: product.basePrice,
+      unit_price: product.base_price,
       subtotal: itemSubtotal
     });
   }

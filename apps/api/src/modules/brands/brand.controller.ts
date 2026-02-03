@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as brandService from './brand.service.js';
-import { ApiResponse } from '../../shared/utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
 export async function listBrands(req: Request, res: Response, next: NextFunction) {
   try {
@@ -34,7 +34,7 @@ export async function listBrands(req: Request, res: Response, next: NextFunction
 
 export async function getBrandById(req: Request, res: Response, next: NextFunction) {
   try {
-    const brand = await brandService.getBrandById(req.params.id);
+    const brand = await brandService.getBrandById(req.params.id as string as string);
     return res.json(ApiResponse.success({ brand }));
   } catch (error) {
     next(error);
@@ -43,7 +43,7 @@ export async function getBrandById(req: Request, res: Response, next: NextFuncti
 
 export async function getBrandBySlug(req: Request, res: Response, next: NextFunction) {
   try {
-    const brand = await brandService.getBrandBySlug(req.params.slug);
+    const brand = await brandService.getBrandBySlug(req.params.slug as string);
     return res.json(ApiResponse.success({ brand }));
   } catch (error) {
     next(error);
@@ -61,7 +61,7 @@ export async function createBrand(req: Request, res: Response, next: NextFunctio
 
 export async function updateBrand(req: Request, res: Response, next: NextFunction) {
   try {
-    const brand = await brandService.updateBrand(req.params.id, req.body);
+    const brand = await brandService.updateBrand(req.params.id as string as string, req.body);
     return res.json(ApiResponse.success({ brand }));
   } catch (error) {
     next(error);
@@ -70,7 +70,7 @@ export async function updateBrand(req: Request, res: Response, next: NextFunctio
 
 export async function deleteBrand(req: Request, res: Response, next: NextFunction) {
   try {
-    await brandService.deleteBrand(req.params.id);
+    await brandService.deleteBrand(req.params.id as string as string);
     return res.json(ApiResponse.success({ message: 'Marca eliminada exitosamente' }));
   } catch (error) {
     next(error);

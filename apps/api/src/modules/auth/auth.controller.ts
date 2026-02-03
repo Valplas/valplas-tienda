@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as authService from './auth.service.js';
-import { ApiResponse } from '../../shared/utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
 
 const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';

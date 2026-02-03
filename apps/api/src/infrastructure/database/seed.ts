@@ -32,7 +32,7 @@ export async function seedDatabase(): Promise<void> {
 
     logger.info('Database seeding completed successfully');
   } catch (error) {
-    logger.error('Error seeding database:', error);
+    logger.error('Error seeding database:', { error: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 }

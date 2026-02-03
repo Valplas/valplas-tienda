@@ -2,7 +2,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import * as orderDomain from './order.domain.js';
-import { ApiResponse } from '../../shared/utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
 /**
  * Get current user's orders
@@ -62,7 +62,7 @@ export async function getOrderById(req: Request, res: Response, next: NextFuncti
     const userId = req.user!.userId;
     const isAdmin = ['admin', 'owner'].includes(req.user!.role);
 
-    const order = await orderDomain.getOrderById(req.params.id, userId, isAdmin);
+    const order = await orderDomain.getOrderById(req.params.id as string as string, userId, isAdmin);
 
     return res.json(ApiResponse.success(order));
   } catch (error) {
@@ -78,7 +78,7 @@ export async function getOrderByNumber(req: Request, res: Response, next: NextFu
     const userId = req.user!.userId;
     const isAdmin = ['admin', 'owner'].includes(req.user!.role);
 
-    const order = await orderDomain.getOrderByNumber(req.params.orderNumber, userId, isAdmin);
+    const order = await orderDomain.getOrderByNumber(req.params.orderNumber as string, userId, isAdmin);
 
     return res.json(ApiResponse.success(order));
   } catch (error) {
@@ -108,7 +108,7 @@ export async function updateOrderStatus(req: Request, res: Response, next: NextF
     const userId = req.user!.userId;
     const isAdmin = ['admin', 'owner'].includes(req.user!.role);
 
-    const order = await orderDomain.updateOrderStatus(req.params.id, req.body, userId, isAdmin);
+    const order = await orderDomain.updateOrderStatus(req.params.id as string as string, req.body, userId, isAdmin);
 
     return res.json(ApiResponse.success(order));
   } catch (error) {
@@ -125,7 +125,7 @@ export async function cancelOrder(req: Request, res: Response, next: NextFunctio
     const isAdmin = ['admin', 'owner'].includes(req.user!.role);
     const { notes } = req.body;
 
-    const order = await orderDomain.cancelOrder(req.params.id, notes || 'Cancelado por usuario', userId, isAdmin);
+    const order = await orderDomain.cancelOrder(req.params.id as string as string, notes || 'Cancelado por usuario', userId, isAdmin);
 
     return res.json(ApiResponse.success(order));
   } catch (error) {

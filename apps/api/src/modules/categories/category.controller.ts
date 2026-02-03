@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as categoryService from './category.service.js';
-import { ApiResponse } from '../../shared/utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
 export async function listCategories(req: Request, res: Response, next: NextFunction) {
   try {
@@ -13,7 +13,7 @@ export async function listCategories(req: Request, res: Response, next: NextFunc
 
 export async function getCategoryById(req: Request, res: Response, next: NextFunction) {
   try {
-    const category = await categoryService.getCategoryById(req.params.id);
+    const category = await categoryService.getCategoryById(req.params.id as string as string);
     return res.json(ApiResponse.success({ category }));
   } catch (error) {
     next(error);
@@ -31,7 +31,7 @@ export async function createCategory(req: Request, res: Response, next: NextFunc
 
 export async function updateCategory(req: Request, res: Response, next: NextFunction) {
   try {
-    const category = await categoryService.updateCategory(req.params.id, req.body);
+    const category = await categoryService.updateCategory(req.params.id as string as string, req.body);
     return res.json(ApiResponse.success({ category }));
   } catch (error) {
     next(error);
@@ -40,7 +40,7 @@ export async function updateCategory(req: Request, res: Response, next: NextFunc
 
 export async function deleteCategory(req: Request, res: Response, next: NextFunction) {
   try {
-    await categoryService.deleteCategory(req.params.id);
+    await categoryService.deleteCategory(req.params.id as string as string);
     return res.json(ApiResponse.success({ message: 'Categoría eliminada exitosamente' }));
   } catch (error) {
     next(error);

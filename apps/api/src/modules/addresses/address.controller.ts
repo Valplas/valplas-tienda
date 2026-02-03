@@ -2,7 +2,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import * as addressDomain from './address.domain.js';
-import { ApiResponse } from '../../shared/utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
 /**
  * Get current user's addresses
@@ -72,7 +72,7 @@ export async function getAddressById(req: Request, res: Response, next: NextFunc
     const userId = req.user!.userId;
     const isAdmin = ['admin', 'owner'].includes(req.user!.role);
 
-    const address = await addressDomain.getAddressById(req.params.id, userId, isAdmin);
+    const address = await addressDomain.getAddressById(req.params.id as string as string, userId, isAdmin);
 
     return res.json(ApiResponse.success(address));
   } catch (error) {
@@ -120,7 +120,7 @@ export async function updateAddress(req: Request, res: Response, next: NextFunct
     const userId = req.user!.userId;
     const isAdmin = ['admin', 'owner'].includes(req.user!.role);
 
-    const address = await addressDomain.updateAddress(req.params.id, userId, req.body, isAdmin);
+    const address = await addressDomain.updateAddress(req.params.id as string as string, userId, req.body, isAdmin);
 
     return res.json(ApiResponse.success(address));
   } catch (error) {
@@ -136,7 +136,7 @@ export async function deleteAddress(req: Request, res: Response, next: NextFunct
     const userId = req.user!.userId;
     const isAdmin = ['admin', 'owner'].includes(req.user!.role);
 
-    await addressDomain.deleteAddress(req.params.id, userId, isAdmin);
+    await addressDomain.deleteAddress(req.params.id as string as string, userId, isAdmin);
 
     return res.json(ApiResponse.success({ message: 'Dirección eliminada correctamente' }));
   } catch (error) {
@@ -152,7 +152,7 @@ export async function setDefaultAddress(req: Request, res: Response, next: NextF
     const userId = req.user!.userId;
     const isAdmin = ['admin', 'owner'].includes(req.user!.role);
 
-    const address = await addressDomain.setDefaultAddress(req.params.id, userId, isAdmin);
+    const address = await addressDomain.setDefaultAddress(req.params.id as string as string, userId, isAdmin);
 
     return res.json(ApiResponse.success(address));
   } catch (error) {

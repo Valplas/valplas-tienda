@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { ApiResponse } from '../utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../utils/api-response.js';
 import { env } from '../../env.js';
 import { verifyAccessToken } from '../../modules/auth/auth.service.js';
 import type { AuthenticatedUser } from '../../modules/auth/auth.types.js';

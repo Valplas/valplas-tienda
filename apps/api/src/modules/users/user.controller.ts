@@ -2,7 +2,7 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import * as userDomain from './user.domain.js';
-import { ApiResponse } from '../../shared/utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
 /**
  * Get all users (admin only)
@@ -37,7 +37,7 @@ export async function getUserById(req: Request, res: Response, next: NextFunctio
     const requesterId = req.user!.userId;
     const requesterRole = req.user!.role as any;
 
-    const user = await userDomain.getUserById(req.params.id, requesterId, requesterRole);
+    const user = await userDomain.getUserById(req.params.id as string as string, requesterId, requesterRole);
 
     return res.json(ApiResponse.success(user));
   } catch (error) {
@@ -53,7 +53,7 @@ export async function getUserWithStats(req: Request, res: Response, next: NextFu
     const requesterId = req.user!.userId;
     const requesterRole = req.user!.role as any;
 
-    const user = await userDomain.getUserWithStats(req.params.id, requesterId, requesterRole);
+    const user = await userDomain.getUserWithStats(req.params.id as string as string, requesterId, requesterRole);
 
     return res.json(ApiResponse.success(user));
   } catch (error) {
@@ -84,7 +84,7 @@ export async function updateUser(req: Request, res: Response, next: NextFunction
     const requesterId = req.user!.userId;
     const requesterRole = req.user!.role as any;
 
-    const user = await userDomain.updateUser(req.params.id, req.body, requesterId, requesterRole);
+    const user = await userDomain.updateUser(req.params.id as string as string, req.body, requesterId, requesterRole);
 
     return res.json(ApiResponse.success(user));
   } catch (error) {
@@ -100,7 +100,7 @@ export async function updateUserPassword(req: Request, res: Response, next: Next
     const requesterId = req.user!.userId;
     const requesterRole = req.user!.role as any;
 
-    await userDomain.updateUserPassword(req.params.id, req.body, requesterId, requesterRole);
+    await userDomain.updateUserPassword(req.params.id as string as string, req.body, requesterId, requesterRole);
 
     return res.json(ApiResponse.success({ message: 'Contraseña actualizada correctamente' }));
   } catch (error) {
@@ -116,7 +116,7 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
     const requesterId = req.user!.userId;
     const requesterRole = req.user!.role as any;
 
-    await userDomain.deleteUser(req.params.id, requesterId, requesterRole);
+    await userDomain.deleteUser(req.params.id as string as string, requesterId, requesterRole);
 
     return res.json(ApiResponse.success({ message: 'Usuario eliminado correctamente' }));
   } catch (error) {
@@ -132,7 +132,7 @@ export async function activateUser(req: Request, res: Response, next: NextFuncti
     const requesterId = req.user!.userId;
     const requesterRole = req.user!.role as any;
 
-    const user = await userDomain.toggleUserActive(req.params.id, true, requesterId, requesterRole);
+    const user = await userDomain.toggleUserActive(req.params.id as string as string, true, requesterId, requesterRole);
 
     return res.json(ApiResponse.success(user));
   } catch (error) {
@@ -149,7 +149,7 @@ export async function deactivateUser(req: Request, res: Response, next: NextFunc
     const requesterRole = req.user!.role as any;
 
     const user = await userDomain.toggleUserActive(
-      req.params.id,
+      req.params.id as string as string,
       false,
       requesterId,
       requesterRole

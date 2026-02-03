@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as cartService from './cart.service.js';
-import { ApiResponse } from '../../shared/utils/api-response.js';
+import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
 /**
  * Obtener carrito actual
@@ -57,7 +57,7 @@ export async function addToCart(req: Request, res: Response, next: NextFunction)
 export async function updateCartItem(req: Request, res: Response, next: NextFunction) {
   try {
     const cart = cartService.getCartFromCookie(req);
-    const result = await cartService.updateCartItem(cart, req.params.productId, req.body);
+    const result = await cartService.updateCartItem(cart, req.params.productId as string, req.body);
 
     cartService.saveCartToCookie(res, result.cart);
 
@@ -80,7 +80,7 @@ export async function updateCartItem(req: Request, res: Response, next: NextFunc
 export async function removeFromCart(req: Request, res: Response, next: NextFunction) {
   try {
     const cart = cartService.getCartFromCookie(req);
-    const result = cartService.removeFromCart(cart, req.params.productId);
+    const result = cartService.removeFromCart(cart, req.params.productId as string);
 
     cartService.saveCartToCookie(res, result.cart);
 
