@@ -10,6 +10,7 @@ import { Toaster } from 'sonner';
 import { CartDrawer } from './cart/cart-drawer';
 import { FloatingCartButton } from './cart/floating-cart-button';
 import { useCartStore } from '@/stores/cart-store';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -17,11 +18,13 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   const { loadFromStorage } = useCartStore();
+  const { initialize } = useAuthStore();
 
-  // Load cart from localStorage on mount
+  // Load cart and initialize auth on mount
   useEffect(() => {
     loadFromStorage();
-  }, [loadFromStorage]);
+    initialize();
+  }, [loadFromStorage, initialize]);
 
   return (
     <>
