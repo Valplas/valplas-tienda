@@ -8,24 +8,29 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Obtener sesión desde localStorage (simulado via cookie en SSR)
-  // En producción real, verificaríamos JWT en cookie HttpOnly
-  // Para MVP con mock, verificamos si existe el storage key 'session'
-  const sessionCookie = request.cookies.get('mock_session');
+  // Verificar autenticación mediante refreshToken cookie (HttpOnly desde backend)
+  const refreshToken = request.cookies.get('refreshToken');
+  const isAuthenticated = !!refreshToken;
 
-  // Helper para verificar si hay sesión activa
-  const isAuthenticated = !!sessionCookie;
-
-  // Helper para verificar rol de admin/owner
-  // En producción real, decodificaríamos JWT
-  // Para MVP, parseamos el valor de la cookie
+  // TODO: Para verificar roles, necesitaríamos:
+  // 1. Decodificar el JWT del refreshToken (requiere librería jose o similar)
+  // 2. O hacer una llamada al backend /auth/me (costo en latencia)
+  // Por ahora, para MVP, permitimos acceso a /cuenta si está autenticado
+  // y no protegemos /admin (se protege en el layout)
   let userRole: string | null = null;
-  if (sessionCookie?.value) {
+
+  // Intentar decodificar el JWT básicamente (sin verificar firma)
+  // Solo para obtener el rol del payload
+  if (refreshToken?.value) {
     try {
-      const sessionData = JSON.parse(decodeURIComponent(sessionCookie.value));
-      userRole = sessionData?.user?.role || null;
+      // JWT format: header.payload.signature
+      const parts = refreshToken.value.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        userRole = payload.role || null;
+      }
     } catch {
-      // Cookie inválida, considerar no autenticado
+      // Si falla la decodificación, considerar sin rol
       userRole = null;
     }
   }

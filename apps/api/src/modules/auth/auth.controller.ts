@@ -6,6 +6,15 @@ import { AppError } from '../../shared/middleware/error.middleware.js';
 const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días en milisegundos
 
+// Cookie options para refresh token
+const getCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production', // HTTPS en producción
+  sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax',
+  maxAge: COOKIE_MAX_AGE,
+  path: '/'
+});
+
 /**
  * POST /api/auth/register
  * Registrar nuevo usuario
@@ -15,13 +24,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
     const result = await authService.register(req.body);
 
     // Establecer refresh token en cookie HttpOnly
-    res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // HTTPS en producción
-      sameSite: 'lax',
-      maxAge: COOKIE_MAX_AGE,
-      path: '/'
-    });
+    res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, getCookieOptions());
 
     // Retornar usuario y access token
     return res.status(201).json(
@@ -44,13 +47,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     const result = await authService.login(req.body);
 
     // Establecer refresh token en cookie HttpOnly
-    res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: COOKIE_MAX_AGE,
-      path: '/'
-    });
+    res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, getCookieOptions());
 
     // Retornar usuario y access token
     return res.json(
@@ -70,13 +67,11 @@ export async function login(req: Request, res: Response, next: NextFunction) {
  */
 export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
-    // Limpiar cookie de refresh token
-    res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/'
-    });
+    // Limpiar cookie de refresh token (debe usar las mismas opciones que al setearla)
+    const cookieOptions = getCookieOptions();
+    // clearCookie no acepta maxAge, lo removemos
+    const { maxAge, ...clearOptions } = cookieOptions;
+    res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, clearOptions);
 
     return res.json(
       ApiResponse.success({
