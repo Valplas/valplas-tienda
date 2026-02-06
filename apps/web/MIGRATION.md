@@ -223,12 +223,12 @@ NEXT_PUBLIC_USE_MOCK=false bun dev
 
 ## ✅ Checklist de Migración
 
-- [ ] Migrar stores (auth-store.ts, cart-store.ts)
+- [x] Migrar stores (auth-store.ts, cart-store.ts) ← **COMPLETADO**
 - [ ] Migrar páginas públicas (4 archivos)
 - [ ] Migrar páginas de cuenta (4 archivos)
-- [ ] Migrar páginas de auth (2 archivos)
+- [x] Migrar páginas de auth (2 archivos) ← **COMPLETADO**
 - [ ] Migrar componentes (4 archivos)
-- [ ] Actualizar tipos si es necesario
+- [x] Actualizar tipos ← **COMPLETADO**
 - [ ] Testing local con API real
 - [ ] Configurar `NEXT_PUBLIC_USE_MOCK=false` en Vercel
 - [ ] Deploy y verificar en producción
