@@ -38,9 +38,12 @@ Ve a **Settings** → **Environment Variables** y agrega:
 | Variable                      | Valor                                      | Ejemplo                                          |
 | ----------------------------- | ------------------------------------------ | ------------------------------------------------ |
 | `NEXT_PUBLIC_API_URL`         | URL del backend en Railway                 | `https://valplas-api-production.railway.app/api` |
+| `NEXT_PUBLIC_USE_MOCK`        | Usar API real                              | `false`                                          |
 | `NEXT_PUBLIC_MP_PUBLIC_KEY`   | Clave pública de Mercado Pago (Producción) | `APP-xxxx-xxxx-xxxx`                             |
 | `NEXT_PUBLIC_GOOGLE_MAPS_KEY` | API Key de Google Maps                     | `AIza...`                                        |
 | `NEXT_PUBLIC_SITE_URL`        | URL del sitio en Vercel                    | `https://valplas.vercel.app`                     |
+
+**✅ MIGRACIÓN PARCIAL:** Auth y Cart ya usan API real. Algunas páginas de catálogo aún usan mock.
 
 #### Preview (opcional)
 

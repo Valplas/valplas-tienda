@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Payment Step Component
  * Step 3: Order review and payment
@@ -13,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { formatPrice } from '@/lib/formatters';
 import { Address, ShippingOption, CartItem } from '@/types';
 import { Loader2, CreditCard } from 'lucide-react';
-import { fake_createOrder } from '@/lib/mock/services';
+import { createOrder } from '@/services';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -60,32 +61,25 @@ export function PaymentStep({
     setIsProcessing(true);
 
     try {
-      // Simulate payment processing delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
       // Create order
+      // TODO: ShippingStep should pass carrier_id and zone_id instead of just carrier_name
       const orderData = {
-        user_id: userId,
-        items: items.map((item) => ({
-          product_id: item.product_id,
-          quantity: item.quantity
-        })),
-        shipping_address: shippingAddress,
-        shipping_carrier: shippingOption.carrier_name,
-        shipping_cost: shippingCost,
-        payment_method: 'mercadopago'
+        shipping_address_id: shippingAddress.id,
+        shipping_zone_id: 'temp-zone-id', // TODO: Get from shipping step
+        carrier_id: 'temp-carrier-id', // TODO: Get from shipping step
+        payment_method: 'mercadopago' as const
       };
 
-      const response = await fake_createOrder(orderData);
+      const response = await createOrder(orderData);
 
       if (response.success && response.data) {
         toast.success('¡Pedido creado exitosamente!');
-        router.push(`/confirmacion/${response.data.id}`);
+        router.push(`/confirmacion/${response.data.order.id}`);
       } else {
         throw new Error(response.error?.message || 'Error al crear el pedido');
       }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Error al procesar el pago');
+    } catch (error: any) {
+      toast.error(error?.message || 'Error al procesar el pago');
       setIsProcessing(false);
     }
   };

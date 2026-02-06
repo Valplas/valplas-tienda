@@ -1,20 +1,30 @@
 /**
  * Cart Store - Zustand
- * Manages shopping cart state with localStorage sync
+ * Manages shopping cart state
  */
 
 import { create } from 'zustand';
 import { CartState, CartActions } from '@/types/cart.types';
-import {
-  fake_getCart,
-  fake_addToCart,
-  fake_updateCartItem,
-  fake_removeFromCart,
-  fake_clearCart,
-  fake_migrateCart
-} from '@/lib/mock/services';
+import { getCart, addToCart, updateCartItem, removeFromCart, clearCart } from '@/services';
+import type { Cart as ServiceCart } from '@/services';
 
 type CartStore = CartState & CartActions;
+
+/**
+ * Convierte el Cart del servicio al formato del frontend
+ */
+function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
+  return {
+    items: serviceCart.items.map((item) => ({
+      product_id: item.productId,
+      quantity: item.quantity,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      product: item.product as any // Type assertion: API devuelve partial Product
+    })),
+    subtotal: serviceCart.subtotal,
+    updated_at: new Date().toISOString()
+  };
+}
 
 export const useCartStore = create<CartStore>((set, get) => ({
   // State
@@ -31,23 +41,16 @@ export const useCartStore = create<CartStore>((set, get) => ({
     setLoading(true);
 
     try {
-      // Get current user if authenticated (from authStore in real app)
-      // For now, undefined = guest cart
-      const response = await fake_addToCart(productId, quantity);
+      const serviceCart = await addToCart(productId, quantity);
+      const cart = mapServiceCartToFrontendCart(serviceCart);
 
-      if (response.success && response.data) {
-        const cart = response.data;
-        set({
-          items: cart.items,
-          subtotal: cart.subtotal,
-          updated_at: cart.updated_at,
-          itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
-          isLoading: false
-        });
-      } else {
-        setLoading(false);
-        throw new Error(response.error?.message || 'Error al agregar producto');
-      }
+      set({
+        items: cart.items,
+        subtotal: cart.subtotal,
+        updated_at: cart.updated_at,
+        itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+        isLoading: false
+      });
     } catch (error) {
       setLoading(false);
       throw error;
@@ -59,21 +62,16 @@ export const useCartStore = create<CartStore>((set, get) => ({
     setLoading(true);
 
     try {
-      const response = await fake_updateCartItem(productId, quantity);
+      const serviceCart = await updateCartItem(productId, quantity);
+      const cart = mapServiceCartToFrontendCart(serviceCart);
 
-      if (response.success && response.data) {
-        const cart = response.data;
-        set({
-          items: cart.items,
-          subtotal: cart.subtotal,
-          updated_at: cart.updated_at,
-          itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
-          isLoading: false
-        });
-      } else {
-        setLoading(false);
-        throw new Error(response.error?.message || 'Error al actualizar cantidad');
-      }
+      set({
+        items: cart.items,
+        subtotal: cart.subtotal,
+        updated_at: cart.updated_at,
+        itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+        isLoading: false
+      });
     } catch (error) {
       setLoading(false);
       throw error;
@@ -85,21 +83,16 @@ export const useCartStore = create<CartStore>((set, get) => ({
     setLoading(true);
 
     try {
-      const response = await fake_removeFromCart(productId);
+      const serviceCart = await removeFromCart(productId);
+      const cart = mapServiceCartToFrontendCart(serviceCart);
 
-      if (response.success && response.data) {
-        const cart = response.data;
-        set({
-          items: cart.items,
-          subtotal: cart.subtotal,
-          updated_at: cart.updated_at,
-          itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
-          isLoading: false
-        });
-      } else {
-        setLoading(false);
-        throw new Error(response.error?.message || 'Error al eliminar producto');
-      }
+      set({
+        items: cart.items,
+        subtotal: cart.subtotal,
+        updated_at: cart.updated_at,
+        itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+        isLoading: false
+      });
     } catch (error) {
       setLoading(false);
       throw error;
@@ -111,7 +104,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
     setLoading(true);
 
     try {
-      await fake_clearCart();
+      await clearCart();
       set({
         items: [],
         subtotal: 0,
@@ -129,54 +122,39 @@ export const useCartStore = create<CartStore>((set, get) => ({
     set((state) => ({ isOpen: !state.isOpen }));
   },
 
-  syncWithServer: async (userId) => {
-    const { setLoading } = get();
-    setLoading(true);
-
-    try {
-      // Migrate guest cart to authenticated user cart
-      const response = await fake_migrateCart(userId);
-
-      if (response.success && response.data) {
-        const cart = response.data;
-        set({
-          items: cart.items,
-          subtotal: cart.subtotal,
-          updated_at: cart.updated_at,
-          itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
-          isLoading: false
-        });
-      } else {
-        setLoading(false);
-      }
-    } catch (error) {
-      setLoading(false);
-      console.error('Error syncing cart:', error);
-    }
+  syncWithServer: async () => {
+    // En API real, el carrito ya está en el servidor
+    // Solo necesitamos recargarlo
+    const { loadFromStorage } = get();
+    await loadFromStorage();
   },
 
-  loadFromStorage: async (userId) => {
+  loadFromStorage: async () => {
     const { setLoading } = get();
     setLoading(true);
 
     try {
-      const response = await fake_getCart(userId);
+      const serviceCart = await getCart();
+      const cart = mapServiceCartToFrontendCart(serviceCart);
 
-      if (response.success && response.data) {
-        const cart = response.data;
-        set({
-          items: cart.items,
-          subtotal: cart.subtotal,
-          updated_at: cart.updated_at,
-          itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
-          isLoading: false
-        });
-      } else {
-        setLoading(false);
-      }
+      set({
+        items: cart.items,
+        subtotal: cart.subtotal,
+        updated_at: cart.updated_at,
+        itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+        isLoading: false
+      });
     } catch (error) {
       setLoading(false);
       console.error('Error loading cart:', error);
+      // Si falla (ej: no autenticado), dejar carrito vacío
+      set({
+        items: [],
+        subtotal: 0,
+        updated_at: new Date().toISOString(),
+        itemCount: 0,
+        isLoading: false
+      });
     }
   },
 

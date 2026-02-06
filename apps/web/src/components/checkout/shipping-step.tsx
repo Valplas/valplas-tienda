@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Shipping Step Component
  * Step 2: Shipping method selection
@@ -13,7 +14,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { formatPrice } from '@/lib/formatters';
 import { Loader2, Truck } from 'lucide-react';
-import { fake_getShippingOptions } from '@/lib/mock/services';
+import { quoteShipping } from '@/services';
 import { toast } from 'sonner';
 
 interface ShippingStepProps {
@@ -36,21 +37,32 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
     setError(null);
 
     try {
-      const response = await fake_getShippingOptions(postcode, cartTotal);
+      const response = await quoteShipping({
+        postalCode: postcode,
+        cartTotal
+      });
 
       if (response.success && response.data) {
-        setOptions(response.data);
+        // Map service rates to ShippingOptions
+        const mappedOptions: ShippingOption[] = response.data.rates.map((rate) => ({
+          carrier_name: rate.carrier.name,
+          cost: rate.cost,
+          estimated_days: parseInt(rate.estimatedDays.split('-')[0]) // Parse "3-5 días" -> 3
+        }));
+
+        setOptions(mappedOptions);
         // Auto-select first option
-        if (response.data.length > 0) {
-          setSelectedOption(response.data[0]);
+        if (mappedOptions.length > 0) {
+          setSelectedOption(mappedOptions[0]);
         }
       } else {
         setError(response.error?.message || 'Error al cargar opciones de envío');
         toast.error(response.error?.message || 'Error al cargar opciones de envío');
       }
-    } catch {
-      setError('Error al cargar opciones de envío');
-      toast.error('Error al cargar opciones de envío');
+    } catch (error: any) {
+      const errorMsg = error?.message || 'Error al cargar opciones de envío';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

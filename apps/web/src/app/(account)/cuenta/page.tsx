@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 /**
@@ -20,7 +21,7 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
-import { fake_getUserOrders } from '@/lib/mock/services';
+import { getUserOrders } from '@/services';
 import { Order, OrderStatus } from '@/types';
 import { formatDate, formatPrice } from '@/lib/formatters';
 import { Package, ShoppingBag, CheckCircle, Clock } from 'lucide-react';
@@ -46,17 +47,19 @@ export default function DashboardPage() {
       setIsLoading(true);
       try {
         // Get all user orders for stats
-        const allOrdersResponse = await fake_getUserOrders(user.id, { limit: 100 });
+        const allOrdersResponse = await getUserOrders();
 
         if (allOrdersResponse.success && allOrdersResponse.data) {
-          const orders = allOrdersResponse.data;
+          const orders = allOrdersResponse.data as any;
 
           // Calculate stats
           const totalOrders = orders.length;
           const pendingOrders = orders.filter(
-            (o) => o.status === OrderStatus.PENDING || o.status === OrderStatus.PROCESSING
+            (o: any) => o.status === OrderStatus.PENDING || o.status === OrderStatus.PROCESSING
           ).length;
-          const deliveredOrders = orders.filter((o) => o.status === OrderStatus.DELIVERED).length;
+          const deliveredOrders = orders.filter(
+            (o: any) => o.status === OrderStatus.DELIVERED
+          ).length;
           const lastOrder = orders[0] || null;
 
           setStats({

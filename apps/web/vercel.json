@@ -6,6 +6,7 @@
   "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://your-backend.railway.app/api",
+    "NEXT_PUBLIC_USE_MOCK": "false",
     "NEXT_PUBLIC_SITE_URL": "https://valplas.vercel.app"
   }
 }

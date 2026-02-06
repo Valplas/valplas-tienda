@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState } from 'react';
@@ -40,7 +41,7 @@ export default function RegistroPage() {
     setIsLoading(true);
 
     try {
-      const response = await register_action({
+      await register_action({
         email: data.email,
         username: data.username || '',
         first_name: data.first_name,
@@ -49,15 +50,11 @@ export default function RegistroPage() {
         password: data.password
       });
 
-      if (response.success) {
-        toast.success('Cuenta creada exitosamente');
-        // Auto-login y redirigir a cuenta
-        router.push('/cuenta');
-      } else {
-        toast.error(response.error?.message || 'Error al crear la cuenta');
-      }
-    } catch (error) {
-      toast.error('Error al crear la cuenta. Intentá de nuevo.');
+      toast.success('Cuenta creada exitosamente');
+      // Auto-login y redirigir a cuenta
+      router.push('/cuenta');
+    } catch (error: any) {
+      toast.error(error?.message || 'Error al crear la cuenta. Intentá de nuevo.');
       console.error('Register error:', error);
     } finally {
       setIsLoading(false);

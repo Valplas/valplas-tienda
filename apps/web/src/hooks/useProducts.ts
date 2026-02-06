@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as productsService from '@/lib/services/products.service';
 import type { Product, ProductFilters } from '@/lib/services/products.service';
 

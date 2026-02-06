@@ -6,7 +6,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { fake_getOrderById } from '@/lib/mock/services';
+import { getOrderById } from '@/services';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -27,13 +27,12 @@ interface OrderConfirmationPageProps {
 export default async function OrderConfirmationPage({ params }: OrderConfirmationPageProps) {
   const { orderId } = await params;
 
-  const response = await fake_getOrderById(orderId);
-
-  if (!response.success || !response.data) {
+  let order;
+  try {
+    order = await getOrderById(orderId);
+  } catch {
     notFound();
   }
-
-  const order = response.data;
 
   return (
     <div className="container max-w-3xl py-8">
@@ -59,11 +58,15 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
             <div>
               <span className="text-muted-foreground">Estado:</span>
               <div className="font-medium mt-1">
-                {order.status === 'pending' && 'Pendiente de pago'}
+                {order.status === 'pending_payment' && 'Pendiente de pago'}
+                {order.status === 'payment_confirmed' && 'Pago confirmado'}
                 {order.status === 'processing' && 'En preparación'}
-                {order.status === 'shipped' && 'Enviado'}
+                {order.status === 'ready_to_ship' && 'Listo para enviar'}
+                {order.status === 'in_transit' && 'En tránsito'}
                 {order.status === 'delivered' && 'Entregado'}
                 {order.status === 'cancelled' && 'Cancelado'}
+                {order.status === 'payment_failed' && 'Pago fallido'}
+                {order.status === 'refunded' && 'Reembolsado'}
               </div>
             </div>
             <div>
