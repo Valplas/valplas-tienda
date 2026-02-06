@@ -70,7 +70,7 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
     // Limpiar cookie de refresh token (debe usar las mismas opciones que al setearla)
     const cookieOptions = getCookieOptions();
     // clearCookie no acepta maxAge, lo removemos
-    const { maxAge, ...clearOptions } = cookieOptions;
+    const { maxAge: _, ...clearOptions } = cookieOptions;
     res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, clearOptions);
 
     return res.json(
