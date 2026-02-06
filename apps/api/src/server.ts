@@ -15,6 +15,7 @@ const app = express();
 const PORT = env.PORT;
 
 // Middleware globales
+console.log('🔧 CORS Debug - Allowed origins:', env.ALLOWED_ORIGINS);
 app.use(helmet());
 app.use(
   cors({
@@ -22,20 +23,31 @@ app.use(
       // Permitir requests sin origin (mobile apps, Postman, etc.)
       if (!origin) return callback(null, true);
 
+      console.log('🔍 CORS - Checking origin:', origin);
+
       // Verificar si el origin está en la lista de permitidos
       const isAllowed = env.ALLOWED_ORIGINS.some((allowedOrigin) => {
         // Soporte para wildcards (*.vercel.app)
         if (allowedOrigin.includes('*')) {
           const pattern = allowedOrigin.replace(/\*/g, '.*');
-          return new RegExp(`^${pattern}$`).test(origin);
+          const regex = new RegExp(`^${pattern}$`);
+          const matches = regex.test(origin);
+          console.log(
+            `  🔸 Testing wildcard: "${allowedOrigin}" → pattern: "${pattern}" → matches: ${matches}`
+          );
+          return matches;
         }
-        return allowedOrigin === origin;
+        const matches = allowedOrigin === origin;
+        console.log(`  🔸 Testing exact: "${allowedOrigin}" → matches: ${matches}`);
+        return matches;
       });
 
       if (isAllowed) {
+        console.log('✅ CORS allowed for:', origin);
         callback(null, true);
       } else {
         console.warn(`❌ CORS blocked origin: ${origin}`);
+        console.warn('   Configured origins:', env.ALLOWED_ORIGINS);
         callback(new Error('Not allowed by CORS'));
       }
     },
