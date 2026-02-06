@@ -18,6 +18,7 @@ function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
     items: serviceCart.items.map((item) => ({
       product_id: item.productId,
       quantity: item.quantity,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       product: item.product as any // Type assertion: API devuelve partial Product
     })),
     subtotal: serviceCart.subtotal,

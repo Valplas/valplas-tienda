@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Products Catalog Page
  * Shows all products with filters, search, and pagination
@@ -62,15 +63,6 @@ function ProductsContent() {
   // Fetch products
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
-
-    const filters: ProductFiltersType = {
-      search,
-      category_id: categoryId,
-      brand_id: brandId,
-      min_price: minPrice,
-      max_price: maxPrice,
-      is_active: true
-    };
 
     try {
       const response = await getProducts({

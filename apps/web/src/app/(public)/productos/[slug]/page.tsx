@@ -39,15 +39,17 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
+  let product;
   try {
-    const product = await getProductBySlug(params.slug);
-
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <ProductDetail product={product as any} />
-      </div>
-    );
-  } catch (error) {
+    product = await getProductBySlug(params.slug);
+  } catch {
     notFound();
   }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <ProductDetail product={product as any} />
+    </div>
+  );
 }

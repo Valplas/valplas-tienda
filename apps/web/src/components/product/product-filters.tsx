@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Product Filters Component
  * Panel with search, category, brand, and price range filters

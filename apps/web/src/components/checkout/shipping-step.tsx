@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Shipping Step Component
  * Step 2: Shipping method selection
