@@ -14,6 +14,7 @@
     "build": "bun --filter '*' build",
     "build:web": "bun --filter @valplas/web build",
     "build:api": "bun --filter @valplas/api build",
+    "start:api": "bun --filter @valplas/api start",
     "test": "bun --filter '*' test",
     "test:watch": "bun --filter '*' test:watch",
     "lint": "bun --filter '*' lint",

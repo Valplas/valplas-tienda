@@ -11,7 +11,6 @@ import type {
   JwtPayload,
   RefreshTokenPayload
 } from './auth.types.js';
-
 const BCRYPT_ROUNDS = 12;
 
 /**
@@ -52,10 +51,12 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   const refreshToken = generateRefreshToken(user.id);
 
   // Remover password_hash del usuario (la DB retorna password_hash en snake_case)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { password_hash: _, ...userWithoutPassword } = user as any;
 
   return {
-    user: userWithoutPassword,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    user: userWithoutPassword as any,
     accessToken,
     refreshToken
   };
@@ -78,6 +79,7 @@ export async function login(data: LoginData): Promise<AuthResponse> {
   }
 
   // Comparar contraseña (la DB retorna password_hash en snake_case)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userWithPassword = user as any;
   const isPasswordValid = await bcrypt.compare(data.password, userWithPassword.password_hash);
 
@@ -96,7 +98,8 @@ export async function login(data: LoginData): Promise<AuthResponse> {
   const { password_hash: _, ...userWithoutPassword } = userWithPassword;
 
   return {
-    user: userWithoutPassword,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    user: userWithoutPassword as any,
     accessToken,
     refreshToken
   };
@@ -113,9 +116,11 @@ export async function getCurrentUser(userId: string) {
   }
 
   // Remover password_hash
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { password_hash: _, ...userWithoutPassword } = user as any;
 
-  return userWithoutPassword;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return userWithoutPassword as any;
 }
 
 /**
@@ -150,7 +155,8 @@ function generateAccessToken(user: { id: string; email: string; role: string }):
   const payload: JwtPayload = {
     userId: user.id,
     email: user.email,
-    role: user.role
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    role: user.role as any
   };
 
   return jwt.sign(payload, env.JWT_SECRET, {

@@ -24,7 +24,7 @@ export async function findAllZones(params: {
   const offset = (page - 1) * limit;
 
   const conditions: string[] = ['deleted_at IS NULL'];
-  const params_array: any[] = [];
+  const params_array: unknown[] = [];
   let paramIndex = 1;
 
   if (is_active !== undefined) {
@@ -44,7 +44,7 @@ export async function findAllZones(params: {
   const total = parseInt(countResult.rows[0].count, 10);
 
   // Get zones
-  const zonesResult = await query<any>(
+  const zonesResult = await query(
     `SELECT * FROM shipping_zones
      WHERE ${whereClause}
      ORDER BY name ASC
@@ -68,7 +68,7 @@ export async function findZoneById(id: string): Promise<ShippingZone | null> {
 }
 
 export async function findZoneByPostcode(postcode: string): Promise<ShippingZone | null> {
-  const result = await query<any>(
+  const result = await query(
     'SELECT * FROM shipping_zones WHERE is_active = true AND deleted_at IS NULL',
     []
   );
@@ -108,7 +108,7 @@ export async function updateZone(
   data: UpdateShippingZoneInput
 ): Promise<ShippingZone | null> {
   const updates: string[] = [];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (data.name !== undefined) {
@@ -173,7 +173,7 @@ export async function findAllCarriers(params: {
   const offset = (page - 1) * limit;
 
   const conditions: string[] = ['deleted_at IS NULL'];
-  const params_array: any[] = [];
+  const params_array: unknown[] = [];
   let paramIndex = 1;
 
   if (is_active !== undefined) {
@@ -247,7 +247,7 @@ export async function updateCarrier(
   data: UpdateShippingCarrierInput
 ): Promise<ShippingCarrier | null> {
   const updates: string[] = [];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (data.name !== undefined) {
@@ -320,7 +320,7 @@ export async function findAllRates(params: {
   const offset = (page - 1) * limit;
 
   const conditions: string[] = ['deleted_at IS NULL'];
-  const params_array: any[] = [];
+  const params_array: unknown[] = [];
   let paramIndex = 1;
 
   if (zone_id) {
@@ -421,7 +421,7 @@ export async function updateRate(
   data: UpdateShippingRateInput
 ): Promise<ShippingRate | null> {
   const updates: string[] = [];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (data.zone_id !== undefined) {

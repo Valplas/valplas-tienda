@@ -7,11 +7,15 @@ import { ApiResponseBuilder as ApiResponse } from '../utils/api-response.js';
  * Middleware de validación con Zod
  * Valida el body, query o params de la request según el schema provisto
  */
-export function validate(schema: z.ZodObject<any>, source: 'body' | 'query' | 'params' = 'body') {
+export function validate(
+  schema: z.ZodObject<z.ZodRawShape>,
+  source: 'body' | 'query' | 'params' = 'body'
+) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Validar la fuente especificada
-      const dataToValidate = source === 'body' ? req.body : source === 'query' ? req.query : req.params;
+      const dataToValidate =
+        source === 'body' ? req.body : source === 'query' ? req.query : req.params;
       await schema.parseAsync(dataToValidate);
       next();
     } catch (error) {
@@ -22,9 +26,9 @@ export function validate(schema: z.ZodObject<any>, source: 'body' | 'query' | 'p
           message: err.message
         }));
 
-        return res.status(400).json(
-          ApiResponse.error('VALIDATION_ERROR', 'Errores de validación', formattedErrors)
-        );
+        return res
+          .status(400)
+          .json(ApiResponse.error('VALIDATION_ERROR', 'Errores de validación', formattedErrors));
       }
       next(error);
     }
@@ -39,6 +43,6 @@ function isZodError(error: unknown): error is ZodError {
     typeof error === 'object' &&
     error !== null &&
     'issues' in error &&
-    Array.isArray((error as any).issues)
+    Array.isArray((error as ZodError).issues)
   );
 }

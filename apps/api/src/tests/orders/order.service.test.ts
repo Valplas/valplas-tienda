@@ -12,16 +12,13 @@ describe('Order Service', () => {
 
   beforeEach(async () => {
     // Get test user
-    const userResult = await query(
-      'SELECT id FROM users WHERE email = $1 LIMIT 1',
-      ['cliente@test.com']
-    );
+    const userResult = await query('SELECT id FROM users WHERE email = $1 LIMIT 1', [
+      'cliente@test.com'
+    ]);
     userId = userResult.rows[0].id;
 
     // Get test product
-    const productResult = await query(
-      "SELECT id FROM products WHERE sku = 'MAG-001' LIMIT 1"
-    );
+    const productResult = await query("SELECT id FROM products WHERE sku = 'MAG-001' LIMIT 1");
     productId = productResult.rows[0].id;
 
     // Create test address
@@ -38,10 +35,9 @@ describe('Order Service', () => {
   describe('createOrder', () => {
     it('should create order and reserve stock', async () => {
       // Get initial stock
-      const initialStock = await query(
-        'SELECT stock, reserved_stock FROM products WHERE id = $1',
-        [productId]
-      );
+      const initialStock = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+        productId
+      ]);
 
       const orderData = {
         userId,
@@ -58,15 +54,12 @@ describe('Order Service', () => {
       expect(order.user_id).toBe(userId);
 
       // Verify stock reservation
-      const afterStock = await query(
-        'SELECT stock, reserved_stock FROM products WHERE id = $1',
-        [productId]
-      );
+      const afterStock = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+        productId
+      ]);
 
       expect(afterStock.rows[0].stock).toBe(initialStock.rows[0].stock);
-      expect(afterStock.rows[0].reserved_stock).toBe(
-        initialStock.rows[0].reserved_stock + 2
-      );
+      expect(afterStock.rows[0].reserved_stock).toBe(initialStock.rows[0].reserved_stock + 2);
     });
 
     it('should reject order with insufficient stock', async () => {
@@ -84,7 +77,8 @@ describe('Order Service', () => {
       const product = await productRepository.findById(productId);
       const quantity = 2;
       const shippingCost = 15000;
-      const expectedSubtotal = product!.base_price * quantity;
+      if (!product) throw new Error('Product not found in test');
+      const expectedSubtotal = product.base_price * quantity;
       const expectedTotal = expectedSubtotal + shippingCost;
 
       const orderData = {
@@ -131,14 +125,12 @@ describe('Order Service', () => {
       const order = await orderDomain.createOrder(orderData);
 
       // Get order items
-      const items = await query(
-        'SELECT * FROM order_items WHERE order_id = $1',
-        [order.id]
-      );
+      const items = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
 
-      expect(items.rows[0].product_name).toBe(product!.name);
-      expect(items.rows[0].product_sku).toBe(product!.sku);
-      expect(items.rows[0].unit_price).toBe(product!.base_price);
+      if (!product) throw new Error('Product not found in test');
+      expect(items.rows[0].product_name).toBe(product.name);
+      expect(items.rows[0].product_sku).toBe(product.sku);
+      expect(items.rows[0].unit_price).toBe(product.base_price);
     });
   });
 
@@ -155,24 +147,20 @@ describe('Order Service', () => {
       const order = await orderDomain.createOrder(orderData);
 
       // Get stock after order creation
-      const afterCreate = await query(
-        'SELECT stock, reserved_stock FROM products WHERE id = $1',
-        [productId]
-      );
+      const afterCreate = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+        productId
+      ]);
 
       // Update to payment_confirmed
       await orderDomain.updateOrderStatus(order.id, 'payment_confirmed');
 
       // Verify stock deduction
-      const afterConfirm = await query(
-        'SELECT stock, reserved_stock FROM products WHERE id = $1',
-        [productId]
-      );
+      const afterConfirm = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+        productId
+      ]);
 
       expect(afterConfirm.rows[0].stock).toBe(afterCreate.rows[0].stock - 2);
-      expect(afterConfirm.rows[0].reserved_stock).toBe(
-        afterCreate.rows[0].reserved_stock - 2
-      );
+      expect(afterConfirm.rows[0].reserved_stock).toBe(afterCreate.rows[0].reserved_stock - 2);
     });
 
     it('should reject invalid status transition', async () => {
@@ -186,9 +174,7 @@ describe('Order Service', () => {
       const order = await orderDomain.createOrder(orderData);
 
       // Try invalid transition: pending_payment -> delivered (skipping steps)
-      await expect(
-        orderDomain.updateOrderStatus(order.id, 'delivered')
-      ).rejects.toThrow();
+      await expect(orderDomain.updateOrderStatus(order.id, 'delivered')).rejects.toThrow();
     });
 
     it('should create status history entry', async () => {
@@ -227,23 +213,19 @@ describe('Order Service', () => {
 
       const order = await orderDomain.createOrder(orderData);
 
-      const afterCreate = await query(
-        'SELECT stock, reserved_stock FROM products WHERE id = $1',
-        [productId]
-      );
+      const afterCreate = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+        productId
+      ]);
 
       await orderDomain.cancelOrder(order.id, 'Customer request');
 
-      const afterCancel = await query(
-        'SELECT stock, reserved_stock FROM products WHERE id = $1',
-        [productId]
-      );
+      const afterCancel = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+        productId
+      ]);
 
       // Stock should stay same, reserved_stock should decrease
       expect(afterCancel.rows[0].stock).toBe(afterCreate.rows[0].stock);
-      expect(afterCancel.rows[0].reserved_stock).toBe(
-        afterCreate.rows[0].reserved_stock - 2
-      );
+      expect(afterCancel.rows[0].reserved_stock).toBe(afterCreate.rows[0].reserved_stock - 2);
     });
 
     it('should restore stock when cancelling confirmed order', async () => {
@@ -257,23 +239,19 @@ describe('Order Service', () => {
       const order = await orderDomain.createOrder(orderData);
       await orderDomain.updateOrderStatus(order.id, 'payment_confirmed');
 
-      const afterConfirm = await query(
-        'SELECT stock, reserved_stock FROM products WHERE id = $1',
-        [productId]
-      );
+      const afterConfirm = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+        productId
+      ]);
 
       await orderDomain.cancelOrder(order.id, 'Customer request');
 
-      const afterCancel = await query(
-        'SELECT stock, reserved_stock FROM products WHERE id = $1',
-        [productId]
-      );
+      const afterCancel = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+        productId
+      ]);
 
       // Stock should be restored
       expect(afterCancel.rows[0].stock).toBe(afterConfirm.rows[0].stock + 2);
-      expect(afterCancel.rows[0].reserved_stock).toBe(
-        afterConfirm.rows[0].reserved_stock
-      );
+      expect(afterCancel.rows[0].reserved_stock).toBe(afterConfirm.rows[0].reserved_stock);
     });
 
     it('should set cancelled_at and cancelled_reason', async () => {

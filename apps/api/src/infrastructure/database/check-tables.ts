@@ -13,7 +13,7 @@ async function checkTables() {
 
     console.log('📊 Tablas en la base de datos:');
     console.log('================================');
-    result.rows.forEach((row: any) => {
+    result.rows.forEach((row: Record<string, unknown>) => {
       console.log(`  ✓ ${row.table_name}`);
     });
     console.log('================================');

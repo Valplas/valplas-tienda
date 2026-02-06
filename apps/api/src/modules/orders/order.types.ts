@@ -1,5 +1,9 @@
 // apps/api/src/modules/orders/order.types.ts
 
+import type { UserAddress } from '../addresses/address.types.js';
+import type { ShippingCarrier } from '../shipping/shipping.types.js';
+import type { User } from '../users/user.types.js';
+
 export type OrderStatus =
   | 'pending_payment'
   | 'payment_confirmed'
@@ -52,9 +56,9 @@ export interface OrderStatusHistory {
 export interface OrderWithDetails extends Order {
   items: OrderItemWithProduct[];
   status_history: OrderStatusHistory[];
-  shipping_address?: any;
-  shipping_carrier?: any;
-  user?: any;
+  shipping_address?: UserAddress;
+  shipping_carrier?: ShippingCarrier;
+  user?: Omit<User, 'passwordHash'>;
 }
 
 export interface OrderItemWithProduct extends OrderItem {

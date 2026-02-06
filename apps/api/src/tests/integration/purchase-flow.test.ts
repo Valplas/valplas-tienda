@@ -57,17 +57,14 @@ describe('Complete Purchase Flow (Integration)', () => {
     const product = products.data[0];
 
     // 5. Get initial stock
-    const initialStock = await query(
-      'SELECT stock, reserved_stock FROM products WHERE id = $1',
-      [product.id]
-    );
+    const initialStock = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+      product.id
+    ]);
 
     // 6. Create order (simulating cart checkout)
     const orderData = {
       userId: user.id,
-      items: [
-        { productId: product.id, quantity: 2 }
-      ],
+      items: [{ productId: product.id, quantity: 2 }],
       shippingAddressId: address.id,
       shippingCost: 15000 // $150 shipping
     };
@@ -80,21 +77,15 @@ describe('Complete Purchase Flow (Integration)', () => {
     expect(order.user_id).toBe(user.id);
 
     // 7. Verify stock was reserved
-    const afterOrder = await query(
-      'SELECT stock, reserved_stock FROM products WHERE id = $1',
-      [product.id]
-    );
+    const afterOrder = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+      product.id
+    ]);
 
     expect(afterOrder.rows[0].stock).toBe(initialStock.rows[0].stock);
-    expect(afterOrder.rows[0].reserved_stock).toBe(
-      initialStock.rows[0].reserved_stock + 2
-    );
+    expect(afterOrder.rows[0].reserved_stock).toBe(initialStock.rows[0].reserved_stock + 2);
 
     // 8. Verify order items snapshot
-    const orderItems = await query(
-      'SELECT * FROM order_items WHERE order_id = $1',
-      [order.id]
-    );
+    const orderItems = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
 
     expect(orderItems.rows.length).toBe(1);
     expect(orderItems.rows[0].product_name).toBe(product.name);
@@ -114,15 +105,12 @@ describe('Complete Purchase Flow (Integration)', () => {
     });
 
     // 11. Verify stock was deducted
-    const afterPayment = await query(
-      'SELECT stock, reserved_stock FROM products WHERE id = $1',
-      [product.id]
-    );
+    const afterPayment = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+      product.id
+    ]);
 
     expect(afterPayment.rows[0].stock).toBe(initialStock.rows[0].stock - 2);
-    expect(afterPayment.rows[0].reserved_stock).toBe(
-      initialStock.rows[0].reserved_stock
-    );
+    expect(afterPayment.rows[0].reserved_stock).toBe(initialStock.rows[0].reserved_stock);
 
     // 12. Verify order status
     const finalOrder = await orderDomain.findById(order.id);
@@ -135,7 +123,9 @@ describe('Complete Purchase Flow (Integration)', () => {
     );
 
     expect(history.rows.length).toBeGreaterThanOrEqual(1);
-    expect(history.rows.some((h: any) => h.status === 'payment_confirmed')).toBe(true);
+    expect(
+      history.rows.some((h: Record<string, unknown>) => h.status === 'payment_confirmed')
+    ).toBe(true);
 
     // 14. Get user's orders
     const userOrders = await orderDomain.findAllByUser(user.id, { page: 1, limit: 10 });
@@ -145,16 +135,11 @@ describe('Complete Purchase Flow (Integration)', () => {
 
   it('should handle order cancellation correctly', async () => {
     // 1. Get existing user
-    const userResult = await query(
-      'SELECT id FROM users WHERE email = $1',
-      ['cliente@test.com']
-    );
+    const userResult = await query('SELECT id FROM users WHERE email = $1', ['cliente@test.com']);
     const userId = userResult.rows[0].id;
 
     // 2. Get product
-    const productResult = await query(
-      "SELECT id FROM products WHERE sku = 'MAG-001'"
-    );
+    const productResult = await query("SELECT id FROM products WHERE sku = 'MAG-001'");
     const productId = productResult.rows[0].id;
 
     // 3. Create address
@@ -170,10 +155,9 @@ describe('Complete Purchase Flow (Integration)', () => {
     const address = await addressDomain.create(addressData);
 
     // 4. Get initial stock
-    const _initialStock = await query(
-      'SELECT stock, reserved_stock FROM products WHERE id = $1',
-      [productId]
-    );
+    const _initialStock = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+      productId
+    ]);
 
     // 5. Create order
     const orderData = {
@@ -188,19 +172,17 @@ describe('Complete Purchase Flow (Integration)', () => {
     // 6. Confirm payment
     await orderDomain.updateOrderStatus(order.id, 'payment_confirmed');
 
-    const afterPayment = await query(
-      'SELECT stock, reserved_stock FROM products WHERE id = $1',
-      [productId]
-    );
+    const afterPayment = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+      productId
+    ]);
 
     // 7. Cancel order
     await orderDomain.cancelOrder(order.id, 'Customer changed mind');
 
     // 8. Verify stock was restored
-    const afterCancel = await query(
-      'SELECT stock, reserved_stock FROM products WHERE id = $1',
-      [productId]
-    );
+    const afterCancel = await query('SELECT stock, reserved_stock FROM products WHERE id = $1', [
+      productId
+    ]);
 
     expect(afterCancel.rows[0].stock).toBe(afterPayment.rows[0].stock + 3);
 

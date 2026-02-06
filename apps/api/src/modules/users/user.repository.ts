@@ -14,14 +14,12 @@ import type {
 /**
  * Find users with filters and pagination
  */
-export async function findUsers(
-  filters: UserFilters
-): Promise<{ users: User[]; total: number }> {
+export async function findUsers(filters: UserFilters): Promise<{ users: User[]; total: number }> {
   const { role, is_active, email_verified, search, page = 1, limit = 20 } = filters;
 
   const offset = (page - 1) * limit;
   const conditions: string[] = ['deleted_at IS NULL'];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (role) {
@@ -96,7 +94,7 @@ export async function findUserById(id: string): Promise<User | null> {
  * Find user by ID with statistics
  */
 export async function findUserWithStats(id: string): Promise<UserWithStats | null> {
-  const result = await query<any>(
+  const result = await query(
     `SELECT
       u.id, u.email, u.username, u.phone, u.first_name, u.last_name, u.role,
       u.is_active, u.email_verified, u.phone_verified, u.created_at, u.updated_at, u.deleted_at,
@@ -108,7 +106,8 @@ export async function findUserWithStats(id: string): Promise<UserWithStats | nul
     [id]
   );
 
-  return result.rows[0] || null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (result.rows[0] || null) as any;
 }
 
 /**
@@ -172,7 +171,7 @@ export async function createUser(data: CreateUserInput, passwordHash: string): P
  */
 export async function updateUser(id: string, data: UpdateUserInput): Promise<User | null> {
   const updates: string[] = [];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (data.email !== undefined) {
@@ -305,10 +304,7 @@ export async function countUsersByRole(): Promise<Record<UserRole, number>> {
  */
 export async function getUserStats(): Promise<UserStats> {
   const [totalResult, byRole, activeResult, verifiedResult] = await Promise.all([
-    query<{ count: string }>(
-      'SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL',
-      []
-    ),
+    query<{ count: string }>('SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL', []),
     countUsersByRole(),
     query<{ count: string }>(
       'SELECT COUNT(*) as count FROM users WHERE is_active = true AND deleted_at IS NULL',

@@ -1,4 +1,6 @@
 import type { User } from '@valplas/shared/types';
+import type { UserRole } from '../users/user.types.js';
+import type { Request } from 'express';
 
 /**
  * Payload del JWT (access token)
@@ -6,7 +8,7 @@ import type { User } from '@valplas/shared/types';
 export interface JwtPayload {
   userId: string;
   email: string;
-  role: string;
+  role: UserRole;
 }
 
 /**
@@ -52,7 +54,14 @@ export interface AuthResponse {
 export interface AuthenticatedUser {
   userId: string;
   email: string;
-  role: string;
+  role: UserRole;
+}
+
+/**
+ * Request con usuario autenticado (para rutas protegidas)
+ */
+export interface AuthenticatedRequest extends Request {
+  user: AuthenticatedUser;
 }
 
 // Extender el tipo Request de Express

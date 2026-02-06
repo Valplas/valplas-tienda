@@ -28,7 +28,7 @@ export async function findProducts(
 
   const offset = (page - 1) * limit;
   const conditions: string[] = ['p.deleted_at IS NULL', 'p.is_active = true'];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   // Filtro de búsqueda (fuzzy con pg_trgm)
@@ -108,7 +108,7 @@ export async function findProducts(
   const total = parseInt(countResult.rows[0].count, 10);
 
   // Query principal con joins
-  const productsResult = await query<any>(
+  const productsResult = await query(
     `SELECT
       p.*,
       c.name as category_name,
@@ -146,7 +146,7 @@ export async function findProducts(
  * Buscar producto por ID
  */
 export async function findProductById(id: string): Promise<ProductWithDetails | null> {
-  const result = await query<any>(
+  const result = await query(
     `SELECT
       p.*,
       c.name as category_name,
@@ -182,7 +182,7 @@ export async function findProductById(id: string): Promise<ProductWithDetails | 
  * Buscar producto por slug
  */
 export async function findProductBySlug(slug: string): Promise<ProductWithDetails | null> {
-  const result = await query<any>(
+  const result = await query(
     `SELECT
       p.*,
       c.name as category_name,
@@ -219,7 +219,7 @@ export async function findProductBySlug(slug: string): Promise<ProductWithDetail
  */
 export async function skuExists(sku: string, excludeId?: string): Promise<boolean> {
   const conditions = ['sku = $1', 'deleted_at IS NULL'];
-  const params: any[] = [sku];
+  const params: unknown[] = [sku];
 
   if (excludeId) {
     conditions.push('id != $2');
@@ -239,7 +239,7 @@ export async function skuExists(sku: string, excludeId?: string): Promise<boolea
  */
 export async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
   const conditions = ['slug = $1', 'deleted_at IS NULL'];
-  const params: any[] = [slug];
+  const params: unknown[] = [slug];
 
   if (excludeId) {
     conditions.push('id != $2');
@@ -287,7 +287,7 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
  */
 export async function updateProduct(id: string, data: UpdateProductData): Promise<Product | null> {
   const updates: string[] = [];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (data.name !== undefined) {
@@ -376,7 +376,7 @@ export async function deleteProduct(id: string): Promise<boolean> {
 /**
  * Transformar row de DB a ProductWithDetails
  */
-function transformProductRow(row: any): ProductWithDetails {
+function transformProductRow(row: Record<string, unknown>): ProductWithDetails {
   return {
     id: row.id,
     sku: row.sku,
@@ -397,5 +397,6 @@ function transformProductRow(row: any): ProductWithDetails {
     created_at: row.created_at,
     updated_at: row.updated_at,
     deleted_at: row.deleted_at
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any; // Type mismatch between API types and shared types
 }

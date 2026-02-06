@@ -44,7 +44,7 @@ export async function findOrders(
 
   const offset = (page - 1) * limit;
   const conditions: string[] = ['o.deleted_at IS NULL'];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (user_id) {
@@ -106,10 +106,9 @@ export async function findOrders(
  * Find order by ID
  */
 export async function findOrderById(id: string): Promise<Order | null> {
-  const result = await query<Order>(
-    'SELECT * FROM orders WHERE id = $1 AND deleted_at IS NULL',
-    [id]
-  );
+  const result = await query<Order>('SELECT * FROM orders WHERE id = $1 AND deleted_at IS NULL', [
+    id
+  ]);
 
   return result.rows[0] || null;
 }
@@ -134,7 +133,7 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
   if (!order) return null;
 
   // Get items with product details
-  const itemsResult = await query<any>(
+  const itemsResult = await query(
     `SELECT
       oi.*,
       p.name as product_name,
@@ -202,11 +201,18 @@ export async function createOrder(
 
     // Create order items
     for (const item of data.items) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const itemWithPrice = item as any; // Items are enriched in domain layer with unit_price and subtotal
       await client.query(
         `INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
          VALUES ($1, $2, $3, $4, $5)`,
-        [order.id, itemWithPrice.product_id, itemWithPrice.quantity, itemWithPrice.unit_price, itemWithPrice.subtotal]
+        [
+          order.id,
+          itemWithPrice.product_id,
+          itemWithPrice.quantity,
+          itemWithPrice.unit_price,
+          itemWithPrice.subtotal
+        ]
       );
     }
 
@@ -232,7 +238,7 @@ export async function updateOrderStatus(
   return transaction(async (client) => {
     // Update order
     const updates: string[] = ['status = $1', 'updated_at = NOW()'];
-    const params: any[] = [data.status];
+    const params: unknown[] = [data.status];
     let paramIndex = 2;
 
     if (data.payment_id !== undefined) {
@@ -294,7 +300,11 @@ export async function findOrderStatusHistory(orderId: string): Promise<OrderStat
 /**
  * Cancel order
  */
-export async function cancelOrder(orderId: string, notes: string, changedBy: string): Promise<Order | null> {
+export async function cancelOrder(
+  orderId: string,
+  notes: string,
+  changedBy: string
+): Promise<Order | null> {
   return updateOrderStatus(orderId, { status: 'cancelled', notes }, changedBy);
 }
 
@@ -303,7 +313,7 @@ export async function cancelOrder(orderId: string, notes: string, changedBy: str
  */
 export async function countUserOrders(userId: string, status?: OrderStatus): Promise<number> {
   const conditions = ['user_id = $1', 'deleted_at IS NULL'];
-  const params: any[] = [userId];
+  const params: unknown[] = [userId];
 
   if (status) {
     conditions.push('status = $2');
