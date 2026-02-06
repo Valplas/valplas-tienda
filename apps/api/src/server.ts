@@ -18,7 +18,27 @@ const PORT = env.PORT;
 app.use(helmet());
 app.use(
   cors({
-    origin: env.FRONTEND_URL,
+    origin: (origin, callback) => {
+      // Permitir requests sin origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+
+      // Verificar si el origin está en la lista de permitidos
+      const isAllowed = env.ALLOWED_ORIGINS.some((allowedOrigin) => {
+        // Soporte para wildcards (*.vercel.app)
+        if (allowedOrigin.includes('*')) {
+          const pattern = allowedOrigin.replace(/\*/g, '.*');
+          return new RegExp(`^${pattern}$`).test(origin);
+        }
+        return allowedOrigin === origin;
+      });
+
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        console.warn(`❌ CORS blocked origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true
   })
 );
@@ -69,14 +89,18 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 
 // Swagger documentation
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Valplas API Docs',
-  swaggerOptions: {
-    persistAuthorization: true,
-    displayRequestDuration: true
-  }
-}));
+app.use(
+  '/api/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Valplas API Docs',
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayRequestDuration: true
+    }
+  })
+);
 
 // Manejo de errores (debe ir al final)
 app.use(errorHandler);

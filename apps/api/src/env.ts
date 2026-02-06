@@ -30,6 +30,10 @@ export const env = {
   PORT: getEnvNumber('PORT', 3001),
   API_URL: getEnv('API_URL', `http://localhost:${getEnvNumber('PORT', 3001)}`),
   FRONTEND_URL: getEnv('FRONTEND_URL', 'http://localhost:3000'),
+  // URLs permitidas para CORS (separadas por comas)
+  ALLOWED_ORIGINS: getEnv('ALLOWED_ORIGINS', 'http://localhost:3000')
+    .split(',')
+    .map((url) => url.trim()),
 
   // Base de datos
   DATABASE_URL: requireEnv('DATABASE_URL'),
