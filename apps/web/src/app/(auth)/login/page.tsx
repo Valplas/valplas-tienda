@@ -39,22 +39,18 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      const response = await login({
+      await login({
         identifier: data.identifier,
         password: data.password
       });
 
-      if (response.success) {
-        toast.success('Sesión iniciada correctamente');
+      toast.success('Sesión iniciada correctamente');
 
-        // Redirigir a la URL de retorno o a /cuenta
-        const redirectTo = searchParams.get('redirect') || '/cuenta';
-        router.push(redirectTo);
-      } else {
-        toast.error(response.error?.message || 'Error al iniciar sesión');
-      }
-    } catch (error) {
-      toast.error('Error al iniciar sesión. Intentá de nuevo.');
+      // Redirigir a la URL de retorno o a /cuenta
+      const redirectTo = searchParams.get('redirect') || '/cuenta';
+      router.push(redirectTo);
+    } catch (error: any) {
+      toast.error(error?.message || 'Error al iniciar sesión. Intentá de nuevo.');
       console.error('Login error:', error);
     } finally {
       setIsLoading(false);

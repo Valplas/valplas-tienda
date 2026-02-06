@@ -4,14 +4,9 @@
  */
 
 import { create } from 'zustand';
-import { User, LoginCredentials, RegisterData, AuthSession } from '@/types';
-import { ApiResponse } from '@/lib/api';
-import {
-  fake_login,
-  fake_logout,
-  fake_register,
-  fake_getCurrentSession
-} from '@/lib/mock/services';
+import { User, LoginCredentials, RegisterData, UserRole } from '@/types';
+import { login, logout, register, getCurrentUser } from '@/services';
+import type { User as ServiceUser } from '@/services';
 
 interface AuthState {
   user: User | null;
@@ -20,14 +15,40 @@ interface AuthState {
 }
 
 interface AuthActions {
-  login: (credentials: LoginCredentials) => Promise<ApiResponse<AuthSession>>;
+  login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
-  register: (data: RegisterData) => Promise<ApiResponse<AuthSession>>;
+  register: (data: RegisterData) => Promise<void>;
   setUser: (user: User | null) => void;
   initialize: () => Promise<void>;
 }
 
 type AuthStore = AuthState & AuthActions;
+
+/**
+ * Convierte el User del servicio al User del frontend
+ */
+function mapServiceUserToFrontendUser(serviceUser: ServiceUser): User {
+  // Map role string to UserRole enum
+  const roleMap: Record<string, UserRole> = {
+    owner: UserRole.OWNER,
+    admin: UserRole.ADMIN,
+    driver: UserRole.DRIVER,
+    customer: UserRole.CUSTOMER
+  };
+
+  return {
+    id: serviceUser.id,
+    email: serviceUser.email,
+    username: serviceUser.username || '',
+    phone: serviceUser.phone || '',
+    first_name: serviceUser.first_name,
+    last_name: serviceUser.last_name,
+    role: roleMap[serviceUser.role] || UserRole.CUSTOMER,
+    is_active: serviceUser.is_active,
+    created_at: serviceUser.created_at,
+    updated_at: serviceUser.updated_at
+  };
+}
 
 export const useAuthStore = create<AuthStore>((set) => ({
   // State
@@ -40,19 +61,19 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true });
 
     try {
-      const response = await fake_login(credentials);
+      // Adaptar LoginCredentials a LoginData
+      const authResponse = await login({
+        emailOrUsername: credentials.identifier,
+        password: credentials.password
+      });
 
-      if (response.success && response.data) {
-        set({
-          user: response.data.user,
-          isAuthenticated: true,
-          isLoading: false
-        });
-      } else {
-        set({ isLoading: false });
-      }
+      const user = mapServiceUserToFrontendUser(authResponse.user);
 
-      return response;
+      set({
+        user,
+        isAuthenticated: true,
+        isLoading: false
+      });
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -63,7 +84,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true });
 
     try {
-      await fake_logout();
+      await logout();
       set({
         user: null,
         isAuthenticated: false,
@@ -79,19 +100,23 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true });
 
     try {
-      const response = await fake_register(data);
+      // Adaptar RegisterData del frontend al servicio
+      const authResponse = await register({
+        email: data.email,
+        username: data.username,
+        password: data.password,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        phone: data.phone
+      });
 
-      if (response.success && response.data) {
-        set({
-          user: response.data.user,
-          isAuthenticated: true,
-          isLoading: false
-        });
-      } else {
-        set({ isLoading: false });
-      }
+      const user = mapServiceUserToFrontendUser(authResponse.user);
 
-      return response;
+      set({
+        user,
+        isAuthenticated: true,
+        isLoading: false
+      });
     } catch (error) {
       set({ isLoading: false });
       throw error;
@@ -110,21 +135,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true });
 
     try {
-      const response = await fake_getCurrentSession();
+      const serviceUser = await getCurrentUser();
+      const user = mapServiceUserToFrontendUser(serviceUser);
 
-      if (response.success && response.data) {
-        set({
-          user: response.data.user,
-          isAuthenticated: true,
-          isLoading: false
-        });
-      } else {
-        set({
-          user: null,
-          isAuthenticated: false,
-          isLoading: false
-        });
-      }
+      set({
+        user,
+        isAuthenticated: true,
+        isLoading: false
+      });
     } catch {
       set({
         user: null,
