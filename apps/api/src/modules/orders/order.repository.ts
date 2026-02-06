@@ -43,7 +43,7 @@ export async function findOrders(
   const { user_id, status, from_date, to_date, order_number, page = 1, limit = 20 } = filters;
 
   const offset = (page - 1) * limit;
-  const conditions: string[] = ['o.deleted_at IS NULL'];
+  const conditions: string[] = [];
   const params: unknown[] = [];
   let paramIndex = 1;
 
@@ -106,9 +106,7 @@ export async function findOrders(
  * Find order by ID
  */
 export async function findOrderById(id: string): Promise<Order | null> {
-  const result = await query<Order>('SELECT * FROM orders WHERE id = $1 AND deleted_at IS NULL', [
-    id
-  ]);
+  const result = await query<Order>('SELECT * FROM orders WHERE id = $1', [id]);
 
   return result.rows[0] || null;
 }
@@ -117,10 +115,7 @@ export async function findOrderById(id: string): Promise<Order | null> {
  * Find order by order number
  */
 export async function findOrderByNumber(orderNumber: string): Promise<Order | null> {
-  const result = await query<Order>(
-    'SELECT * FROM orders WHERE order_number = $1 AND deleted_at IS NULL',
-    [orderNumber]
-  );
+  const result = await query<Order>('SELECT * FROM orders WHERE order_number = $1', [orderNumber]);
 
   return result.rows[0] || null;
 }
@@ -252,7 +247,7 @@ export async function updateOrderStatus(
     const orderResult = await client.query<Order>(
       `UPDATE orders
        SET ${updates.join(', ')}
-       WHERE id = $${paramIndex} AND deleted_at IS NULL
+       WHERE id = $${paramIndex}
        RETURNING *`,
       params
     );
@@ -312,7 +307,7 @@ export async function cancelOrder(
  * Count user orders
  */
 export async function countUserOrders(userId: string, status?: OrderStatus): Promise<number> {
-  const conditions = ['user_id = $1', 'deleted_at IS NULL'];
+  const conditions = ['user_id = $1'];
   const params: unknown[] = [userId];
 
   if (status) {
@@ -335,7 +330,7 @@ export async function isOrderOwnedByUser(orderId: string, userId: string): Promi
   const result = await query<{ count: string }>(
     `SELECT COUNT(*) as count
      FROM orders
-     WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+     WHERE id = $1 AND user_id = $2`,
     [orderId, userId]
   );
 

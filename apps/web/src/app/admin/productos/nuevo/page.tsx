@@ -1,26 +1,44 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { ProductForm } from '@/components/admin/product-form';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  fake_createProduct,
-  type CreateProductInput
-} from '@/lib/mock/services/fake-product-admin.service';
 import { toast } from 'sonner';
+
+// TODO: Import real product admin service when available
+// For now, using placeholder
+async function createProduct(data: any): Promise<any> {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/products`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('access_token')}`
+    },
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Error al crear producto');
+  }
+
+  return response.json();
+}
 
 export default function NewProductPage() {
   const router = useRouter();
 
-  const handleSubmit = async (data: CreateProductInput) => {
-    const response = await fake_createProduct(data);
-
-    if (response.success) {
+  const handleSubmit = async (data: any) => {
+    try {
+      await createProduct(data);
       toast.success('Producto creado correctamente');
       router.push('/admin/productos');
-    } else {
-      toast.error(response.error?.message || 'Error al crear producto');
+    } catch (error: any) {
+      console.error('Error creating product:', error);
+      toast.error(error?.message || 'Error al crear producto. Intentá de nuevo.');
     }
   };
 
