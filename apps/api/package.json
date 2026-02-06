@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --tsconfig ./tsconfig.json src/server.ts",
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "start": "node dist/server.js",
     "test": "vitest",
     "test:watch": "vitest --watch",
@@ -33,6 +33,7 @@
     "pg": "^8.13.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "tsc-alias": "^1.8.16",
     "zod": "^4.3.6"
   },
   "devDependencies": {
