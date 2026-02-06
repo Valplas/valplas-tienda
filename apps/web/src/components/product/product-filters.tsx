@@ -20,7 +20,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useFilterStore } from '@/stores/filter-store';
 import { useDebounce } from '@/hooks/use-debounce';
-import { fake_getCategories, fake_getBrands } from '@/lib/mock/services';
+import { getCategories, getBrands } from '@/services';
 import { Category, Brand } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -54,17 +54,17 @@ export function ProductFilters({ className }: ProductFiltersProps) {
   // Load categories and brands
   useEffect(() => {
     const loadData = async () => {
-      const [categoriesRes, brandsRes] = await Promise.all([
-        fake_getCategories(),
-        fake_getBrands()
-      ]);
+      try {
+        const [categoriesData, brandsRes] = await Promise.all([getCategories(), getBrands()]);
 
-      if (categoriesRes.success && categoriesRes.data) {
-        setCategories(categoriesRes.data);
-      }
+        // getCategories returns data directly (not wrapped in ApiResponse)
+        setCategories(categoriesData as any);
 
-      if (brandsRes.success && brandsRes.data) {
-        setBrands(brandsRes.data);
+        if (brandsRes.success && brandsRes.data) {
+          setBrands(brandsRes.data as any); // Type assertion for logo_url compatibility
+        }
+      } catch (error) {
+        console.error('Error loading filters:', error);
       }
     };
 

@@ -22,7 +22,7 @@ import {
   TableFooter
 } from '@/components/ui/table';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
-import { fake_getOrderById } from '@/lib/mock/services';
+import { getOrderById } from '@/services';
 import { Order } from '@/types';
 import { formatDate, formatDateTime, formatPrice } from '@/lib/formatters';
 import { ArrowLeft, Package, MapPin, Truck, CreditCard } from 'lucide-react';
@@ -41,24 +41,15 @@ export default function OrderDetailPage() {
     const fetchOrder = async () => {
       setIsLoading(true);
       try {
-        const response = await fake_getOrderById(params.id as string);
-
-        if (response.success && response.data) {
-          // Verify order belongs to user
-          if (response.data.user_id !== user.id) {
-            toast.error('No tenés permiso para ver este pedido');
-            router.push('/cuenta/pedidos');
-            return;
-          }
-
-          setOrder(response.data);
-        } else {
-          toast.error('Pedido no encontrado');
-          router.push('/cuenta/pedidos');
-        }
-      } catch (error) {
+        const order = await getOrderById(params.id as string);
+        setOrder(order as any);
+      } catch (error: any) {
         console.error('Error fetching order:', error);
-        toast.error('Error al cargar el pedido');
+        if (error?.message?.includes('403') || error?.message?.includes('Forbidden')) {
+          toast.error('No tenés permiso para ver este pedido');
+        } else {
+          toast.error('Error al cargar el pedido');
+        }
         router.push('/cuenta/pedidos');
       } finally {
         setIsLoading(false);

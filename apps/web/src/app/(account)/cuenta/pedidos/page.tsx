@@ -27,7 +27,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
-import { fake_getUserOrders } from '@/lib/mock/services';
+import { getUserOrders } from '@/services';
 import { Order, OrderStatus } from '@/types';
 import { formatDate, formatPrice } from '@/lib/formatters';
 import { Package, Eye } from 'lucide-react';
@@ -46,11 +46,11 @@ export default function OrdersListPage() {
     const fetchOrders = async () => {
       setIsLoading(true);
       try {
-        const response = await fake_getUserOrders(user.id, { limit: 100 });
+        const response = await getUserOrders();
 
         if (response.success && response.data) {
-          setOrders(response.data);
-          setFilteredOrders(response.data);
+          setOrders(response.data as any);
+          setFilteredOrders(response.data as any);
         }
       } catch (error) {
         console.error('Error fetching orders:', error);

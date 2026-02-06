@@ -39,12 +39,13 @@ import {
 } from '@/components/ui/select';
 import { DeleteConfirmModal } from '@/components/ui/delete-confirm-modal';
 import {
-  fake_getUserAddresses,
-  fake_createAddress,
-  fake_updateAddress,
-  fake_deleteAddress,
-  fake_setDefaultAddress
-} from '@/lib/mock/services';
+  getUserAddresses,
+  createAddress,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress,
+  type Address as ServiceAddress
+} from '@/services';
 import { Address } from '@/types';
 import { addressSchema, AddressFormData } from '@/lib/validations/checkout';
 import { MapPin, Plus, Edit, Trash2, Star } from 'lucide-react';
@@ -77,6 +78,14 @@ const ARGENTINA_PROVINCES = [
   'Tucumán'
 ];
 
+// Map service address (alias) to frontend address (label)
+function mapServiceToFrontendAddress(serviceAddress: ServiceAddress): Address {
+  return {
+    ...serviceAddress,
+    label: serviceAddress.alias
+  } as any;
+}
+
 export default function AddressesPage() {
   const { user } = useAuthStore();
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -90,10 +99,10 @@ export default function AddressesPage() {
 
     setIsLoading(true);
     try {
-      const response = await fake_getUserAddresses(user.id);
+      const response = await getUserAddresses();
 
       if (response.success && response.data) {
-        setAddresses(response.data);
+        setAddresses(response.data.map(mapServiceToFrontendAddress));
       }
     } catch (error) {
       console.error('Error fetching addresses:', error);
@@ -122,34 +131,24 @@ export default function AddressesPage() {
     if (!deletingAddress) return;
 
     try {
-      const response = await fake_deleteAddress(deletingAddress.id);
-
-      if (response.success) {
-        toast.success('Dirección eliminada correctamente');
-        setAddresses(addresses.filter((a) => a.id !== deletingAddress.id));
-        setDeletingAddress(null);
-      } else {
-        toast.error(response.error?.message || 'Error al eliminar la dirección');
-      }
-    } catch (error) {
+      await deleteAddress(deletingAddress.id);
+      toast.success('Dirección eliminada correctamente');
+      setAddresses(addresses.filter((a) => a.id !== deletingAddress.id));
+      setDeletingAddress(null);
+    } catch (error: any) {
       console.error('Error deleting address:', error);
-      toast.error('Error al eliminar la dirección');
+      toast.error(error?.message || 'Error al eliminar la dirección');
     }
   };
 
   const handleSetDefault = async (addressId: string) => {
     try {
-      const response = await fake_setDefaultAddress(addressId);
-
-      if (response.success) {
-        toast.success('Dirección predeterminada actualizada');
-        await fetchAddresses();
-      } else {
-        toast.error(response.error?.message || 'Error al actualizar la dirección predeterminada');
-      }
-    } catch (error) {
+      await setDefaultAddress(addressId);
+      toast.success('Dirección predeterminada actualizada');
+      await fetchAddresses();
+    } catch (error: any) {
       console.error('Error setting default address:', error);
-      toast.error('Error al actualizar la dirección predeterminada');
+      toast.error(error?.message || 'Error al actualizar la dirección predeterminada');
     }
   };
 
@@ -319,25 +318,27 @@ function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) {
 
     setIsSubmitting(true);
     try {
-      const response = address
-        ? await fake_updateAddress(address.id, data)
-        : await fake_createAddress({
-            ...data,
-            user_id: user.id,
-            is_default: false
-          });
+      // Map label to alias for API
+      const addressData = {
+        ...data,
+        alias: data.label,
+        is_default: false
+      };
+      delete (addressData as any).label;
 
-      if (response.success) {
-        toast.success(
-          address ? 'Dirección actualizada correctamente' : 'Dirección agregada correctamente'
-        );
-        onSuccess();
+      if (address) {
+        await updateAddress(address.id, addressData);
       } else {
-        toast.error(response.error?.message || 'Error al guardar la dirección');
+        await createAddress(addressData);
       }
-    } catch (error) {
+
+      toast.success(
+        address ? 'Dirección actualizada correctamente' : 'Dirección agregada correctamente'
+      );
+      onSuccess();
+    } catch (error: any) {
       console.error('Error saving address:', error);
-      toast.error('Error al guardar la dirección');
+      toast.error(error?.message || 'Error al guardar la dirección');
     } finally {
       setIsSubmitting(false);
     }

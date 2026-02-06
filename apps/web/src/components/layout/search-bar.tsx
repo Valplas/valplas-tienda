@@ -10,7 +10,7 @@ import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useDebounce } from '@/hooks/use-debounce';
-import { fake_getProducts } from '@/lib/mock/services';
+import { getProducts } from '@/services';
 import { Product } from '@/types';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -37,13 +37,13 @@ export function SearchBar() {
 
       setIsLoading(true);
       try {
-        const response = await fake_getProducts(
-          { search: debouncedQuery, is_active: true },
-          { limit: 5 }
-        );
+        const response = await getProducts({
+          search: debouncedQuery,
+          limit: 5
+        });
 
         if (response.success && response.data) {
-          setResults(response.data);
+          setResults(response.data as any);
           setIsOpen(true);
         }
       } catch (error) {

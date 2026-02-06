@@ -20,7 +20,7 @@ import {
   PaginationPrevious
 } from '@/components/ui/pagination';
 import { useFilterStore } from '@/stores/filter-store';
-import { fake_getProducts } from '@/lib/mock/services';
+import { getProducts } from '@/services';
 import { sortProducts } from '@/lib/utils/sort-products';
 import { useSearchParams } from 'next/navigation';
 
@@ -73,13 +73,18 @@ function ProductsContent() {
     };
 
     try {
-      const response = await fake_getProducts(filters, {
+      const response = await getProducts({
+        search,
+        categoryId,
+        brandId,
+        minPrice,
+        maxPrice,
         page: currentPage,
         limit: ITEMS_PER_PAGE
       });
 
       if (response.success && response.data) {
-        setProducts(response.data);
+        setProducts(response.data as any); // Type assertion for Product compatibility
         setTotal(response.pagination?.total || 0);
         setTotalPages(response.pagination?.totalPages || 1);
       } else {
