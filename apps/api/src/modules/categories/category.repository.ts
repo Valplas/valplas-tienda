@@ -49,7 +49,7 @@ export async function findCategoryBySlug(slug: string): Promise<Category | null>
  */
 export async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
   const conditions = ['slug = $1', 'deleted_at IS NULL'];
-  const params: any[] = [slug];
+  const params: unknown[] = [slug];
 
   if (excludeId) {
     conditions.push('id != $2');
@@ -136,7 +136,7 @@ export async function updateCategory(
   data: UpdateCategoryData
 ): Promise<Category | null> {
   const updates: string[] = [];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (data.name !== undefined) {
@@ -204,10 +204,10 @@ export async function updateDisplayOrders(
 ): Promise<void> {
   // Usar transacción para actualizar todos
   for (const cat of categories) {
-    await query(
-      'UPDATE categories SET display_order = $1 WHERE id = $2 AND deleted_at IS NULL',
-      [cat.displayOrder, cat.id]
-    );
+    await query('UPDATE categories SET display_order = $1 WHERE id = $2 AND deleted_at IS NULL', [
+      cat.displayOrder,
+      cat.id
+    ]);
   }
 }
 
@@ -237,7 +237,8 @@ export function buildCategoryTree(categories: Category[]): CategoryWithChildren[
 
   // Construir árbol
   categories.forEach((cat) => {
-    const category = categoryMap.get(cat.id)!;
+    const category = categoryMap.get(cat.id);
+    if (!category) return; // Skip if not found (shouldn't happen)
 
     if (cat.parent_id) {
       const parent = categoryMap.get(cat.parent_id);

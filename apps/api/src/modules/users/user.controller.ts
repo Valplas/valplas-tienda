@@ -1,6 +1,8 @@
 // apps/api/src/modules/users/user.controller.ts
 
 import type { Request, Response, NextFunction } from 'express';
+import type { AuthenticatedUser } from '../auth/auth.types.js';
+import type { UserRole } from './user.types.js';
 import * as userDomain from './user.domain.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
@@ -14,7 +16,7 @@ export async function getAllUsers(req: Request, res: Response, next: NextFunctio
     const result = await userDomain.getAllUsers({
       page: Number(page) || 1,
       limit: Number(limit) || 20,
-      role: role as any,
+      role: role as UserRole | undefined,
       is_active: is_active === 'true' ? true : is_active === 'false' ? false : undefined,
       email_verified:
         email_verified === 'true' ? true : email_verified === 'false' ? false : undefined,
@@ -34,10 +36,14 @@ export async function getAllUsers(req: Request, res: Response, next: NextFunctio
  */
 export async function getUserById(req: Request, res: Response, next: NextFunction) {
   try {
-    const requesterId = req.user!.userId;
-    const requesterRole = req.user!.role as any;
+    const requesterId = (req.user as AuthenticatedUser).userId;
+    const requesterRole = (req.user as AuthenticatedUser).role;
 
-    const user = await userDomain.getUserById(req.params.id as string as string, requesterId, requesterRole);
+    const user = await userDomain.getUserById(
+      req.params.id as string as string,
+      requesterId,
+      requesterRole
+    );
 
     return res.json(ApiResponse.success(user));
   } catch (error) {
@@ -50,10 +56,14 @@ export async function getUserById(req: Request, res: Response, next: NextFunctio
  */
 export async function getUserWithStats(req: Request, res: Response, next: NextFunction) {
   try {
-    const requesterId = req.user!.userId;
-    const requesterRole = req.user!.role as any;
+    const requesterId = (req.user as AuthenticatedUser).userId;
+    const requesterRole = (req.user as AuthenticatedUser).role;
 
-    const user = await userDomain.getUserWithStats(req.params.id as string as string, requesterId, requesterRole);
+    const user = await userDomain.getUserWithStats(
+      req.params.id as string as string,
+      requesterId,
+      requesterRole
+    );
 
     return res.json(ApiResponse.success(user));
   } catch (error) {
@@ -66,7 +76,7 @@ export async function getUserWithStats(req: Request, res: Response, next: NextFu
  */
 export async function createUser(req: Request, res: Response, next: NextFunction) {
   try {
-    const requesterRole = req.user!.role as any;
+    const requesterRole = (req.user as AuthenticatedUser).role;
 
     const user = await userDomain.createUser(req.body, requesterRole);
 
@@ -81,10 +91,15 @@ export async function createUser(req: Request, res: Response, next: NextFunction
  */
 export async function updateUser(req: Request, res: Response, next: NextFunction) {
   try {
-    const requesterId = req.user!.userId;
-    const requesterRole = req.user!.role as any;
+    const requesterId = (req.user as AuthenticatedUser).userId;
+    const requesterRole = (req.user as AuthenticatedUser).role;
 
-    const user = await userDomain.updateUser(req.params.id as string as string, req.body, requesterId, requesterRole);
+    const user = await userDomain.updateUser(
+      req.params.id as string as string,
+      req.body,
+      requesterId,
+      requesterRole
+    );
 
     return res.json(ApiResponse.success(user));
   } catch (error) {
@@ -97,10 +112,15 @@ export async function updateUser(req: Request, res: Response, next: NextFunction
  */
 export async function updateUserPassword(req: Request, res: Response, next: NextFunction) {
   try {
-    const requesterId = req.user!.userId;
-    const requesterRole = req.user!.role as any;
+    const requesterId = (req.user as AuthenticatedUser).userId;
+    const requesterRole = (req.user as AuthenticatedUser).role;
 
-    await userDomain.updateUserPassword(req.params.id as string as string, req.body, requesterId, requesterRole);
+    await userDomain.updateUserPassword(
+      req.params.id as string as string,
+      req.body,
+      requesterId,
+      requesterRole
+    );
 
     return res.json(ApiResponse.success({ message: 'Contraseña actualizada correctamente' }));
   } catch (error) {
@@ -113,8 +133,8 @@ export async function updateUserPassword(req: Request, res: Response, next: Next
  */
 export async function deleteUser(req: Request, res: Response, next: NextFunction) {
   try {
-    const requesterId = req.user!.userId;
-    const requesterRole = req.user!.role as any;
+    const requesterId = (req.user as AuthenticatedUser).userId;
+    const requesterRole = (req.user as AuthenticatedUser).role;
 
     await userDomain.deleteUser(req.params.id as string as string, requesterId, requesterRole);
 
@@ -129,10 +149,15 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
  */
 export async function activateUser(req: Request, res: Response, next: NextFunction) {
   try {
-    const requesterId = req.user!.userId;
-    const requesterRole = req.user!.role as any;
+    const requesterId = (req.user as AuthenticatedUser).userId;
+    const requesterRole = (req.user as AuthenticatedUser).role;
 
-    const user = await userDomain.toggleUserActive(req.params.id as string as string, true, requesterId, requesterRole);
+    const user = await userDomain.toggleUserActive(
+      req.params.id as string as string,
+      true,
+      requesterId,
+      requesterRole
+    );
 
     return res.json(ApiResponse.success(user));
   } catch (error) {
@@ -145,8 +170,8 @@ export async function activateUser(req: Request, res: Response, next: NextFuncti
  */
 export async function deactivateUser(req: Request, res: Response, next: NextFunction) {
   try {
-    const requesterId = req.user!.userId;
-    const requesterRole = req.user!.role as any;
+    const requesterId = (req.user as AuthenticatedUser).userId;
+    const requesterRole = (req.user as AuthenticatedUser).role;
 
     const user = await userDomain.toggleUserActive(
       req.params.id as string as string,

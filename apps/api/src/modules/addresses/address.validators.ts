@@ -37,8 +37,12 @@ export const createAddressSchema = z.object({
   floor: z.string().max(10).optional(),
   apartment: z.string().max(10).optional(),
   city: z.string().min(2).max(100),
-  province: z.enum(ARGENTINA_PROVINCES as any),
-  postcode: z.string().min(4).max(8).regex(/^\d{4,8}$/),
+  province: z.enum(ARGENTINA_PROVINCES as unknown as [string, ...string[]]),
+  postcode: z
+    .string()
+    .min(4)
+    .max(8)
+    .regex(/^\d{4,8}$/),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   place_id: z.string().optional(),
@@ -52,8 +56,13 @@ export const updateAddressSchema = z.object({
   floor: z.string().max(10).optional(),
   apartment: z.string().max(10).optional(),
   city: z.string().min(2).max(100).optional(),
-  province: z.enum(ARGENTINA_PROVINCES as any).optional(),
-  postcode: z.string().min(4).max(8).regex(/^\d{4,8}$/).optional(),
+  province: z.enum(ARGENTINA_PROVINCES as unknown as [string, ...string[]]).optional(),
+  postcode: z
+    .string()
+    .min(4)
+    .max(8)
+    .regex(/^\d{4,8}$/)
+    .optional(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   place_id: z.string().optional(),

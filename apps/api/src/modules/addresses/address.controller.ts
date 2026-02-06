@@ -1,6 +1,7 @@
 // apps/api/src/modules/addresses/address.controller.ts
 
 import type { Request, Response, NextFunction } from 'express';
+import type { AuthenticatedUser } from '../auth/auth.types.js';
 import * as addressDomain from './address.domain.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
@@ -9,7 +10,8 @@ import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-respon
  */
 export async function getMyAddresses(req: Request, res: Response, next: NextFunction) {
   try {
-    const userId = req.user!.userId;
+    const user = req.user as AuthenticatedUser;
+    const userId = user.userId;
     const { page, limit, is_default, is_active, province, city } = req.query;
 
     const result = await addressDomain.getUserAddresses(userId, {
@@ -22,12 +24,7 @@ export async function getMyAddresses(req: Request, res: Response, next: NextFunc
     });
 
     return res.json(
-      ApiResponse.paginated(
-        result.addresses,
-        Number(page) || 1,
-        Number(limit) || 20,
-        result.total
-      )
+      ApiResponse.paginated(result.addresses, Number(page) || 1, Number(limit) || 20, result.total)
     );
   } catch (error) {
     next(error);
@@ -52,12 +49,7 @@ export async function getAllAddresses(req: Request, res: Response, next: NextFun
     });
 
     return res.json(
-      ApiResponse.paginated(
-        result.addresses,
-        Number(page) || 1,
-        Number(limit) || 20,
-        result.total
-      )
+      ApiResponse.paginated(result.addresses, Number(page) || 1, Number(limit) || 20, result.total)
     );
   } catch (error) {
     next(error);
@@ -69,10 +61,14 @@ export async function getAllAddresses(req: Request, res: Response, next: NextFun
  */
 export async function getAddressById(req: Request, res: Response, next: NextFunction) {
   try {
-    const userId = req.user!.userId;
-    const isAdmin = ['admin', 'owner'].includes(req.user!.role);
+    const userId = (req.user as AuthenticatedUser).userId;
+    const isAdmin = ['admin', 'owner'].includes((req.user as AuthenticatedUser).role);
 
-    const address = await addressDomain.getAddressById(req.params.id as string as string, userId, isAdmin);
+    const address = await addressDomain.getAddressById(
+      req.params.id as string as string,
+      userId,
+      isAdmin
+    );
 
     return res.json(ApiResponse.success(address));
   } catch (error) {
@@ -85,7 +81,7 @@ export async function getAddressById(req: Request, res: Response, next: NextFunc
  */
 export async function getDefaultAddress(req: Request, res: Response, next: NextFunction) {
   try {
-    const userId = req.user!.userId;
+    const userId = (req.user as AuthenticatedUser).userId;
     const address = await addressDomain.getDefaultAddress(userId);
 
     if (!address) {
@@ -103,7 +99,7 @@ export async function getDefaultAddress(req: Request, res: Response, next: NextF
  */
 export async function createAddress(req: Request, res: Response, next: NextFunction) {
   try {
-    const userId = req.user!.userId;
+    const userId = (req.user as AuthenticatedUser).userId;
     const address = await addressDomain.createAddress(userId, req.body);
 
     return res.status(201).json(ApiResponse.success(address));
@@ -117,10 +113,15 @@ export async function createAddress(req: Request, res: Response, next: NextFunct
  */
 export async function updateAddress(req: Request, res: Response, next: NextFunction) {
   try {
-    const userId = req.user!.userId;
-    const isAdmin = ['admin', 'owner'].includes(req.user!.role);
+    const userId = (req.user as AuthenticatedUser).userId;
+    const isAdmin = ['admin', 'owner'].includes((req.user as AuthenticatedUser).role);
 
-    const address = await addressDomain.updateAddress(req.params.id as string as string, userId, req.body, isAdmin);
+    const address = await addressDomain.updateAddress(
+      req.params.id as string as string,
+      userId,
+      req.body,
+      isAdmin
+    );
 
     return res.json(ApiResponse.success(address));
   } catch (error) {
@@ -133,8 +134,8 @@ export async function updateAddress(req: Request, res: Response, next: NextFunct
  */
 export async function deleteAddress(req: Request, res: Response, next: NextFunction) {
   try {
-    const userId = req.user!.userId;
-    const isAdmin = ['admin', 'owner'].includes(req.user!.role);
+    const userId = (req.user as AuthenticatedUser).userId;
+    const isAdmin = ['admin', 'owner'].includes((req.user as AuthenticatedUser).role);
 
     await addressDomain.deleteAddress(req.params.id as string as string, userId, isAdmin);
 
@@ -149,10 +150,14 @@ export async function deleteAddress(req: Request, res: Response, next: NextFunct
  */
 export async function setDefaultAddress(req: Request, res: Response, next: NextFunction) {
   try {
-    const userId = req.user!.userId;
-    const isAdmin = ['admin', 'owner'].includes(req.user!.role);
+    const userId = (req.user as AuthenticatedUser).userId;
+    const isAdmin = ['admin', 'owner'].includes((req.user as AuthenticatedUser).role);
 
-    const address = await addressDomain.setDefaultAddress(req.params.id as string as string, userId, isAdmin);
+    const address = await addressDomain.setDefaultAddress(
+      req.params.id as string as string,
+      userId,
+      isAdmin
+    );
 
     return res.json(ApiResponse.success(address));
   } catch (error) {

@@ -87,15 +87,18 @@ export class ApiResponseBuilder {
     // Si el segundo argumento es un número, usar la firma con argumentos separados
     if (typeof paginationOrPage === 'number') {
       const page = paginationOrPage;
+      if (limit === undefined || total === undefined) {
+        throw new Error('limit and total are required when using numeric pagination');
+      }
       return {
         success: true,
         data,
         pagination: {
           page,
-          limit: limit!,
-          total: total!,
-          totalPages: Math.ceil(total! / limit!),
-          hasMore: page * limit! < total!
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasMore: page * limit < total
         }
       };
     }

@@ -55,7 +55,7 @@ export function requireRole(roles: Array<'owner' | 'admin' | 'driver' | 'custome
       return;
     }
 
-    if (!roles.includes(req.user.role as any)) {
+    if (!roles.includes(req.user.role)) {
       res.status(403).json(ApiResponse.error('FORBIDDEN', 'Sin permisos suficientes'));
       return;
     }

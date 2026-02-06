@@ -17,7 +17,7 @@ export interface ShippingCarrier {
   code: string;
   logo_url: string | null;
   is_active: boolean;
-  config: Record<string, any> | null;
+  config: Record<string, unknown> | null;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -71,7 +71,7 @@ export interface CreateShippingCarrierInput {
   code: string;
   logo_url?: string;
   is_active?: boolean;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 export interface UpdateShippingCarrierInput {
@@ -79,7 +79,7 @@ export interface UpdateShippingCarrierInput {
   code?: string;
   logo_url?: string;
   is_active?: boolean;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 export interface CreateShippingRateInput {

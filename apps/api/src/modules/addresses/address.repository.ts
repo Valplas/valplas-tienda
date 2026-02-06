@@ -14,19 +14,11 @@ import type {
 export async function findAddresses(
   filters: AddressFilters
 ): Promise<{ addresses: UserAddress[]; total: number }> {
-  const {
-    user_id,
-    is_default,
-    is_active,
-    province,
-    city,
-    page = 1,
-    limit = 20
-  } = filters;
+  const { user_id, is_default, is_active, province, city, page = 1, limit = 20 } = filters;
 
   const offset = (page - 1) * limit;
   const conditions: string[] = ['deleted_at IS NULL'];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (user_id) {
@@ -179,7 +171,7 @@ export async function updateAddress(
 
     // Build update query
     const updates: string[] = [];
-    const params: any[] = [];
+    const params: unknown[] = [];
     let paramIndex = 1;
 
     if (data.alias !== undefined) {
@@ -308,10 +300,7 @@ export async function countUserAddresses(userId: string): Promise<number> {
 /**
  * Check if address belongs to user
  */
-export async function isAddressOwnedByUser(
-  addressId: string,
-  userId: string
-): Promise<boolean> {
+export async function isAddressOwnedByUser(addressId: string, userId: string): Promise<boolean> {
   const result = await query<{ count: string }>(
     `SELECT COUNT(*) as count
      FROM user_addresses

@@ -19,8 +19,10 @@ async function checkMigrations() {
 
     console.log('✅ Migraciones ejecutadas:');
     console.log('================================');
-    result.rows.forEach((row: any) => {
-      console.log(`  ✓ ${row.filename} (${new Date(row.executed_at).toLocaleString()})`);
+    result.rows.forEach((row: Record<string, unknown>) => {
+      console.log(
+        `  ✓ ${row.filename} (${new Date(row.executed_at as string | number).toLocaleString()})`
+      );
     });
 
     // Get migration files
@@ -30,11 +32,13 @@ async function checkMigrations() {
     console.log('\n📁 Archivos de migración disponibles:');
     console.log('================================');
     migrationFiles.forEach((file) => {
-      const executed = result.rows.some((row: any) => row.filename === file);
+      const executed = result.rows.some((row: Record<string, unknown>) => row.filename === file);
       console.log(`  ${executed ? '✓' : '⏳'} ${file}`);
     });
 
-    const pending = migrationFiles.filter((f) => !result.rows.some((row: any) => row.filename === f));
+    const pending = migrationFiles.filter(
+      (f) => !result.rows.some((row: Record<string, unknown>) => row.filename === f)
+    );
 
     console.log('\n📊 Resumen:');
     console.log('================================');
@@ -45,7 +49,6 @@ async function checkMigrations() {
       console.log('\n⏳ Migraciones pendientes:');
       pending.forEach((f) => console.log(`  - ${f}`));
     }
-
   } catch (error) {
     console.error('❌ Error:', error);
   } finally {

@@ -10,7 +10,7 @@ export async function findBrands(filters: BrandFilters = {}) {
   const offset = (page - 1) * limit;
 
   const conditions: string[] = ['b.deleted_at IS NULL'];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   // Búsqueda fuzzy por nombre
@@ -52,7 +52,10 @@ export async function findBrands(filters: BrandFilters = {}) {
   `;
 
   const [brandsResult, countResult] = await Promise.all([
-    query<Brand & { product_count: string }>(brandsQuery, params.slice(0, -2).concat([limit, offset])),
+    query<Brand & { product_count: string }>(
+      brandsQuery,
+      params.slice(0, -2).concat([limit, offset])
+    ),
     query<{ count: string }>(countQuery, params.slice(0, -2))
   ]);
 
@@ -71,10 +74,9 @@ export async function findBrands(filters: BrandFilters = {}) {
  * Buscar marca por ID
  */
 export async function findBrandById(id: string): Promise<Brand | null> {
-  const result = await query<Brand>(
-    'SELECT * FROM brands WHERE id = $1 AND deleted_at IS NULL',
-    [id]
-  );
+  const result = await query<Brand>('SELECT * FROM brands WHERE id = $1 AND deleted_at IS NULL', [
+    id
+  ]);
 
   return result.rows[0] || null;
 }
@@ -83,10 +85,9 @@ export async function findBrandById(id: string): Promise<Brand | null> {
  * Buscar marca por slug
  */
 export async function findBrandBySlug(slug: string): Promise<Brand | null> {
-  const result = await query<Brand>(
-    'SELECT * FROM brands WHERE slug = $1 AND deleted_at IS NULL',
-    [slug]
-  );
+  const result = await query<Brand>('SELECT * FROM brands WHERE slug = $1 AND deleted_at IS NULL', [
+    slug
+  ]);
 
   return result.rows[0] || null;
 }
@@ -96,7 +97,7 @@ export async function findBrandBySlug(slug: string): Promise<Brand | null> {
  */
 export async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
   const conditions = ['slug = $1', 'deleted_at IS NULL'];
-  const params: any[] = [slug];
+  const params: unknown[] = [slug];
 
   if (excludeId) {
     conditions.push('id != $2');
@@ -158,7 +159,7 @@ export async function createBrand(data: CreateBrandData): Promise<Brand> {
  */
 export async function updateBrand(id: string, data: UpdateBrandData): Promise<Brand | null> {
   const updates: string[] = [];
-  const params: any[] = [];
+  const params: unknown[] = [];
   let paramIndex = 1;
 
   if (data.name !== undefined) {

@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import type { AuthenticatedUser } from '../auth/auth.types.js';
 import * as cartService from './cart.service.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
@@ -124,7 +125,7 @@ export async function clearCart(req: Request, res: Response, next: NextFunction)
 export async function syncCart(req: Request, res: Response, next: NextFunction) {
   try {
     const guestCart = cartService.getCartFromCookie(req);
-    const userId = req.user!.userId;
+    const userId = (req.user as AuthenticatedUser).userId;
 
     const syncedCart = await cartService.syncCart(guestCart, userId);
     cartService.saveCartToCookie(res, syncedCart);
