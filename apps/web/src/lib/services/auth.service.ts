@@ -32,7 +32,7 @@ export interface User {
 export interface AuthResponse {
   user: User;
   accessToken: string;
-  refreshToken: string;
+  // refreshToken se envía como cookie HttpOnly, no en el body
 }
 
 /**
