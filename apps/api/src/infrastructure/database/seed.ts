@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { query } from './client.js';
 import { logger } from '../logger/index.js';
 
@@ -32,7 +32,9 @@ export async function seedDatabase(): Promise<void> {
 
     logger.info('Database seeding completed successfully');
   } catch (error) {
-    logger.error('Error seeding database:', { error: error instanceof Error ? error.message : String(error) });
+    logger.error('Error seeding database:', {
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 }
@@ -112,11 +114,36 @@ async function seedCategories(): Promise<void> {
 
   // Parent categories
   const parentCategories = [
-    { name: 'Limpieza', slug: 'limpieza', description: 'Productos de limpieza para el hogar y comercios', display_order: 1 },
-    { name: 'Electrodomésticos', slug: 'electrodomesticos', description: 'Electrodomésticos para el hogar', display_order: 2 },
-    { name: 'Plásticos', slug: 'plasticos', description: 'Artículos plásticos para el hogar', display_order: 3 },
-    { name: 'Cocina', slug: 'cocina', description: 'Utensilios y productos para la cocina', display_order: 4 },
-    { name: 'Baño', slug: 'bano', description: 'Accesorios y productos para el baño', display_order: 5 }
+    {
+      name: 'Limpieza',
+      slug: 'limpieza',
+      description: 'Productos de limpieza para el hogar y comercios',
+      display_order: 1
+    },
+    {
+      name: 'Electrodomésticos',
+      slug: 'electrodomesticos',
+      description: 'Electrodomésticos para el hogar',
+      display_order: 2
+    },
+    {
+      name: 'Plásticos',
+      slug: 'plasticos',
+      description: 'Artículos plásticos para el hogar',
+      display_order: 3
+    },
+    {
+      name: 'Cocina',
+      slug: 'cocina',
+      description: 'Utensilios y productos para la cocina',
+      display_order: 4
+    },
+    {
+      name: 'Baño',
+      slug: 'bano',
+      description: 'Accesorios y productos para el baño',
+      display_order: 5
+    }
   ];
 
   for (const category of parentCategories) {
@@ -129,7 +156,7 @@ async function seedCategories(): Promise<void> {
   }
 
   // Get parent IDs for subcategories
-  const limpiezaResult = await query('SELECT id FROM categories WHERE slug = \'limpieza\'');
+  const limpiezaResult = await query("SELECT id FROM categories WHERE slug = 'limpieza'");
   const limpiezaId = limpiezaResult.rows[0]?.id;
 
   if (limpiezaId) {
@@ -137,7 +164,12 @@ async function seedCategories(): Promise<void> {
       { parent_id: limpiezaId, name: 'Detergentes', slug: 'detergentes', display_order: 1 },
       { parent_id: limpiezaId, name: 'Desinfectantes', slug: 'desinfectantes', display_order: 2 },
       { parent_id: limpiezaId, name: 'Lavandinas', slug: 'lavandinas', display_order: 3 },
-      { parent_id: limpiezaId, name: 'Limpiadores Multiuso', slug: 'limpiadores-multiuso', display_order: 4 }
+      {
+        parent_id: limpiezaId,
+        name: 'Limpiadores Multiuso',
+        slug: 'limpiadores-multiuso',
+        display_order: 4
+      }
     ];
 
     for (const subcategory of subcategories) {
@@ -191,12 +223,12 @@ async function seedProducts(): Promise<void> {
   logger.info('Seeding products...');
 
   // Get category and brand IDs
-  const limpiezaResult = await query('SELECT id FROM categories WHERE slug = \'limpieza\'');
-  const detergentesResult = await query('SELECT id FROM categories WHERE slug = \'detergentes\'');
-  const lavandResult = await query('SELECT id FROM categories WHERE slug = \'lavandinas\'');
-  const magistralResult = await query('SELECT id FROM brands WHERE slug = \'magistral\'');
-  const ayudinResult = await query('SELECT id FROM brands WHERE slug = \'ayudin\'');
-  const skipResult = await query('SELECT id FROM brands WHERE slug = \'skip\'');
+  const limpiezaResult = await query("SELECT id FROM categories WHERE slug = 'limpieza'");
+  const detergentesResult = await query("SELECT id FROM categories WHERE slug = 'detergentes'");
+  const lavandResult = await query("SELECT id FROM categories WHERE slug = 'lavandinas'");
+  const magistralResult = await query("SELECT id FROM brands WHERE slug = 'magistral'");
+  const ayudinResult = await query("SELECT id FROM brands WHERE slug = 'ayudin'");
+  const skipResult = await query("SELECT id FROM brands WHERE slug = 'skip'");
 
   const limpiezaId = limpiezaResult.rows[0]?.id;
   const detergentesId = detergentesResult.rows[0]?.id;
@@ -360,7 +392,7 @@ async function seedUserAddresses(): Promise<void> {
   logger.info('Seeding user addresses...');
 
   // Get customer user ID
-  const userResult = await query('SELECT id FROM users WHERE email = \'cliente@test.com\'');
+  const userResult = await query("SELECT id FROM users WHERE email = 'cliente@test.com'");
   const userId = userResult.rows[0]?.id;
 
   if (!userId) {
@@ -433,7 +465,19 @@ async function seedShippingZones(): Promise<void> {
       description: 'Ciudad Autónoma de Buenos Aires',
       base_cost: 150000, // $1.500,00
       free_shipping_threshold: 2000000, // $20.000,00
-      postcodes: ['1000', '1001', '1002', '1003', '1004', '1005', '1006', '1007', '1010', '1043', '1425']
+      postcodes: [
+        '1000',
+        '1001',
+        '1002',
+        '1003',
+        '1004',
+        '1005',
+        '1006',
+        '1007',
+        '1010',
+        '1043',
+        '1425'
+      ]
     },
     {
       name: 'GBA - Zona Norte',
