@@ -1,7 +1,7 @@
 // apps/api/src/infrastructure/database/seed-complete.ts
 
 import { query, pool } from './client.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 const BCRYPT_ROUNDS = 12;
 
