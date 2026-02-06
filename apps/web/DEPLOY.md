@@ -38,12 +38,13 @@ Ve a **Settings** → **Environment Variables** y agrega:
 | Variable                      | Valor                                      | Ejemplo                                          |
 | ----------------------------- | ------------------------------------------ | ------------------------------------------------ |
 | `NEXT_PUBLIC_API_URL`         | URL del backend en Railway                 | `https://valplas-api-production.railway.app/api` |
-| `NEXT_PUBLIC_USE_MOCK`        | **CRÍTICO:** Usar API real (no mock)       | `false`                                          |
+| `NEXT_PUBLIC_USE_MOCK`        | **Usar mock temporalmente**                | `true` (por ahora)                               |
 | `NEXT_PUBLIC_MP_PUBLIC_KEY`   | Clave pública de Mercado Pago (Producción) | `APP-xxxx-xxxx-xxxx`                             |
 | `NEXT_PUBLIC_GOOGLE_MAPS_KEY` | API Key de Google Maps                     | `AIza...`                                        |
 | `NEXT_PUBLIC_SITE_URL`        | URL del sitio en Vercel                    | `https://valplas.vercel.app`                     |
 
-**⚠️ MUY IMPORTANTE:** Si no configuras `NEXT_PUBLIC_USE_MOCK=false`, el frontend usará datos mock (localStorage) en lugar de llamar a la API real de Railway.
+**📝 NOTA:** El frontend actualmente usa servicios mock (datos de prueba en localStorage).
+Para migrar a la API real, ver `MIGRATION.md` y luego cambiar `NEXT_PUBLIC_USE_MOCK=false`.
 
 #### Preview (opcional)
 
