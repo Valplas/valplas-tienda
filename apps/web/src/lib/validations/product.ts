@@ -9,7 +9,10 @@ import { z } from 'zod';
  */
 export const productSchema = z.object({
   name: z.string().min(3, 'Mínimo 3 caracteres'),
-  sku: z.string().min(1, 'SKU requerido'),
+  sku: z
+    .string()
+    .min(1, 'SKU requerido')
+    .regex(/^[a-zA-Z0-9-]+$/, 'SKU solo puede contener letras, números y guiones'),
   description: z.string().min(10, 'Mínimo 10 caracteres'),
   base_price: z.number().min(0, 'Precio debe ser mayor a 0'),
   stock: z.number().min(0, 'Stock no puede ser negativo'),
