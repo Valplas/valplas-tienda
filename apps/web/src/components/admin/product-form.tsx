@@ -18,9 +18,8 @@ import {
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Button } from '@/components/ui/button';
 import { ImageUpload } from '@/components/admin/image-upload';
-import { MOCK_CATEGORIES } from '@/lib/mock/data/categories';
-import { MOCK_BRANDS } from '@/lib/mock/data/brands';
 import { cn } from '@/lib/utils';
+import { getCategories, getBrands } from '@/services';
 
 export interface ProductFormProps {
   product?: Product;
@@ -31,6 +30,9 @@ export interface ProductFormProps {
 export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const [images, setImages] = React.useState<string[]>(product?.images || []);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [categories, setCategories] = React.useState<any[]>([]);
+  const [brands, setBrands] = React.useState<any[]>([]);
+  const [isLoadingData, setIsLoadingData] = React.useState(true);
 
   const {
     register,
@@ -65,6 +67,28 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const brandId = watch('brand_id');
   const isFeatured = watch('is_featured');
   const isActive = watch('is_active');
+
+  // Load categories and brands on mount
+  React.useEffect(() => {
+    const loadData = async () => {
+      setIsLoadingData(true);
+      try {
+        const [categoriesData, brandsRes] = await Promise.all([getCategories(), getBrands()]);
+
+        setCategories(categoriesData.filter((c: any) => c.is_active));
+
+        if (brandsRes.success && brandsRes.data) {
+          setBrands(brandsRes.data.filter((b: any) => b.is_active));
+        }
+      } catch (error) {
+        console.error('Error loading form data:', error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const handleFormSubmit = async (data: ProductFormData) => {
     setIsSubmitting(true);
@@ -156,11 +180,15 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
                 <SelectValue placeholder="Seleccioná una categoría" />
               </SelectTrigger>
               <SelectContent>
-                {MOCK_CATEGORIES.filter((c) => c.is_active).map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
+                {isLoadingData ? (
+                  <div className="p-2 text-sm text-muted-foreground">Cargando...</div>
+                ) : (
+                  categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             {errors.category_id && (
@@ -182,11 +210,15 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
                 <SelectValue placeholder="Seleccioná una marca" />
               </SelectTrigger>
               <SelectContent>
-                {MOCK_BRANDS.filter((b) => b.is_active).map((brand) => (
-                  <SelectItem key={brand.id} value={brand.id}>
-                    {brand.name}
-                  </SelectItem>
-                ))}
+                {isLoadingData ? (
+                  <div className="p-2 text-sm text-muted-foreground">Cargando...</div>
+                ) : (
+                  brands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.id}>
+                      {brand.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             {errors.brand_id && (
