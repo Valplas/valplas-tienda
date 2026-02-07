@@ -61,11 +61,18 @@ export default function MarcasPage() {
   const handleSubmit = async (data: BrandFormData) => {
     setIsSubmitting(true);
     try {
+      // Convert undefined to null for API compatibility
+      const payload = {
+        ...data,
+        description: data.description ?? null,
+        logo_url: data.logo_url ?? null
+      };
+
       if (selectedBrand) {
-        await fake_updateBrand(selectedBrand.id, data);
+        await fake_updateBrand(selectedBrand.id, payload);
         toast.success('Marca actualizada correctamente');
       } else {
-        await fake_createBrand(data);
+        await fake_createBrand(payload);
         toast.success('Marca creada correctamente');
       }
       setSheetOpen(false);

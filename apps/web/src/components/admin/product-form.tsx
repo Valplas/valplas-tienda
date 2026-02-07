@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Product } from '@/types';
+import { Product, Category, Brand } from '@/types';
 import { productSchema, type ProductFormData } from '@/lib/validations/product';
 import { FormField } from '@/components/ui/form-field';
 import { Label } from '@/components/ui/label';
@@ -30,8 +30,8 @@ export interface ProductFormProps {
 export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const [images, setImages] = React.useState<string[]>(product?.images || []);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [categories, setCategories] = React.useState<any[]>([]);
-  const [brands, setBrands] = React.useState<any[]>([]);
+  const [categories, setCategories] = React.useState<Category[]>([]);
+  const [brands, setBrands] = React.useState<Brand[]>([]);
   const [isLoadingData, setIsLoadingData] = React.useState(true);
 
   const {
@@ -75,10 +75,10 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       try {
         const [categoriesData, brandsRes] = await Promise.all([getCategories(), getBrands()]);
 
-        setCategories(categoriesData.filter((c: any) => c.is_active));
+        setCategories(categoriesData.filter((c) => c.is_active));
 
         if (brandsRes.success && brandsRes.data) {
-          setBrands(brandsRes.data.filter((b: any) => b.is_active));
+          setBrands(brandsRes.data.filter((b) => b.is_active));
         }
       } catch (error) {
         console.error('Error loading form data:', error);

@@ -6,6 +6,7 @@ export const MOCK_BRANDS: Brand[] = [
     name: 'Bragulat',
     slug: 'bragulat',
     logo_url: '/brands/bragulat.png',
+    description: null,
     is_active: true,
     created_at: '2024-01-01T10:00:00.000Z',
     updated_at: '2024-01-01T10:00:00.000Z'
@@ -15,6 +16,7 @@ export const MOCK_BRANDS: Brand[] = [
     name: 'Ariel',
     slug: 'ariel',
     logo_url: '/brands/ariel.png',
+    description: null,
     is_active: true,
     created_at: '2024-01-01T10:00:00.000Z',
     updated_at: '2024-01-01T10:00:00.000Z'
@@ -24,6 +26,7 @@ export const MOCK_BRANDS: Brand[] = [
     name: 'Magistral',
     slug: 'magistral',
     logo_url: '/brands/magistral.png',
+    description: null,
     is_active: true,
     created_at: '2024-01-01T10:00:00.000Z',
     updated_at: '2024-01-01T10:00:00.000Z'
@@ -33,6 +36,7 @@ export const MOCK_BRANDS: Brand[] = [
     name: 'Philips',
     slug: 'philips',
     logo_url: '/brands/philips.png',
+    description: null,
     is_active: true,
     created_at: '2024-01-01T10:00:00.000Z',
     updated_at: '2024-01-01T10:00:00.000Z'
@@ -42,6 +46,7 @@ export const MOCK_BRANDS: Brand[] = [
     name: 'Liliana',
     slug: 'liliana',
     logo_url: '/brands/liliana.png',
+    description: null,
     is_active: true,
     created_at: '2024-01-01T10:00:00.000Z',
     updated_at: '2024-01-01T10:00:00.000Z'
@@ -50,6 +55,8 @@ export const MOCK_BRANDS: Brand[] = [
     id: 'brand-006',
     name: 'Genérica',
     slug: 'generica',
+    logo_url: null,
+    description: null,
     is_active: true,
     created_at: '2024-01-01T10:00:00.000Z',
     updated_at: '2024-01-01T10:00:00.000Z'
@@ -59,6 +66,7 @@ export const MOCK_BRANDS: Brand[] = [
     name: 'Ayudín',
     slug: 'ayudin',
     logo_url: '/brands/ayudin.png',
+    description: null,
     is_active: true,
     created_at: '2024-01-01T10:00:00.000Z',
     updated_at: '2024-01-01T10:00:00.000Z'
