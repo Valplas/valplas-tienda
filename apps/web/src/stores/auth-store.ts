@@ -15,7 +15,7 @@ interface AuthState {
 }
 
 interface AuthActions {
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<{ user: User }>;
   logout: () => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   setUser: (user: User | null) => void;
@@ -74,6 +74,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
         isAuthenticated: true,
         isLoading: false
       });
+
+      // Retornar la sesión con el usuario para que el caller pueda acceder al rol
+      return { user };
     } catch (error) {
       set({ isLoading: false });
       throw error;

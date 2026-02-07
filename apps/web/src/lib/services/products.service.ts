@@ -2,37 +2,10 @@
 
 import { get } from '../api';
 import type { ApiResponse } from '../api';
+import type { Product } from '@/types';
 
-export interface Product {
-  id: string;
-  sku: string;
-  name: string;
-  slug: string;
-  description: string;
-  base_price: number;
-  stock: number;
-  reserved_stock: number;
-  is_featured: boolean;
-  is_active: boolean;
-  category: {
-    id: string;
-    name: string;
-    slug: string;
-  };
-  brand: {
-    id: string;
-    name: string;
-    slug: string;
-  } | null;
-  images: Array<{
-    id: string;
-    url: string;
-    alt_text: string;
-    is_primary: boolean;
-  }>;
-  created_at: string;
-  updated_at: string;
-}
+// Re-export Product type for convenience
+export type { Product };
 
 export interface ProductFilters {
   search?: string;

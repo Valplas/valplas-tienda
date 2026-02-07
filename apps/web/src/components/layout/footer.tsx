@@ -52,19 +52,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/sobre-nosotros" className="hover:text-foreground">
-                  Sobre Nosotros
-                </Link>
+                <span className="cursor-not-allowed opacity-50">Sobre Nosotros</span>
               </li>
               <li>
-                <Link href="/contacto" className="hover:text-foreground">
-                  Contacto
-                </Link>
+                <span className="cursor-not-allowed opacity-50">Contacto</span>
               </li>
               <li>
-                <Link href="/preguntas-frecuentes" className="hover:text-foreground">
-                  Preguntas Frecuentes
-                </Link>
+                <span className="cursor-not-allowed opacity-50">Preguntas Frecuentes</span>
               </li>
             </ul>
           </div>
@@ -74,24 +68,16 @@ export function Footer() {
             <h3 className="mb-4 text-lg font-semibold">Legal</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/terminos" className="hover:text-foreground">
-                  Términos y Condiciones
-                </Link>
+                <span className="cursor-not-allowed opacity-50">Términos y Condiciones</span>
               </li>
               <li>
-                <Link href="/privacidad" className="hover:text-foreground">
-                  Política de Privacidad
-                </Link>
+                <span className="cursor-not-allowed opacity-50">Política de Privacidad</span>
               </li>
               <li>
-                <Link href="/envios" className="hover:text-foreground">
-                  Política de Envíos
-                </Link>
+                <span className="cursor-not-allowed opacity-50">Política de Envíos</span>
               </li>
               <li>
-                <Link href="/devoluciones" className="hover:text-foreground">
-                  Devoluciones
-                </Link>
+                <span className="cursor-not-allowed opacity-50">Devoluciones</span>
               </li>
             </ul>
           </div>

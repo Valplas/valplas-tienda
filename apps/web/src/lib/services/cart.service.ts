@@ -25,7 +25,8 @@ export interface Cart {
  * Obtener carrito actual
  */
 export async function getCart(): Promise<Cart> {
-  const response = await get<Cart>('/cart');
+  // Silenciar errores porque el 401 es esperado cuando no hay sesión
+  const response = await get<Cart>('/cart', { silentErrors: true });
 
   if (response.success && response.data) {
     return response.data;

@@ -3,7 +3,12 @@
  * @param amount - Monto a formatear
  * @returns String formateado como $1.234,56
  */
-export function formatPrice(amount: number): string {
+export function formatPrice(amount: number | null | undefined): string {
+  // Manejar valores inválidos
+  if (amount == null || isNaN(amount)) {
+    return '$0,00';
+  }
+
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
     currency: 'ARS',

@@ -42,20 +42,26 @@ export function removeAccessToken(): void {
   localStorage.removeItem('access_token');
 }
 
+// eslint-disable-next-line no-undef
+export interface FetchOptions extends RequestInit {
+  silentErrors?: boolean; // No loggear errores en consola
+}
+
 /**
  * Cliente HTTP para llamadas a la API
  */
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
+async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<ApiResponse<T>> {
   const url = `${API_URL}${endpoint}`;
   const token = getAccessToken();
+  const { silentErrors, ...fetchOptions } = options || {};
 
   try {
     const res = await fetch(url, {
-      ...options,
+      ...fetchOptions,
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
-        ...options?.headers
+        ...fetchOptions?.headers
       },
       credentials: 'include' // Para cookies de autenticacion (refresh token)
     });
@@ -73,7 +79,10 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<Api
 
     return data;
   } catch (error) {
-    console.error('API Error:', error);
+    // Solo loggear si no está silenciado
+    if (!silentErrors) {
+      console.error('API Error:', error);
+    }
     throw error;
   }
 }
@@ -81,7 +90,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<Api
 /**
  * GET request
  */
-export async function get<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
+export async function get<T>(endpoint: string, options?: FetchOptions): Promise<ApiResponse<T>> {
   return fetchApi<T>(endpoint, { ...options, method: 'GET' });
 }
 
@@ -91,7 +100,7 @@ export async function get<T>(endpoint: string, options?: RequestInit): Promise<A
 export async function post<T>(
   endpoint: string,
   body?: unknown,
-  options?: RequestInit
+  options?: FetchOptions
 ): Promise<ApiResponse<T>> {
   return fetchApi<T>(endpoint, {
     ...options,
@@ -106,7 +115,7 @@ export async function post<T>(
 export async function put<T>(
   endpoint: string,
   body?: unknown,
-  options?: RequestInit
+  options?: FetchOptions
 ): Promise<ApiResponse<T>> {
   return fetchApi<T>(endpoint, {
     ...options,
@@ -121,7 +130,7 @@ export async function put<T>(
 export async function patch<T>(
   endpoint: string,
   body?: unknown,
-  options?: RequestInit
+  options?: FetchOptions
 ): Promise<ApiResponse<T>> {
   return fetchApi<T>(endpoint, {
     ...options,
@@ -133,6 +142,6 @@ export async function patch<T>(
 /**
  * DELETE request
  */
-export async function del<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
+export async function del<T>(endpoint: string, options?: FetchOptions): Promise<ApiResponse<T>> {
   return fetchApi<T>(endpoint, { ...options, method: 'DELETE' });
 }

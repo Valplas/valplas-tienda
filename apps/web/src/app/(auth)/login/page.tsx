@@ -40,15 +40,22 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      await login({
+      const session = await login({
         identifier: data.identifier,
         password: data.password
       });
 
       toast.success('Sesión iniciada correctamente');
 
-      // Redirigir a la URL de retorno o a /cuenta
-      const redirectTo = searchParams.get('redirect') || '/cuenta';
+      // Redirigir según el rol del usuario
+      const userRole = session.user.role;
+      let redirectTo = searchParams.get('redirect');
+
+      // Si no hay redirect específico, determinar por rol
+      if (!redirectTo) {
+        redirectTo = userRole === 'admin' || userRole === 'owner' ? '/admin' : '/cuenta';
+      }
+
       router.push(redirectTo);
     } catch (error: any) {
       toast.error(error?.message || 'Error al iniciar sesión. Intentá de nuevo.');

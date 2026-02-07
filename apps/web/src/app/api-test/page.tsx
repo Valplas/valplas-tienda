@@ -93,7 +93,8 @@ export default function ApiTestPage() {
             <StatusBadge status={testStatus.backend} />
           </div>
           <p className="text-gray-600">
-            Endpoint: <code className="bg-gray-100 px-2 py-1 rounded">http://localhost:3001/health</code>
+            Endpoint:{' '}
+            <code className="bg-gray-100 px-2 py-1 rounded">http://localhost:3001/health</code>
           </p>
         </div>
 
@@ -165,7 +166,9 @@ export default function ApiTestPage() {
                     <p className="text-sm text-gray-600">
                       Stock: {product.stock - product.reserved_stock} disponibles
                     </p>
-                    <p className="text-sm text-gray-600">Categoría: {product.category.name}</p>
+                    <p className="text-sm text-gray-600">
+                      Categoría: {product.category?.name || 'Sin categoría'}
+                    </p>
                   </div>
                 ))}
               </div>
