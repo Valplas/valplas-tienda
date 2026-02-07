@@ -97,11 +97,18 @@ export default function CategoriasPage() {
   const handleSubmit = async (data: CategoryFormData) => {
     setIsSubmitting(true);
     try {
+      // Convert undefined to null for API compatibility
+      const payload = {
+        ...data,
+        description: data.description ?? null,
+        image_url: data.image_url ?? null
+      };
+
       if (selectedCategory) {
-        await fake_updateCategory(selectedCategory.id, data);
+        await fake_updateCategory(selectedCategory.id, payload);
         toast.success('Categoría actualizada correctamente');
       } else {
-        await fake_createCategory(data);
+        await fake_createCategory(payload);
         toast.success('Categoría creada correctamente');
       }
       setSheetOpen(false);

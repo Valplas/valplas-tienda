@@ -2,17 +2,7 @@
 
 import { get } from '../api';
 import type { ApiResponse } from '../api';
-
-export interface Brand {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  logo_url: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import type { Brand } from '@/types';
 
 /**
  * Obtener todas las marcas activas
