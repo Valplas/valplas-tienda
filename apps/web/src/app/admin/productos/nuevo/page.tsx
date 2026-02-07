@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 // TODO: Import real product admin service when available
 // For now, using placeholder
 async function createProduct(data: any): Promise<any> {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/products`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
