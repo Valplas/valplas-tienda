@@ -96,7 +96,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             label="SKU"
             required
             error={errors.sku?.message}
-            helperText="Código único del producto"
+            helperText="Código único (se convertirá a mayúsculas automáticamente)"
             {...register('sku')}
           />
         </div>

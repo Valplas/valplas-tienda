@@ -7,9 +7,39 @@ import { ProductForm } from '@/components/admin/product-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 
-// TODO: Import real product admin service when available
-// For now, using placeholder
+/**
+ * Generate slug from product name
+ */
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+}
+
+/**
+ * Map frontend data (snake_case) to backend format (camelCase)
+ */
+function mapToBackendFormat(data: any): any {
+  return {
+    name: data.name,
+    sku: data.sku.toUpperCase(), // Backend requires uppercase
+    slug: generateSlug(data.name), // Auto-generate from name
+    description: data.description,
+    categoryId: data.category_id,
+    brandId: data.brand_id,
+    basePrice: data.base_price,
+    stock: data.stock,
+    isFeatured: data.is_featured,
+    unit: data.unit
+  };
+}
+
 async function createProduct(data: any): Promise<any> {
+  const backendData = mapToBackendFormat(data);
+
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`, {
     method: 'POST',
     headers: {
@@ -17,7 +47,7 @@ async function createProduct(data: any): Promise<any> {
       Authorization: `Bearer ${localStorage.getItem('access_token')}`
     },
     credentials: 'include',
-    body: JSON.stringify(data)
+    body: JSON.stringify(backendData)
   });
 
   if (!response.ok) {
