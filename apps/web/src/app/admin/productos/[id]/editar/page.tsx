@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import * as React from 'react';
@@ -5,12 +6,6 @@ import { useRouter } from 'next/navigation';
 import { ProductForm } from '@/components/admin/product-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  fake_getProductById,
-  fake_updateProduct,
-  type UpdateProductInput
-} from '@/lib/mock/services/fake-product-admin.service';
-import { Product } from '@/types';
 import { toast } from 'sonner';
 
 interface EditProductPageProps {
@@ -19,37 +14,110 @@ interface EditProductPageProps {
   };
 }
 
+/**
+ * Generate slug from product name
+ */
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+}
+
+/**
+ * Map frontend data (snake_case) to backend format (camelCase)
+ */
+function mapToBackendFormat(data: any): any {
+  const mapped: any = {};
+
+  if (data.name !== undefined) {
+    mapped.name = data.name;
+    mapped.slug = generateSlug(data.name); // Auto-generate from name
+  }
+  if (data.sku !== undefined) mapped.sku = data.sku.toUpperCase();
+  if (data.description !== undefined) mapped.description = data.description;
+  if (data.category_id !== undefined) mapped.categoryId = data.category_id;
+  if (data.brand_id !== undefined) mapped.brandId = data.brand_id;
+  if (data.base_price !== undefined) mapped.basePrice = data.base_price;
+  if (data.stock !== undefined) mapped.stock = data.stock;
+  if (data.is_featured !== undefined) mapped.isFeatured = data.is_featured;
+  if (data.is_active !== undefined) mapped.isActive = data.is_active;
+  if (data.unit !== undefined) mapped.unit = data.unit;
+
+  return mapped;
+}
+
+async function getProduct(id: string): Promise<any> {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products/${id}`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('access_token')}`
+    },
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Error al cargar producto');
+  }
+
+  const result = await response.json();
+  return result.data;
+}
+
+async function updateProduct(id: string, data: any): Promise<any> {
+  const backendData = mapToBackendFormat(data);
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('access_token')}`
+    },
+    credentials: 'include',
+    body: JSON.stringify(backendData)
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Error al actualizar producto');
+  }
+
+  return response.json();
+}
+
 export default function EditProductPage({ params }: EditProductPageProps) {
   const router = useRouter();
-  const [product, setProduct] = React.useState<Product | null>(null);
+  const [product, setProduct] = React.useState<any | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     const loadProduct = async () => {
       setIsLoading(true);
-      const response = await fake_getProductById(params.id);
-
-      if (response.success && response.data) {
-        setProduct(response.data);
-      } else {
-        toast.error('Producto no encontrado');
+      try {
+        const data = await getProduct(params.id);
+        setProduct(data);
+      } catch (error: any) {
+        console.error('Error loading product:', error);
+        toast.error(error?.message || 'Producto no encontrado');
         router.push('/admin/productos');
+      } finally {
+        setIsLoading(false);
       }
-
-      setIsLoading(false);
     };
 
     loadProduct();
   }, [params.id, router]);
 
-  const handleSubmit = async (data: UpdateProductInput) => {
-    const response = await fake_updateProduct(params.id, data);
-
-    if (response.success) {
+  const handleSubmit = async (data: any) => {
+    try {
+      await updateProduct(params.id, data);
       toast.success('Producto actualizado correctamente');
       router.push('/admin/productos');
-    } else {
-      toast.error(response.error?.message || 'Error al actualizar producto');
+    } catch (error: any) {
+      console.error('Error updating product:', error);
+      toast.error(error?.message || 'Error al actualizar producto. Intentá de nuevo.');
     }
   };
 
