@@ -14,14 +14,17 @@ type CartStore = CartState & CartActions;
  * Convierte el Cart del servicio al formato del frontend
  */
 function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
+  // Manejar caso donde items es undefined o null
+  const items = serviceCart?.items || [];
+
   return {
-    items: serviceCart.items.map((item) => ({
+    items: items.map((item) => ({
       product_id: item.productId,
       quantity: item.quantity,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       product: item.product as any // Type assertion: API devuelve partial Product
     })),
-    subtotal: serviceCart.subtotal,
+    subtotal: serviceCart?.subtotal || 0,
     updated_at: new Date().toISOString()
   };
 }

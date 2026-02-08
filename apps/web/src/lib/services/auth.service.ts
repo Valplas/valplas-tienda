@@ -78,13 +78,14 @@ export async function logout(): Promise<void> {
  * Obtener usuario actual
  */
 export async function getCurrentUser(): Promise<User> {
-  const response = await get<User>('/auth/me');
+  // Silenciar errores porque el 401 es esperado cuando no hay sesión
+  const response = await get<User>('/auth/me', { silentErrors: true });
 
   if (response.success && response.data) {
     return response.data;
   }
 
-  throw new Error(response.error?.message || 'Error al obtener usuario');
+  throw new Error(response.error?.message || 'No autenticado');
 }
 
 /**

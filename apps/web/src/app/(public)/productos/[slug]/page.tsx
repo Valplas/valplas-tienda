@@ -19,8 +19,8 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   try {
     const product = await getProductBySlug(params.slug);
 
-    const primaryImage =
-      product.images?.find((img) => img.is_primary)?.url || product.images?.[0]?.url;
+    // images es un array de strings (URLs)
+    const primaryImage = product.image_url || product.images?.[0];
 
     return {
       title: `${product.name} | Valplas`,
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
         images: primaryImage ? [primaryImage] : []
       }
     };
-  } catch (error) {
+  } catch {
     return {
       title: 'Producto no encontrado'
     };
