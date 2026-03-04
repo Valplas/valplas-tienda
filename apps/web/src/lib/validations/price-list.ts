@@ -9,8 +9,7 @@ export const priceListSchema = z.object({
   discount: z
     .number({ error: 'Debe ser un número' })
     .min(0, 'No puede ser negativo')
-    .max(100, 'Máximo 100%')
-    .default(0),
+    .max(100, 'Máximo 100%'),
   is_active: z.boolean()
 });
 
