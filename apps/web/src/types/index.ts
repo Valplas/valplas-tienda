@@ -259,6 +259,21 @@ export interface PaginatedResponse<T> {
 }
 
 // ============================================================================
+// PRICE LISTS
+// ============================================================================
+
+export interface PriceList {
+  id: string;
+  name: string;
+  margin: number; // e.g. 50.0 = 50%
+  discount: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+// ============================================================================
 // FRONTEND-SPECIFIC TYPES
 // ============================================================================
 
