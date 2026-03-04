@@ -89,7 +89,7 @@ export async function updatePriceList(
     i++;
   }
 
-  if (updates.length === 0) return null;
+  if (updates.length === 0) throw new Error('NO_FIELDS_TO_UPDATE');
 
   params.push(id);
   const result = await query<PriceList>(
