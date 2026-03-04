@@ -15,7 +15,8 @@ import {
   Truck,
   Users,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Percent
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,6 +49,12 @@ const navItems: NavItem[] = [
     title: 'Marcas',
     href: '/admin/marcas',
     icon: Tag
+  },
+  {
+    title: 'Listas de Precio',
+    href: '/admin/listas-de-precio',
+    icon: Percent,
+    roles: [UserRole.ADMIN, UserRole.OWNER]
   },
   {
     title: 'Pedidos',
