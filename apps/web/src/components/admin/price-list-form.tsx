@@ -87,7 +87,7 @@ export function PriceListForm({ priceList, onSubmit, onCancel, isLoading }: Pric
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Guardado para uso futuro. No se aplica en la fórmula actual.</p>
+                <p>Reservado para uso futuro</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
