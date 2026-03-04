@@ -80,3 +80,28 @@ export interface UpdateProductInput {
   is_featured?: boolean;
   is_active?: boolean;
 }
+
+export interface PriceList {
+  id: string;
+  name: string;
+  margin: number; // e.g. 50.0 = 50%
+  discount: number; // stored, not used in formula yet
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface CreatePriceListInput {
+  name: string;
+  margin: number;
+  discount?: number;
+  is_active?: boolean;
+}
+
+export interface UpdatePriceListInput {
+  name?: string;
+  margin?: number;
+  discount?: number;
+  is_active?: boolean;
+}
