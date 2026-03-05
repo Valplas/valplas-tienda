@@ -8,38 +8,38 @@ console.log('🔍 Validating migration...\n');
 const checks = [
   {
     label: 'Price lists',
-    srcQ: `SELECT COUNT(*) FROM "ListPrices"`,
-    tgtQ: `SELECT COUNT(*) FROM price_lists`
+    srcQ: 'SELECT COUNT(*) FROM "ListPrices"',
+    tgtQ: 'SELECT COUNT(*) FROM price_lists'
   },
   {
     label: 'Brands',
-    srcQ: `SELECT COUNT(DISTINCT TRIM("Manufacturer")) FROM "Products" WHERE "Manufacturer" IS NOT NULL AND TRIM("Manufacturer") != ''`,
-    tgtQ: `SELECT COUNT(*) FROM brands`
+    srcQ: 'SELECT COUNT(DISTINCT TRIM("Manufacturer")) FROM "Products" WHERE "Manufacturer" IS NOT NULL AND TRIM("Manufacturer") != \'\'',
+    tgtQ: 'SELECT COUNT(*) FROM brands'
   },
   {
     label: 'Products (all)',
-    srcQ: `SELECT COUNT(*) FROM "Products"`,
-    tgtQ: `SELECT COUNT(*) FROM products`
+    srcQ: 'SELECT COUNT(*) FROM "Products"',
+    tgtQ: 'SELECT COUNT(*) FROM products'
   },
   {
     label: 'Products (active)',
-    srcQ: `SELECT COUNT(*) FROM "Products" WHERE "IsDeleted" = false`,
-    tgtQ: `SELECT COUNT(*) FROM products WHERE deleted_at IS NULL`
+    srcQ: 'SELECT COUNT(*) FROM "Products" WHERE "IsDeleted" = false',
+    tgtQ: 'SELECT COUNT(*) FROM products WHERE deleted_at IS NULL'
   },
   {
     label: 'Clients (all)',
-    srcQ: `SELECT COUNT(*) FROM "Clients"`,
-    tgtQ: `SELECT COUNT(*) FROM users WHERE role = 'customer'`
+    srcQ: 'SELECT COUNT(*) FROM "Clients"',
+    tgtQ: "SELECT COUNT(*) FROM users WHERE role = 'customer'"
   },
   {
     label: 'Orders (active)',
-    srcQ: `SELECT COUNT(*) FROM "Orders" WHERE "IsDeleted" = false`,
-    tgtQ: `SELECT COUNT(*) FROM orders`
+    srcQ: 'SELECT COUNT(*) FROM "Orders" WHERE "IsDeleted" = false',
+    tgtQ: 'SELECT COUNT(*) FROM orders'
   },
   {
     label: 'Order items',
-    srcQ: `SELECT COUNT(*) FROM "OrderProducts" op INNER JOIN "Orders" o ON op."OrderID" = o."OrderID" WHERE o."IsDeleted" = false`,
-    tgtQ: `SELECT COUNT(*) FROM order_items`
+    srcQ: 'SELECT COUNT(*) FROM "OrderProducts" op INNER JOIN "Orders" o ON op."OrderID" = o."OrderID" WHERE o."IsDeleted" = false',
+    tgtQ: 'SELECT COUNT(*) FROM order_items'
   }
 ];
 

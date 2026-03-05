@@ -47,6 +47,6 @@ for (const [slug, name] of seen) {
 // Save mapping for use by migrate-products
 const mapPath = join(__dirname, '../brand-mapping.json');
 writeFileSync(mapPath, JSON.stringify(mapping, null, 2));
-console.log(`\n✅ Brand mapping saved to brand-mapping.json`);
+console.log('\n✅ Brand mapping saved to brand-mapping.json');
 
 await closeAll();

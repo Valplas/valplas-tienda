@@ -23,7 +23,7 @@ console.log(`🛒 Migrating ${rows.rows.length} orders...`);
 // Check which ClientIDs exist in target users table
 const clientIds = [...new Set(rows.rows.map((r) => r.ClientID))];
 const existingUsers = await target.query<{ id: string }>(
-  `SELECT id FROM users WHERE id = ANY($1::uuid[])`,
+  'SELECT id FROM users WHERE id = ANY($1::uuid[])',
   [clientIds]
 );
 const validClients = new Set(existingUsers.rows.map((r) => r.id));
