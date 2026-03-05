@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
 import { errorHandler } from './shared/middleware/error.middleware.js';
-import { apiRateLimiter, authRateLimiter } from './shared/middleware/rate-limit.middleware.js';
+import { apiRateLimiter } from './shared/middleware/rate-limit.middleware.js';
 import { env, validateEnv } from './env.js';
 import { swaggerSpec } from './config/swagger.js';
 

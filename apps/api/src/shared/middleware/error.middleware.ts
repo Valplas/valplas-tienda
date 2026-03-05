@@ -59,13 +59,15 @@ export function errorHandler(error: Error, req: Request, res: Response, _next: N
   }
 
   // Error no manejado
-  res.status(500).json(
-    ApiResponse.error(
-      'INTERNAL_ERROR',
-      env.IS_DEVELOPMENT ? error.message : 'Error interno del servidor',
-      env.IS_DEVELOPMENT ? { stack: error.stack } : undefined
-    )
-  );
+  res
+    .status(500)
+    .json(
+      ApiResponse.error(
+        'INTERNAL_ERROR',
+        env.IS_DEVELOPMENT ? error.message : 'Error interno del servidor',
+        env.IS_DEVELOPMENT ? { stack: error.stack } : undefined
+      )
+    );
 }
 
 /**

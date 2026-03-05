@@ -57,7 +57,7 @@ Estrategia para `base_price` (campo obligatorio en target):
 
 - **Opción A:** Usar `CostPrice` × (1 + margen de la lista principal). ¿Cuál es la lista "pública"?
 - **Opción B:** Importar con `base_price = 0` y que el admin los complete manualmente.
-- **Decisión:** ******\_\_\_******
+- **Decisión:** **\*\***\_\_\_**\*\***
 
 ---
 

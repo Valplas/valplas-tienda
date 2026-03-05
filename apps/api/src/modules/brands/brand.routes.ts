@@ -23,11 +23,6 @@ router.put(
   validate(updateBrandSchema),
   brandController.updateBrand
 );
-router.delete(
-  '/:id',
-  authMiddleware,
-  requireRole(['admin', 'owner']),
-  brandController.deleteBrand
-);
+router.delete('/:id', authMiddleware, requireRole(['admin', 'owner']), brandController.deleteBrand);
 
 export default router;

@@ -92,10 +92,7 @@ export async function getUserWithStats(
 /**
  * Create user (admin only)
  */
-export async function createUser(
-  data: CreateUserInput,
-  requesterRole: UserRole
-): Promise<User> {
+export async function createUser(data: CreateUserInput, requesterRole: UserRole): Promise<User> {
   // Check if requester can create this role
   if (!canCreateRole(requesterRole, data.role)) {
     throw new Error(`No tienes permiso para crear usuarios con rol ${data.role}`);

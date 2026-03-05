@@ -73,12 +73,7 @@ export async function getAllCarriers(req: Request, res: Response, next: NextFunc
     });
 
     return res.json(
-      ApiResponse.paginated(
-        result.carriers,
-        Number(page) || 1,
-        Number(limit) || 20,
-        result.total
-      )
+      ApiResponse.paginated(result.carriers, Number(page) || 1, Number(limit) || 20, result.total)
     );
   } catch (error) {
     next(error);

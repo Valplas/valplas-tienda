@@ -31,7 +31,10 @@ export async function createCategory(req: Request, res: Response, next: NextFunc
 
 export async function updateCategory(req: Request, res: Response, next: NextFunction) {
   try {
-    const category = await categoryService.updateCategory(req.params.id as string as string, req.body);
+    const category = await categoryService.updateCategory(
+      req.params.id as string as string,
+      req.body
+    );
     return res.json(ApiResponse.success({ category }));
   } catch (error) {
     next(error);

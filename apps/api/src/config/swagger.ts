@@ -9,7 +9,8 @@ const options: swaggerJsdoc.Options = {
     info: {
       title: 'Valplas E-commerce API',
       version: '1.0.0',
-      description: 'API REST para plataforma e-commerce de Valplas - Distribuidora de artículos plásticos, productos de limpieza y electrodomésticos',
+      description:
+        'API REST para plataforma e-commerce de Valplas - Distribuidora de artículos plásticos, productos de limpieza y electrodomésticos',
       contact: {
         name: 'Valplas',
         url: 'https://valplas.net',
@@ -120,7 +121,11 @@ const options: swaggerJsdoc.Options = {
             name: { type: 'string' },
             slug: { type: 'string' },
             description: { type: 'string' },
-            base_price: { type: 'integer', description: 'Precio en centavos (ARS)', example: 125000 },
+            base_price: {
+              type: 'integer',
+              description: 'Precio en centavos (ARS)',
+              example: 125000
+            },
             stock: { type: 'integer' },
             reserved_stock: { type: 'integer' },
             is_featured: { type: 'boolean' },
@@ -164,7 +169,16 @@ const options: swaggerJsdoc.Options = {
             user_id: { type: 'string', format: 'uuid' },
             status: {
               type: 'string',
-              enum: ['pending_payment', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'failed', 'refunded']
+              enum: [
+                'pending_payment',
+                'payment_confirmed',
+                'processing',
+                'shipped',
+                'delivered',
+                'cancelled',
+                'failed',
+                'refunded'
+              ]
             },
             subtotal: { type: 'integer', description: 'Subtotal en centavos' },
             shipping_cost: { type: 'integer', description: 'Costo de envío en centavos' },
