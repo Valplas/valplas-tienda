@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
 import { errorHandler } from './shared/middleware/error.middleware.js';
+import { apiRateLimiter } from './shared/middleware/rate-limit.middleware.js';
 import { env, validateEnv } from './env.js';
 import { swaggerSpec } from './config/swagger.js';
 
@@ -59,6 +60,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Rate limiting
+app.use('/api', apiRateLimiter);
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({
@@ -83,6 +87,7 @@ import authRoutes from './modules/auth/auth.routes.js';
 import productRoutes from './modules/products/product.routes.js';
 import categoryRoutes from './modules/categories/category.routes.js';
 import brandRoutes from './modules/brands/brand.routes.js';
+import priceListRoutes from './modules/price-lists/price-list.routes.js';
 import cartRoutes from './modules/cart/cart.routes.js';
 import shippingRoutes from './modules/shipping/shipping.routes.js';
 import addressRoutes from './modules/addresses/address.routes.js';
@@ -94,6 +99,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/brands', brandRoutes);
+app.use('/api/price-lists', priceListRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/addresses', addressRoutes);

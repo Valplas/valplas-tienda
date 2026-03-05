@@ -261,9 +261,9 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
   const result = await query<Product>(
     `INSERT INTO products (
       sku, name, slug, description, category_id, brand_id,
-      base_price, stock, is_featured, is_active
+      base_price, cost_price, stock, is_featured, is_active
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING *`,
     [
       data.sku,
@@ -273,6 +273,7 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
       data.categoryId,
       data.brandId || null,
       data.basePrice,
+      data.costPrice || 0,
       data.stock || 0,
       data.isFeatured || false,
       true
@@ -323,6 +324,12 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
   if (data.basePrice !== undefined) {
     updates.push(`base_price = $${paramIndex}`);
     params.push(data.basePrice);
+    paramIndex++;
+  }
+
+  if (data.costPrice !== undefined) {
+    updates.push(`cost_price = $${paramIndex}`);
+    params.push(data.costPrice);
     paramIndex++;
   }
 

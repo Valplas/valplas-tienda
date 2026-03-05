@@ -66,10 +66,9 @@ describe('Auth Service', () => {
       const registerResult = await authService.register(userData);
 
       // Verify password is hashed in DB
-      const result = await query(
-        'SELECT password_hash FROM users WHERE email = $1',
-        [userData.email]
-      );
+      const result = await query('SELECT password_hash FROM users WHERE email = $1', [
+        userData.email
+      ]);
 
       expect(result.rows[0].password_hash).toBeDefined();
       expect(result.rows[0].password_hash).not.toBe(userData.password);
@@ -147,20 +146,18 @@ describe('Auth Service', () => {
     });
 
     it('should update last_login_at on successful login', async () => {
-      const beforeLogin = await query(
-        'SELECT last_login_at FROM users WHERE email = $1',
-        ['owner@valplas.net']
-      );
+      const beforeLogin = await query('SELECT last_login_at FROM users WHERE email = $1', [
+        'owner@valplas.net'
+      ]);
 
       await authService.login({
         emailOrUsername: 'owner@valplas.net',
         password: 'password123'
       });
 
-      const afterLogin = await query(
-        'SELECT last_login_at FROM users WHERE email = $1',
-        ['owner@valplas.net']
-      );
+      const afterLogin = await query('SELECT last_login_at FROM users WHERE email = $1', [
+        'owner@valplas.net'
+      ]);
 
       // last_login_at should be updated
       if (beforeLogin.rows[0].last_login_at) {

@@ -6,7 +6,11 @@ const USER_ROLES = ['owner', 'admin', 'driver', 'customer'] as const;
 
 export const createUserSchema = z.object({
   email: z.string().email(),
-  username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/),
+  username: z
+    .string()
+    .min(3)
+    .max(50)
+    .regex(/^[a-zA-Z0-9_-]+$/),
   password: z.string().min(8),
   phone: z.string().min(10).max(20).optional(),
   first_name: z.string().min(2).max(100),
@@ -17,7 +21,12 @@ export const createUserSchema = z.object({
 
 export const updateUserSchema = z.object({
   email: z.string().email().optional(),
-  username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/).optional(),
+  username: z
+    .string()
+    .min(3)
+    .max(50)
+    .regex(/^[a-zA-Z0-9_-]+$/)
+    .optional(),
   phone: z.string().min(10).max(20).optional(),
   first_name: z.string().min(2).max(100).optional(),
   last_name: z.string().min(2).max(100).optional(),

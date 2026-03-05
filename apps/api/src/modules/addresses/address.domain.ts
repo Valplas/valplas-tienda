@@ -12,10 +12,7 @@ import type {
 /**
  * Get user's addresses
  */
-export async function getUserAddresses(
-  userId: string,
-  filters: Omit<AddressFilters, 'user_id'>
-) {
+export async function getUserAddresses(userId: string, filters: Omit<AddressFilters, 'user_id'>) {
   return addressRepository.findAddresses({
     ...filters,
     user_id: userId
@@ -158,11 +155,9 @@ export async function deleteAddress(
     });
 
     if (addresses.addresses.length > 0) {
-      await addressRepository.updateAddress(
-        addresses.addresses[0].id,
-        address.user_id,
-        { is_default: true }
-      );
+      await addressRepository.updateAddress(addresses.addresses[0].id, address.user_id, {
+        is_default: true
+      });
     }
   }
 }

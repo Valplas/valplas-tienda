@@ -4,10 +4,7 @@ import { z } from 'zod';
  * Schema para crear marca
  */
 export const createBrandSchema = z.object({
-  name: z
-    .string()
-    .min(1, 'Nombre es requerido')
-    .max(100, 'Nombre no puede exceder 100 caracteres'),
+  name: z.string().min(1, 'Nombre es requerido').max(100, 'Nombre no puede exceder 100 caracteres'),
 
   slug: z
     .string()

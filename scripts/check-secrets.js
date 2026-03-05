@@ -108,7 +108,10 @@ function getStagedFiles() {
         (file) =>
           file.match(/\.(ts|tsx|js|jsx|json|env)$/) &&
           !file.includes('node_modules') &&
-          !file.includes('.env.example')
+          !file.includes('.env.example') &&
+          !file.includes('.test.') &&
+          !file.includes('.spec.') &&
+          !file.includes('/tests/')
       );
   } catch (error) {
     console.error(`${COLORS.red}Error obteniendo archivos staged${COLORS.reset}`);

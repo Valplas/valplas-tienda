@@ -60,11 +60,7 @@ export async function deleteBrand(id: string): Promise<void> {
 
   const hasProducts = await brandRepository.hasProducts(id);
   if (hasProducts) {
-    throw new AppError(
-      'BRAND_HAS_PRODUCTS',
-      'No se puede eliminar una marca con productos',
-      400
-    );
+    throw new AppError('BRAND_HAS_PRODUCTS', 'No se puede eliminar una marca con productos', 400);
   }
 
   await brandRepository.deleteBrand(id);

@@ -17,11 +17,7 @@ import type {
 
 // ============= SHIPPING ZONES =============
 
-export async function getAllZones(params: {
-  page: number;
-  limit: number;
-  is_active?: boolean;
-}) {
+export async function getAllZones(params: { page: number; limit: number; is_active?: boolean }) {
   return shippingRepository.findAllZones(params);
 }
 
@@ -54,11 +50,7 @@ export async function deleteZone(id: string): Promise<void> {
 
 // ============= SHIPPING CARRIERS =============
 
-export async function getAllCarriers(params: {
-  page: number;
-  limit: number;
-  is_active?: boolean;
-}) {
+export async function getAllCarriers(params: { page: number; limit: number; is_active?: boolean }) {
   return shippingRepository.findAllCarriers(params);
 }
 

@@ -4,12 +4,12 @@
 
 ### Software Requerido
 
-| Software | Version Minima | Verificar |
-|----------|----------------|-----------|
-| Bun | 1.0+ | `bun --version` |
-| Node.js | 22+ (opcional) | `node --version` |
-| Git | 2.40+ | `git --version` |
-| PostgreSQL | 15+ (via Supabase) | - |
+| Software   | Version Minima     | Verificar        |
+| ---------- | ------------------ | ---------------- |
+| Bun        | 1.0+               | `bun --version`  |
+| Node.js    | 22+ (opcional)     | `node --version` |
+| Git        | 2.40+              | `git --version`  |
+| PostgreSQL | 15+ (via Supabase) | -                |
 
 > **Nota:** Bun incluye un runtime compatible con Node.js, por lo que Node.js es opcional para desarrollo local.
 
@@ -220,45 +220,45 @@ valplas/
 
 ### Desarrollo
 
-| Comando | Descripcion |
-|---------|-------------|
-| `bun dev` | Inicia frontend y backend |
+| Comando       | Descripcion                    |
+| ------------- | ------------------------------ |
+| `bun dev`     | Inicia frontend y backend      |
 | `bun dev:web` | Inicia solo frontend (Next.js) |
-| `bun dev:api` | Inicia solo backend (Express) |
+| `bun dev:api` | Inicia solo backend (Express)  |
 
 ### Build
 
-| Comando | Descripcion |
-|---------|-------------|
-| `bun build` | Build de todo el proyecto |
-| `bun build:web` | Build del frontend |
-| `bun build:api` | Build del backend |
+| Comando         | Descripcion               |
+| --------------- | ------------------------- |
+| `bun build`     | Build de todo el proyecto |
+| `bun build:web` | Build del frontend        |
+| `bun build:api` | Build del backend         |
 
 ### Testing
 
-| Comando | Descripcion |
-|---------|-------------|
-| `bun test` | Ejecuta todos los tests |
-| `bun test:unit` | Tests unitarios |
-| `bun test:e2e` | Tests end-to-end |
-| `bun test:watch` | Tests en modo watch |
+| Comando          | Descripcion             |
+| ---------------- | ----------------------- |
+| `bun test`       | Ejecuta todos los tests |
+| `bun test:unit`  | Tests unitarios         |
+| `bun test:e2e`   | Tests end-to-end        |
+| `bun test:watch` | Tests en modo watch     |
 
 ### Base de Datos
 
-| Comando | Descripcion |
-|---------|-------------|
-| `bun db:migrate` | Ejecuta migraciones pendientes |
-| `bun db:migrate:create <nombre>` | Crea nueva migracion |
-| `bun db:seed` | Ejecuta seeds |
-| `bun db:reset` | Reset completo (dev only) |
+| Comando                          | Descripcion                    |
+| -------------------------------- | ------------------------------ |
+| `bun db:migrate`                 | Ejecuta migraciones pendientes |
+| `bun db:migrate:create <nombre>` | Crea nueva migracion           |
+| `bun db:seed`                    | Ejecuta seeds                  |
+| `bun db:reset`                   | Reset completo (dev only)      |
 
 ### Calidad de Codigo
 
-| Comando | Descripcion |
-|---------|-------------|
-| `bun lint` | Ejecuta ESLint |
-| `bun lint:fix` | Corrige errores de ESLint |
-| `bun format` | Formatea con Prettier |
+| Comando         | Descripcion               |
+| --------------- | ------------------------- |
+| `bun lint`      | Ejecuta ESLint            |
+| `bun lint:fix`  | Corrige errores de ESLint |
+| `bun format`    | Formatea con Prettier     |
 | `bun typecheck` | Verifica tipos TypeScript |
 
 ---
@@ -325,9 +325,7 @@ valplas/
     "source.fixAll.eslint": "explicit"
   },
   "typescript.tsdk": "node_modules/typescript/lib",
-  "tailwindCSS.experimental.classRegex": [
-    ["cn\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
-  ]
+  "tailwindCSS.experimental.classRegex": [["cn\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]]
 }
 ```
 

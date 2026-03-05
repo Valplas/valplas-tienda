@@ -71,9 +71,7 @@ export async function getProductForCart(productId: string): Promise<{
 /**
  * Obtener múltiples productos para el carrito
  */
-export async function getProductsForCart(
-  productIds: string[]
-): Promise<
+export async function getProductsForCart(productIds: string[]): Promise<
   Array<{
     id: string;
     name: string;

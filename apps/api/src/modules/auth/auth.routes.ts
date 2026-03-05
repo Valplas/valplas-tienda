@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as authController from './auth.controller.js';
 import { validate } from '../../shared/middleware/validation.middleware.js';
 import { authMiddleware } from '../../shared/middleware/auth.middleware.js';
+import { authRateLimiter } from '../../shared/middleware/rate-limit.middleware.js';
 import { registerSchema, loginSchema } from './auth.validator.js';
 
 const router = Router();
@@ -10,13 +11,13 @@ const router = Router();
  * POST /api/auth/register
  * Registrar nuevo usuario
  */
-router.post('/register', validate(registerSchema), authController.register);
+router.post('/register', authRateLimiter, validate(registerSchema), authController.register);
 
 /**
  * POST /api/auth/login
  * Iniciar sesión
  */
-router.post('/login', validate(loginSchema), authController.login);
+router.post('/login', authRateLimiter, validate(loginSchema), authController.login);
 
 /**
  * POST /api/auth/logout

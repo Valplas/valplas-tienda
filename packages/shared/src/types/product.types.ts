@@ -9,6 +9,7 @@ export interface Product {
   slug: string;
   description: string | null;
   base_price: number;
+  cost_price: number;
   final_price?: number;
   stock: number;
   reserved_stock: number;
@@ -63,6 +64,7 @@ export interface CreateProductInput {
   name: string;
   description?: string;
   base_price: number;
+  cost_price?: number;
   stock: number;
   category_id?: string;
   brand_id?: string;
@@ -74,9 +76,35 @@ export interface UpdateProductInput {
   name?: string;
   description?: string;
   base_price?: number;
+  cost_price?: number;
   stock?: number;
   category_id?: string;
   brand_id?: string;
   is_featured?: boolean;
+  is_active?: boolean;
+}
+
+export interface PriceList {
+  id: string;
+  name: string;
+  margin: number; // e.g. 50.0 = 50%
+  discount: number; // stored, not used in formula yet
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface CreatePriceListInput {
+  name: string;
+  margin: number;
+  discount?: number;
+  is_active?: boolean;
+}
+
+export interface UpdatePriceListInput {
+  name?: string;
+  margin?: number;
+  discount?: number;
   is_active?: boolean;
 }

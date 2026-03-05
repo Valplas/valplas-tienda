@@ -42,7 +42,11 @@ const router = Router();
  *       200:
  *         description: Shipping quotes
  */
-router.get('/quote', validate(getShippingQuoteSchema, 'query'), shippingController.getShippingQuote);
+router.get(
+  '/quote',
+  validate(getShippingQuoteSchema, 'query'),
+  shippingController.getShippingQuote
+);
 
 /**
  * @swagger
