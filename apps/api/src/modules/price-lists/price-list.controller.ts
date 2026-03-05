@@ -6,11 +6,13 @@ export async function listPriceLists(req: Request, res: Response, next: NextFunc
   try {
     const { search, isActive, page = '1', limit = '50' } = req.query;
 
+    const parsedPage = parseInt(page as string, 10);
+    const parsedLimit = parseInt(limit as string, 10);
     const filters = {
       search: search as string | undefined,
       isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
-      page: parseInt(page as string, 10),
-      limit: Math.min(parseInt(limit as string, 10), 100)
+      page: isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage,
+      limit: isNaN(parsedLimit) ? 50 : Math.min(parsedLimit, 100)
     };
 
     const result = await service.listPriceLists(filters);

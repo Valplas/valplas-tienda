@@ -9,6 +9,7 @@ export interface Product {
   slug: string;
   description: string | null;
   base_price: number;
+  cost_price: number;
   final_price?: number;
   stock: number;
   reserved_stock: number;
@@ -63,6 +64,7 @@ export interface CreateProductInput {
   name: string;
   description?: string;
   base_price: number;
+  cost_price?: number;
   stock: number;
   category_id?: string;
   brand_id?: string;
@@ -74,6 +76,7 @@ export interface UpdateProductInput {
   name?: string;
   description?: string;
   base_price?: number;
+  cost_price?: number;
   stock?: number;
   category_id?: string;
   brand_id?: string;
