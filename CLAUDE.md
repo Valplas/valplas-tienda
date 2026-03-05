@@ -476,6 +476,7 @@ Eventos a loggear en `audit_logs`:
 
 ## Notas para Claude
 
+0. **🔄 Context7 OBLIGATORIO:** Antes de iniciar cualquier tarea de desarrollo, usar Context7 (`mcp__plugin_context7_context7__resolve-library-id` + `mcp__plugin_context7_context7__query-docs`) para consultar la documentación actualizada de las librerías involucradas (Next.js, Express, Zod, shadcn/ui, etc.)
 1. **Mobile-first:** 80% del tráfico esperado es mobile
 2. **Español Argentina:** UI en español, "vos" si es conversacional
 3. **Moneda:** ARS, formato `$1.234,56`
