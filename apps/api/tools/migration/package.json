@@ -1,0 +1,27 @@
+{
+  "name": "valplas-migration",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "inspect": "bun run src/inspect.ts",
+    "migrate:price-lists": "bun run src/migrate-price-lists.ts",
+    "migrate:brands": "bun run src/migrate-brands.ts",
+    "migrate:categories": "bun run src/migrate-categories.ts",
+    "migrate:products": "bun run src/migrate-products.ts",
+    "migrate:clients": "bun run src/migrate-clients.ts",
+    "migrate:orders": "bun run src/migrate-orders.ts",
+    "migrate:order-items": "bun run src/migrate-order-items.ts",
+    "validate": "bun run src/validate.ts"
+  },
+  "dependencies": {
+    "pg": "^8.11.0",
+    "bcryptjs": "^2.4.3",
+    "slugify": "^1.6.6",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "@types/bcryptjs": "^2.4.6",
+    "typescript": "^5.0.0"
+  }
+}
