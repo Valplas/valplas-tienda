@@ -45,6 +45,7 @@ export interface CreateProductData {
   categoryId: string;
   brandId?: string;
   basePrice: number;
+  costPrice?: number;
   stock?: number;
   isFeatured?: boolean;
 }
@@ -59,6 +60,7 @@ export interface UpdateProductData {
   categoryId?: string;
   brandId?: string;
   basePrice?: number;
+  costPrice?: number;
   stock?: number;
   isFeatured?: boolean;
   isActive?: boolean;
