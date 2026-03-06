@@ -125,14 +125,13 @@ export async function getAdminProducts(params?: {
   if (params?.isActive !== undefined) query.set('isActive', String(params.isActive));
 
   const qs = query.toString();
-  const res = await get<{ products: RawProduct[]; total: number; totalPages: number }>(
-    `/products${qs ? `?${qs}` : ''}`
-  );
+  // API returns paginated shape: { success, data: RawProduct[], pagination: { total, totalPages, ... } }
+  const res = await get<RawProduct[]>(`/products${qs ? `?${qs}` : ''}`);
   if (!res.success || !res.data) return { products: [], total: 0, totalPages: 0 };
   return {
-    products: res.data.products.map(normalizeProduct),
-    total: res.data.total,
-    totalPages: res.data.totalPages
+    products: res.data.map(normalizeProduct),
+    total: res.pagination?.total ?? 0,
+    totalPages: res.pagination?.totalPages ?? 0
   };
 }
 
