@@ -18,11 +18,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { DeleteConfirmModal } from '@/components/ui/delete-confirm-modal';
 import { Product } from '@/types';
-import { fake_getProducts } from '@/lib/mock/services/fake-product.service';
-import {
-  fake_deleteProduct,
-  fake_deleteProducts
-} from '@/lib/mock/services/fake-product-admin.service';
+import { getAdminProducts, deleteProduct } from '@/lib/services/products.service';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -35,10 +31,8 @@ export default function AdminProductsPage() {
   const loadProducts = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fake_getProducts({});
-      if (response.success && response.data) {
-        setProducts(response.data);
-      }
+      const result = await getAdminProducts({});
+      setProducts(result.products);
     } catch {
       toast.error('Error al cargar productos');
     } finally {
@@ -58,12 +52,12 @@ export default function AdminProductsPage() {
   const confirmDelete = async () => {
     if (!productToDelete) return;
 
-    const response = await fake_deleteProduct(productToDelete.id);
-    if (response.success) {
+    try {
+      await deleteProduct(productToDelete.id);
       toast.success('Producto eliminado correctamente');
       loadProducts();
-    } else {
-      toast.error(response.error?.message || 'Error al eliminar producto');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar producto');
     }
     setDeleteDialogOpen(false);
     setProductToDelete(null);
@@ -71,13 +65,12 @@ export default function AdminProductsPage() {
 
   const handleBulkDelete = async (items: Product[]) => {
     const ids = items.map((p) => p.id);
-    const response = await fake_deleteProducts(ids);
-
-    if (response.success) {
+    try {
+      await Promise.all(ids.map((id) => deleteProduct(id)));
       toast.success(`${ids.length} producto(s) eliminado(s) correctamente`);
       loadProducts();
-    } else {
-      toast.error(response.error?.message || 'Error al eliminar productos');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar productos');
     }
   };
 
@@ -88,13 +81,19 @@ export default function AdminProductsPage() {
       header: 'Imagen',
       cell: ({ row }) => (
         <div className="relative w-12 h-12 rounded overflow-hidden bg-muted">
-          <Image
-            src={row.original.image_url}
-            alt={row.original.name}
-            fill
-            className="object-cover"
-            sizes="48px"
-          />
+          {row.original.image_url ? (
+            <Image
+              src={row.original.image_url}
+              alt={row.original.name}
+              fill
+              className="object-cover"
+              sizes="48px"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+              Sin imagen
+            </div>
+          )}
         </div>
       ),
       enableSorting: false
