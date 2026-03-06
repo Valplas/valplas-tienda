@@ -1,6 +1,6 @@
 // apps/web/src/lib/services/products.service.ts
 
-import { get } from '../api';
+import { get, post, put, del } from '../api';
 import type { ApiResponse } from '../api';
 import type { Product } from '@/types';
 
@@ -64,4 +64,120 @@ export async function getProductBySlug(slug: string): Promise<Product> {
   }
 
   throw new Error(response.error?.message || 'Error al obtener producto');
+}
+
+// ─── Admin helpers ────────────────────────────────────────────────────────────
+
+// Raw shape returned by the API for a single product (camelCase mixed with snake_case)
+interface RawProduct {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  base_price: number; // centavos
+  is_active: boolean;
+  categoryId?: string;
+  brandId?: string;
+  availableStock?: number;
+  images?: Array<{ url: string; alt?: string }>;
+  [key: string]: unknown;
+}
+
+/**
+ * Maps API response fields to the frontend Product shape:
+ * - camelCase → snake_case
+ * - centavos → pesos
+ * - images[0].url → image_url
+ */
+export function normalizeProduct(raw: RawProduct): Product {
+  const basePricePesos = (raw.base_price ?? 0) / 100;
+  return {
+    id: raw.id,
+    name: raw.name,
+    slug: raw.slug,
+    description: raw.description ?? '',
+    base_price: basePricePesos,
+    final_price: basePricePesos,
+    is_active: raw.is_active,
+    category_id: raw.categoryId ?? '',
+    brand_id: raw.brandId ?? '',
+    available_stock: raw.availableStock ?? 0,
+    image_url: raw.images?.[0]?.url ?? '',
+    // Fields needed by the edit form:
+    sku: (raw.sku as string) ?? '',
+    stock: (raw.stock as number) ?? 0,
+    is_featured: (raw.is_featured as boolean) ?? false
+  } as unknown as Product;
+}
+
+// ─── Admin CRUD ───────────────────────────────────────────────────────────────
+
+export async function getAdminProducts(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  categoryId?: string;
+  brandId?: string;
+  isActive?: boolean;
+}) {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.search) query.set('search', params.search);
+  if (params?.categoryId) query.set('categoryId', params.categoryId);
+  if (params?.brandId) query.set('brandId', params.brandId);
+  if (params?.isActive !== undefined) query.set('isActive', String(params.isActive));
+
+  const qs = query.toString();
+  // API returns paginated shape: { success, data: RawProduct[], pagination: { total, totalPages, ... } }
+  const res = await get<RawProduct[]>(`/products${qs ? `?${qs}` : ''}`);
+  if (!res.success || !res.data) return { products: [], total: 0, totalPages: 0 };
+  return {
+    products: res.data.map(normalizeProduct),
+    total: res.pagination?.total ?? 0,
+    totalPages: res.pagination?.totalPages ?? 0
+  };
+}
+
+export async function createProduct(data: {
+  name: string;
+  slug: string;
+  description?: string;
+  basePrice: number; // centavos
+  categoryId: string;
+  brandId: string;
+  sku: string; // required by backend
+  stock?: number;
+  isFeatured?: boolean;
+  isActive?: boolean;
+}) {
+  const res = await post<{ product: RawProduct }>('/products', data);
+  if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear producto');
+  return normalizeProduct(res.data.product);
+}
+
+export async function updateProduct(
+  id: string,
+  data: Partial<{
+    name: string;
+    slug: string;
+    description: string;
+    basePrice: number; // centavos
+    categoryId: string;
+    brandId: string;
+    sku: string;
+    stock: number;
+    isFeatured: boolean;
+    isActive: boolean;
+  }>
+) {
+  const res = await put<{ product: RawProduct }>(`/products/${id}`, data);
+  if (!res.success || !res.data)
+    throw new Error(res.error?.message ?? 'Error al actualizar producto');
+  return normalizeProduct(res.data.product);
+}
+
+export async function deleteProduct(id: string) {
+  const res = await del(`/products/${id}`);
+  if (!res.success) throw new Error(res.error?.message ?? 'Error al eliminar producto');
 }

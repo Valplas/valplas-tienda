@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Order, OrderStatus } from '@/types';
-import { fake_getOrders } from '@/lib/mock/services/fake-order-admin.service';
+import { getAdminOrders } from '@/lib/services/orders.service';
+import type { Order } from '@/lib/services/orders.service';
 import { DataTable } from '@/components/admin/data-table';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ export default function PedidosPage() {
   const loadOrders = async () => {
     setIsLoading(true);
     try {
-      const data = await fake_getOrders();
+      const { orders: data } = await getAdminOrders({ limit: 100 });
       setOrders(data);
       setFilteredOrders(data);
     } catch (error) {
@@ -74,10 +74,16 @@ export default function PedidosPage() {
         const user = row.original.user;
         return (
           <div>
-            <div className="font-medium">
-              {user?.first_name} {user?.last_name}
-            </div>
-            <div className="text-sm text-muted-foreground">{user?.email}</div>
+            {user ? (
+              <>
+                <div className="font-medium">
+                  {user.first_name} {user.last_name}
+                </div>
+                <div className="text-sm text-muted-foreground">{user.email}</div>
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">{row.original.user_id}</div>
+            )}
           </div>
         );
       },
@@ -151,11 +157,14 @@ export default function PedidosPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value={OrderStatus.PENDING}>Pendiente</SelectItem>
-              <SelectItem value={OrderStatus.PROCESSING}>En proceso</SelectItem>
-              <SelectItem value={OrderStatus.SHIPPED}>Enviado</SelectItem>
-              <SelectItem value={OrderStatus.DELIVERED}>Entregado</SelectItem>
-              <SelectItem value={OrderStatus.CANCELLED}>Cancelado</SelectItem>
+              <SelectItem value="pending_payment">Pendiente de pago</SelectItem>
+              <SelectItem value="payment_confirmed">Pago confirmado</SelectItem>
+              <SelectItem value="processing">En proceso</SelectItem>
+              <SelectItem value="ready_to_ship">Listo para enviar</SelectItem>
+              <SelectItem value="shipped">Enviado</SelectItem>
+              <SelectItem value="delivered">Entregado</SelectItem>
+              <SelectItem value="cancelled">Cancelado</SelectItem>
+              <SelectItem value="refunded">Reembolsado</SelectItem>
             </SelectContent>
           </Select>
         </div>

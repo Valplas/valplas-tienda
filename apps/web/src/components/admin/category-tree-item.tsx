@@ -61,10 +61,12 @@ export function CategoryTreeItem({ node, productCounts, onEdit, onDelete }: Cate
         </div>
 
         {/* Product count */}
-        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-          <Package className="h-3.5 w-3.5" />
-          <span>{productCount}</span>
-        </div>
+        {productCount > 0 && (
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Package className="h-3.5 w-3.5" />
+            <span>{productCount}</span>
+          </div>
+        )}
 
         {/* Display order */}
         <div className="text-xs text-muted-foreground w-8 text-center">

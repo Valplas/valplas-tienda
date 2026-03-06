@@ -126,15 +126,22 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
           <div>
             <h3 className="font-medium mb-2">Dirección de envío</h3>
             <div className="text-sm text-muted-foreground">
-              <div>
-                {order.shipping_address.street} {order.shipping_address.street_number}
-                {order.shipping_address.floor && `, Piso ${order.shipping_address.floor}`}
-                {order.shipping_address.apartment && ` Dpto ${order.shipping_address.apartment}`}
-              </div>
-              <div>
-                {order.shipping_address.city}, {order.shipping_address.province}
-              </div>
-              <div>CP {order.shipping_address.postcode}</div>
+              {order.shipping_address ? (
+                <>
+                  <div>
+                    {order.shipping_address.street} {order.shipping_address.street_number}
+                    {order.shipping_address.floor && `, Piso ${order.shipping_address.floor}`}
+                    {order.shipping_address.apartment &&
+                      ` Dpto ${order.shipping_address.apartment}`}
+                  </div>
+                  <div>
+                    {order.shipping_address.city}, {order.shipping_address.province}
+                  </div>
+                  <div>CP {order.shipping_address.postcode}</div>
+                </>
+              ) : (
+                <div>Sin información de dirección</div>
+              )}
             </div>
           </div>
         </CardContent>

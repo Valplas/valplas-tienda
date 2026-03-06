@@ -3,12 +3,11 @@
 import { useState, useEffect } from 'react';
 import { Brand } from '@/types';
 import {
-  fake_getBrands,
-  fake_createBrand,
-  fake_updateBrand,
-  fake_deleteBrands,
-  fake_getBrandProductCount
-} from '@/lib/mock/services/fake-brand-admin.service';
+  getAdminBrands,
+  createBrand,
+  updateBrand,
+  deleteBrands
+} from '@/lib/services/brands.service';
 import { DataTable, createCheckboxColumn } from '@/components/admin/data-table';
 import { BrandForm } from '@/components/admin/brand-form';
 import { Button } from '@/components/ui/button';
@@ -31,8 +30,8 @@ export default function MarcasPage() {
   const loadBrands = async () => {
     setIsLoading(true);
     try {
-      const data = await fake_getBrands();
-      setBrands(data);
+      const data = await getAdminBrands();
+      setBrands(data.brands);
     } catch (error) {
       toast.error('Error al cargar marcas');
       console.error(error);
@@ -61,18 +60,20 @@ export default function MarcasPage() {
   const handleSubmit = async (data: BrandFormData) => {
     setIsSubmitting(true);
     try {
-      // Convert undefined to null for API compatibility
+      // Map frontend snake_case fields to API camelCase
       const payload = {
-        ...data,
-        description: data.description ?? null,
-        logo_url: data.logo_url ?? null
+        name: data.name,
+        slug: data.slug,
+        logoUrl: data.logo_url || undefined,
+        description: data.description || undefined,
+        isActive: data.is_active
       };
 
       if (selectedBrand) {
-        await fake_updateBrand(selectedBrand.id, payload);
+        await updateBrand(selectedBrand.id, payload);
         toast.success('Marca actualizada correctamente');
       } else {
-        await fake_createBrand(payload);
+        await createBrand(payload);
         toast.success('Marca creada correctamente');
       }
       setSheetOpen(false);
@@ -88,7 +89,7 @@ export default function MarcasPage() {
   // Handle bulk delete
   const handleDelete = async (items: Brand[]) => {
     try {
-      await fake_deleteBrands(items.map((b) => b.id));
+      await deleteBrands(items.map((b) => b.id));
       toast.success(
         `${items.length} marca${items.length > 1 ? 's' : ''} eliminada${items.length > 1 ? 's' : ''} correctamente`
       );
@@ -146,20 +147,6 @@ export default function MarcasPage() {
         ) : (
           <Badge variant="outline">Inactiva</Badge>
         )
-    },
-    {
-      id: 'product_count',
-      header: 'Productos',
-      cell: ({ row }) => {
-        const count = fake_getBrandProductCount(row.original.id);
-        return (
-          <div className="flex items-center gap-1">
-            <Package className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>{count}</span>
-          </div>
-        );
-      },
-      enableSorting: false
     },
     {
       id: 'actions',

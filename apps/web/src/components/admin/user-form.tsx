@@ -22,11 +22,21 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { User, UserRole } from '@/types';
+import { UserRole } from '@/types';
 import { RoleBadge } from './role-badge';
 
+interface UserFormUser {
+  email: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  role: UserRole;
+  is_active: boolean;
+}
+
 interface UserFormProps {
-  user?: User;
+  user?: UserFormUser;
   onSubmit: (data: CreateUserFormData | UpdateUserFormData) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
@@ -50,7 +60,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
           username: user.username,
           first_name: user.first_name,
           last_name: user.last_name,
-          phone: user.phone,
+          phone: user.phone ?? '',
           role: user.role,
           password: '',
           is_active: user.is_active

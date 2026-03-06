@@ -66,3 +66,27 @@ export function formatPhone(phone: string): string {
 
   return `(${areaCode}) ${first}-${second}`;
 }
+
+/**
+ * Converts an Argentine price string typed by an admin user into centavos integer.
+ * Rules:
+ *   "100"      → 10000   (100 pesos = 10000 centavos)
+ *   "12,50"    → 1250    (comma = decimal separator)
+ *   "12.50"    → 1250    (dot NOT followed by exactly 3 digits = decimal)
+ *   "10.000"   → 1000000 (dot followed by exactly 3 digits = thousands separator)
+ *   "10000"    → 1000000 (plain integer = pesos)
+ */
+export function parsePriceInput(value: string): number {
+  const str = value.trim().replace(/\s/g, '');
+  if (!str) return 0;
+
+  // Dot followed by exactly 3 digits = thousands separator → remove it
+  // Otherwise dot = decimal separator → keep it
+  const normalized = str
+    .replace(/\.(\d{3})(?!\d)/g, '$1') // remove thousands dots
+    .replace(',', '.'); // comma → decimal dot
+
+  const pesos = parseFloat(normalized);
+  if (isNaN(pesos)) return 0;
+  return Math.round(pesos * 100);
+}

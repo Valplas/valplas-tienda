@@ -1,6 +1,6 @@
 // apps/web/src/lib/services/categories.service.ts
 
-import { get } from '../api';
+import { get, post, put, del } from '../api';
 import type { Category } from '@/types';
 
 /**
@@ -27,4 +27,43 @@ export async function getCategoryById(id: string): Promise<Category> {
   }
 
   throw new Error(response.error?.message || 'Error al obtener categoría');
+}
+
+// ─── Admin CRUD ───────────────────────────────────────────────────────────────
+
+export async function createCategory(data: {
+  name: string;
+  slug: string;
+  parentId?: string;
+  isActive?: boolean;
+  displayOrder?: number;
+  description?: string | null;
+  imageUrl?: string | null;
+}) {
+  const res = await post<{ category: Category }>('/categories', data);
+  if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear categoría');
+  return res.data.category;
+}
+
+export async function updateCategory(
+  id: string,
+  data: Partial<{
+    name: string;
+    slug: string;
+    parentId: string | null;
+    isActive: boolean;
+    displayOrder: number;
+    description: string | null;
+    imageUrl: string | null;
+  }>
+) {
+  const res = await put<{ category: Category }>(`/categories/${id}`, data);
+  if (!res.success || !res.data)
+    throw new Error(res.error?.message ?? 'Error al actualizar categoría');
+  return res.data.category;
+}
+
+export async function deleteCategory(id: string) {
+  const res = await del(`/categories/${id}`);
+  if (!res.success) throw new Error(res.error?.message ?? 'Error al eliminar categoría');
 }

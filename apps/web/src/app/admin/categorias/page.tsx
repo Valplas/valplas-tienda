@@ -3,12 +3,11 @@
 import { useState, useEffect } from 'react';
 import { Category } from '@/types';
 import {
-  fake_getCategories,
-  fake_createCategory,
-  fake_updateCategory,
-  fake_deleteCategory,
-  fake_getCategoryProductCount
-} from '@/lib/mock/services/fake-category-admin.service';
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory
+} from '@/lib/services/categories.service';
 import { CategoryTreeItem } from '@/components/admin/category-tree-item';
 import { CategoryForm } from '@/components/admin/category-form';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,6 @@ import { type CategoryFormData } from '@/lib/validations/category';
 export default function CategoriasPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [tree, setTree] = useState<TreeNode<Category>[]>([]);
-  const [productCounts, setProductCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | undefined>(undefined);
@@ -35,19 +33,12 @@ export default function CategoriasPage() {
   const loadCategories = async () => {
     setIsLoading(true);
     try {
-      const data = await fake_getCategories();
+      const data = await getCategories();
       setCategories(data);
 
       // Build tree
       const treeData = buildTree(data);
       setTree(treeData);
-
-      // Calculate product counts
-      const counts: Record<string, number> = {};
-      data.forEach((category) => {
-        counts[category.id] = fake_getCategoryProductCount(category.id);
-      });
-      setProductCounts(counts);
     } catch (error) {
       toast.error('Error al cargar categorías');
       console.error(error);
@@ -83,7 +74,7 @@ export default function CategoriasPage() {
     if (!categoryToDelete) return;
 
     try {
-      await fake_deleteCategory(categoryToDelete.id);
+      await deleteCategory(categoryToDelete.id);
       toast.success('Categoría eliminada correctamente');
       setDeleteDialogOpen(false);
       loadCategories();
@@ -97,18 +88,22 @@ export default function CategoriasPage() {
   const handleSubmit = async (data: CategoryFormData) => {
     setIsSubmitting(true);
     try {
-      // Convert undefined to null for API compatibility
+      // Map form snake_case fields to API camelCase payload
       const payload = {
-        ...data,
-        description: data.description ?? null,
-        image_url: data.image_url ?? null
+        name: data.name,
+        slug: data.slug,
+        parentId: data.parent_id ?? undefined,
+        isActive: data.is_active,
+        displayOrder: data.display_order,
+        description: data.description || null,
+        imageUrl: data.image_url || null
       };
 
       if (selectedCategory) {
-        await fake_updateCategory(selectedCategory.id, payload);
+        await updateCategory(selectedCategory.id, payload);
         toast.success('Categoría actualizada correctamente');
       } else {
-        await fake_createCategory(payload);
+        await createCategory(payload);
         toast.success('Categoría creada correctamente');
       }
       setSheetOpen(false);
@@ -143,7 +138,6 @@ export default function CategoriasPage() {
               <span>Categoría</span>
             </div>
             <div className="flex items-center gap-8 pr-24">
-              <span>Productos</span>
               <span className="w-8 text-center">Orden</span>
             </div>
           </div>
@@ -166,7 +160,7 @@ export default function CategoriasPage() {
                 <CategoryTreeItem
                   key={node.item.id}
                   node={node}
-                  productCounts={productCounts}
+                  productCounts={{}}
                   onEdit={handleEdit}
                   onDelete={handleDeleteClick}
                 />
