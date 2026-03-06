@@ -31,7 +31,7 @@ export default function AdminProductsPage() {
   const loadProducts = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await getAdminProducts({});
+      const result = await getAdminProducts({ limit: 500 });
       setProducts(result.products);
     } catch {
       toast.error('Error al cargar productos');

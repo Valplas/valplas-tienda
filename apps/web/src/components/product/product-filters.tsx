@@ -56,14 +56,10 @@ export function ProductFilters({ className }: ProductFiltersProps) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [categoriesData, brandsRes] = await Promise.all([getCategories(), getBrands()]);
+        const [categoriesData, brandsData] = await Promise.all([getCategories(), getBrands()]);
 
-        // getCategories returns data directly (not wrapped in ApiResponse)
         setCategories(categoriesData as any);
-
-        if (brandsRes.success && brandsRes.data) {
-          setBrands(brandsRes.data as any); // Type assertion for logo_url compatibility
-        }
+        setBrands(brandsData as any);
       } catch (error) {
         console.error('Error loading filters:', error);
       }
