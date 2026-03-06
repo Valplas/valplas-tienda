@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Order, OrderStatus } from '@/types';
 import {
-  fake_getOrderById,
-  fake_updateOrderStatus,
-  fake_getValidNextStatuses
-} from '@/lib/mock/services/fake-order-admin.service';
+  getAdminOrderById,
+  updateOrderStatus,
+  getValidNextStatuses
+} from '@/lib/services/orders.service';
+import type { Order } from '@/lib/services/orders.service';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
 import { OrderStatusSelect } from '@/components/admin/order-status-select';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,7 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
@@ -49,16 +49,12 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
   const loadOrder = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await fake_getOrderById(params.id);
-      if (!data) {
-        toast.error('Pedido no encontrado');
-        router.push('/admin/pedidos');
-        return;
-      }
+      const data = await getAdminOrderById(params.id);
       setOrder(data);
     } catch (error) {
       toast.error('Error al cargar pedido');
       console.error(error);
+      router.push('/admin/pedidos');
     } finally {
       setIsLoading(false);
     }
@@ -69,7 +65,7 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
   }, [loadOrder]);
 
   // Handle status change confirmation
-  const handleStatusChangeClick = (newStatus: OrderStatus) => {
+  const handleStatusChangeClick = (newStatus: string) => {
     setSelectedStatus(newStatus);
     setConfirmDialogOpen(true);
   };
@@ -80,7 +76,7 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
 
     setIsUpdating(true);
     try {
-      await fake_updateOrderStatus(order.id, selectedStatus);
+      await updateOrderStatus(order.id, selectedStatus);
       toast.success('Estado del pedido actualizado correctamente');
       loadOrder();
       setConfirmDialogOpen(false);
@@ -106,7 +102,8 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
     return null;
   }
 
-  const validNextStatuses = fake_getValidNextStatuses(order.status);
+  const validNextStatuses = getValidNextStatuses(order.status);
+  const shippingAddress = order.shipping_address;
 
   return (
     <div className="space-y-6">
@@ -160,13 +157,19 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div>
-              <div className="font-medium">
-                {order.user?.first_name} {order.user?.last_name}
+            {order.user ? (
+              <div>
+                <div className="font-medium">
+                  {order.user.first_name} {order.user.last_name}
+                </div>
+                <div className="text-sm text-muted-foreground">{order.user.email}</div>
+                {order.user.phone && (
+                  <div className="text-sm text-muted-foreground">{order.user.phone}</div>
+                )}
               </div>
-              <div className="text-sm text-muted-foreground">{order.user?.email}</div>
-              <div className="text-sm text-muted-foreground">{order.user?.phone}</div>
-            </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">ID: {order.user_id}</div>
+            )}
           </CardContent>
         </Card>
 
@@ -179,18 +182,21 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div>
-              <div className="font-medium">{order.shipping_address.label}</div>
-              <div className="text-sm text-muted-foreground">
-                {order.shipping_address.street} {order.shipping_address.street_number}
-                {order.shipping_address.floor && `, Piso ${order.shipping_address.floor}`}
-                {order.shipping_address.apartment && ` ${order.shipping_address.apartment}`}
+            {shippingAddress ? (
+              <div>
+                <div className="font-medium">{shippingAddress.alias}</div>
+                <div className="text-sm text-muted-foreground">
+                  {shippingAddress.street} {shippingAddress.street_number}
+                  {shippingAddress.floor && `, Piso ${shippingAddress.floor}`}
+                  {shippingAddress.apartment && ` ${shippingAddress.apartment}`}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {shippingAddress.city}, {shippingAddress.province} ({shippingAddress.postcode})
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground">
-                {order.shipping_address.city}, {order.shipping_address.province} (
-                {order.shipping_address.postcode})
-              </div>
-            </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Sin información de dirección</div>
+            )}
           </CardContent>
         </Card>
 
@@ -205,28 +211,12 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Transportista:</span>
-              <span className="font-medium">{order.shipping_carrier}</span>
+              <span className="font-medium">{order.shipping_carrier?.name ?? '-'}</span>
             </div>
-            {order.tracking_number && (
+            {order.notes && (
               <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">N° Seguimiento:</span>
-                <span className="font-mono text-sm">{order.tracking_number}</span>
-              </div>
-            )}
-            {order.shipped_at && (
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Fecha de envío:</span>
-                <span className="text-sm">
-                  {dayjs(order.shipped_at).format('DD/MM/YYYY HH:mm')}
-                </span>
-              </div>
-            )}
-            {order.delivered_at && (
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Fecha de entrega:</span>
-                <span className="text-sm">
-                  {dayjs(order.delivered_at).format('DD/MM/YYYY HH:mm')}
-                </span>
+                <span className="text-sm text-muted-foreground">Notas:</span>
+                <span className="text-sm">{order.notes}</span>
               </div>
             )}
           </CardContent>
@@ -243,7 +233,7 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Método:</span>
-              <span className="font-medium">Mercado Pago</span>
+              <span className="font-medium capitalize">{order.payment_method}</span>
             </div>
             {order.payment_id && (
               <div className="flex justify-between">
@@ -251,10 +241,6 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
                 <span className="font-mono text-sm">{order.payment_id}</span>
               </div>
             )}
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Estado:</span>
-              <span className="text-sm capitalize">{order.payment_status}</span>
-            </div>
           </CardContent>
         </Card>
       </div>

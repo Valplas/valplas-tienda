@@ -1,6 +1,6 @@
 // apps/web/src/lib/services/orders.service.ts
 
-import { get, post } from '../api';
+import { get, post, patch } from '../api';
 import type { ApiResponse } from '../api';
 
 export type OrderStatus =
@@ -12,7 +12,29 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled'
   | 'payment_failed'
-  | 'refunded';
+  | 'refunded'
+  | 'shipped'
+  | 'failed';
+
+export interface OrderShippingAddress {
+  id: string;
+  alias: string;
+  street: string;
+  street_number: string;
+  floor: string | null;
+  apartment: string | null;
+  city: string;
+  province: string;
+  postcode: string;
+}
+
+export interface OrderUser {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+}
 
 export interface Order {
   id: string;
@@ -24,14 +46,11 @@ export interface Order {
   total: number;
   payment_method: string;
   payment_id: string | null;
-  shipping_address: {
-    street: string;
-    street_number: string;
-    floor: string | null;
-    apartment: string | null;
-    city: string;
-    province: string;
-    postcode: string;
+  notes: string | null;
+  shipping_address?: OrderShippingAddress;
+  shipping_carrier?: {
+    id: string;
+    name: string;
   };
   items: Array<{
     id: string;
@@ -42,6 +61,7 @@ export interface Order {
     unit_price: number;
     subtotal: number;
   }>;
+  user?: OrderUser;
   created_at: string;
   updated_at: string;
 }
@@ -99,4 +119,58 @@ export async function getOrderByNumber(orderNumber: string): Promise<Order> {
   }
 
   throw new Error(response.error?.message || 'Error al obtener orden');
+}
+
+// ─── Admin ────────────────────────────────────────────────────────────────────
+
+// Valid status transitions (mirrors backend VALID_STATUS_TRANSITIONS)
+const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
+  pending_payment: ['payment_confirmed', 'cancelled', 'failed'],
+  payment_confirmed: ['processing', 'refunded', 'cancelled'],
+  processing: ['ready_to_ship', 'cancelled'],
+  ready_to_ship: ['shipped', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
+  delivered: ['refunded'],
+  cancelled: [],
+  refunded: [],
+  failed: []
+};
+
+export function getValidNextStatuses(currentStatus: string): string[] {
+  return ORDER_STATUS_TRANSITIONS[currentStatus] ?? [];
+}
+
+export async function getAdminOrders(params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.status) query.set('status', params.status);
+  if (params?.search) query.set('order_number', params.search);
+
+  const qs = query.toString();
+  const res = await get<Order[]>(`/orders/admin/all${qs ? `?${qs}` : ''}`);
+  if (!res.success || !res.data) return { orders: [], total: 0, totalPages: 0 };
+  return {
+    orders: res.data,
+    total: res.pagination?.total ?? res.data.length,
+    totalPages: res.pagination?.totalPages ?? 1
+  };
+}
+
+export async function getAdminOrderById(id: string): Promise<Order> {
+  const res = await get<Order>(`/orders/${id}`);
+  if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Pedido no encontrado');
+  return res.data;
+}
+
+export async function updateOrderStatus(id: string, status: string): Promise<Order> {
+  const res = await patch<Order>(`/orders/${id}/status`, { status });
+  if (!res.success || !res.data)
+    throw new Error(res.error?.message ?? 'Error al actualizar estado');
+  return res.data;
 }

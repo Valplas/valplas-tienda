@@ -1,6 +1,5 @@
 'use client';
 
-import { OrderStatus } from '@/types';
 import {
   Select,
   SelectContent,
@@ -10,40 +9,33 @@ import {
 } from '@/components/ui/select';
 
 interface OrderStatusSelectProps {
-  currentStatus: OrderStatus;
-  validStatuses: OrderStatus[];
-  onStatusChange: (status: OrderStatus) => void;
+  currentStatus: string;
+  validStatuses: string[];
+  onStatusChange: (status: string) => void;
   disabled?: boolean;
 }
 
-const statusConfig: Record<
-  OrderStatus,
-  {
-    label: string;
-    color: string;
-  }
-> = {
-  [OrderStatus.PENDING]: {
-    label: 'Pendiente',
-    color: 'text-yellow-700'
-  },
-  [OrderStatus.PROCESSING]: {
-    label: 'En proceso',
-    color: 'text-blue-700'
-  },
-  [OrderStatus.SHIPPED]: {
-    label: 'Enviado',
-    color: 'text-purple-700'
-  },
-  [OrderStatus.DELIVERED]: {
-    label: 'Entregado',
-    color: 'text-green-700'
-  },
-  [OrderStatus.CANCELLED]: {
-    label: 'Cancelado',
-    color: 'text-red-700'
-  }
+const statusLabels: Record<string, { label: string; color: string }> = {
+  pending_payment: { label: 'Pendiente de pago', color: 'text-yellow-700' },
+  payment_confirmed: { label: 'Pago confirmado', color: 'text-blue-500' },
+  processing: { label: 'En proceso', color: 'text-blue-700' },
+  ready_to_ship: { label: 'Listo para enviar', color: 'text-indigo-700' },
+  shipped: { label: 'Enviado', color: 'text-purple-700' },
+  delivered: { label: 'Entregado', color: 'text-green-700' },
+  cancelled: { label: 'Cancelado', color: 'text-red-700' },
+  refunded: { label: 'Reembolsado', color: 'text-gray-700' },
+  failed: { label: 'Fallido', color: 'text-red-900' },
+  // Legacy values
+  pending: { label: 'Pendiente', color: 'text-yellow-700' }
 };
+
+function getStatusLabel(status: string) {
+  return statusLabels[status]?.label ?? status;
+}
+
+function getStatusColor(status: string) {
+  return statusLabels[status]?.color ?? 'text-foreground';
+}
 
 export function OrderStatusSelect({
   currentStatus,
@@ -54,22 +46,22 @@ export function OrderStatusSelect({
   return (
     <Select
       value={currentStatus}
-      onValueChange={(value) => onStatusChange(value as OrderStatus)}
+      onValueChange={(value) => onStatusChange(value)}
       disabled={disabled || validStatuses.length === 0}
     >
       <SelectTrigger className="w-[200px]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {/* Current status (always shown) */}
-        <SelectItem value={currentStatus} disabled className={statusConfig[currentStatus].color}>
-          {statusConfig[currentStatus].label} (actual)
+        {/* Current status (always shown, disabled) */}
+        <SelectItem value={currentStatus} disabled className={getStatusColor(currentStatus)}>
+          {getStatusLabel(currentStatus)} (actual)
         </SelectItem>
 
         {/* Valid next statuses */}
         {validStatuses.map((status) => (
-          <SelectItem key={status} value={status} className={statusConfig[status].color}>
-            {statusConfig[status].label}
+          <SelectItem key={status} value={status} className={getStatusColor(status)}>
+            {getStatusLabel(status)}
           </SelectItem>
         ))}
 
