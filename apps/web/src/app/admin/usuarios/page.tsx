@@ -23,13 +23,14 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { User, UserRole } from '@/types';
+import { UserRole } from '@/types';
 import {
-  fake_getUsers,
-  fake_createUser,
-  fake_updateUser,
-  fake_deleteUser
-} from '@/lib/mock/services/fake-user-admin.service';
+  AdminUser,
+  getAdminUsers,
+  createAdminUser,
+  updateAdminUser,
+  deleteAdminUser
+} from '@/lib/services/users.service';
 import { UserForm } from '@/components/admin/user-form';
 import { CreateUserFormData, UpdateUserFormData } from '@/lib/validations/user-admin';
 import {
@@ -49,14 +50,14 @@ export default function UsuariosPage() {
   const router = useRouter();
   const currentUser = useAuthStore((state) => state.user);
 
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
 
   // Check if current user is owner
   useEffect(() => {
@@ -70,13 +71,16 @@ export default function UsuariosPage() {
   // Load users
   const loadUsers = useCallback(async () => {
     setLoading(true);
-    const response = await fake_getUsers({
-      role: roleFilter === 'all' ? undefined : roleFilter
-    });
-    if (response.success && response.data) {
-      setUsers(response.data);
+    try {
+      const result = await getAdminUsers({
+        role: roleFilter === 'all' ? undefined : roleFilter
+      });
+      setUsers(result.users);
+    } catch {
+      toast.error('Error al cargar usuarios');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [roleFilter]);
 
   useEffect(() => {
@@ -88,7 +92,7 @@ export default function UsuariosPage() {
     setSheetOpen(true);
   };
 
-  const handleEdit = (user: User) => {
+  const handleEdit = (user: AdminUser) => {
     setSelectedUser(user);
     setSheetOpen(true);
   };
@@ -98,31 +102,46 @@ export default function UsuariosPage() {
 
     try {
       if (selectedUser) {
-        const response = await fake_updateUser(selectedUser.id, data as UpdateUserFormData);
-        if (response.success) {
-          toast.success('Usuario actualizado correctamente');
-          await loadUsers();
-          setSheetOpen(false);
-        } else {
-          toast.error(response.error?.message || 'Error al actualizar usuario');
-        }
+        // Build update payload — only send fields that have values
+        const updateData: Parameters<typeof updateAdminUser>[1] = {
+          email: data.email,
+          username: data.username || undefined,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          role: data.role,
+          phone: data.phone || undefined,
+          is_active: data.is_active
+        };
+        await updateAdminUser(selectedUser.id, updateData);
+        toast.success('Usuario actualizado correctamente');
+        await loadUsers();
+        setSheetOpen(false);
       } else {
-        const response = await fake_createUser(data as CreateUserFormData);
-        if (response.success) {
-          toast.success('Usuario creado correctamente');
-          await loadUsers();
-          setSheetOpen(false);
-        } else {
-          toast.error(response.error?.message || 'Error al crear usuario');
-        }
+        const createData = data as CreateUserFormData;
+        await createAdminUser({
+          email: createData.email,
+          username: createData.username || createData.email.split('@')[0],
+          first_name: createData.first_name,
+          last_name: createData.last_name,
+          password: createData.password,
+          role: createData.role,
+          phone: createData.phone || undefined,
+          is_active: createData.is_active
+        });
+        toast.success('Usuario creado correctamente');
+        await loadUsers();
+        setSheetOpen(false);
       }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al guardar usuario';
+      toast.error(message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = useCallback(
-    (user: User) => {
+    (user: AdminUser) => {
       // Prevent self-delete
       if (currentUser && user.id === currentUser.id) {
         toast.error('No podés eliminar tu propia cuenta');
@@ -136,21 +155,22 @@ export default function UsuariosPage() {
   );
 
   const confirmDelete = async () => {
-    if (!userToDelete || !currentUser) return;
+    if (!userToDelete) return;
 
-    const response = await fake_deleteUser(userToDelete.id, currentUser.id);
-    if (response.success) {
+    try {
+      await deleteAdminUser(userToDelete.id);
       toast.success('Usuario eliminado correctamente');
       await loadUsers();
-    } else {
-      toast.error(response.error?.message || 'Error al eliminar usuario');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al eliminar usuario';
+      toast.error(message);
     }
 
     setDeleteDialogOpen(false);
     setUserToDelete(null);
   };
 
-  const columns = useMemo<ColumnDef<User>[]>(
+  const columns = useMemo<ColumnDef<AdminUser>[]>(
     () => [
       {
         id: 'avatar',
