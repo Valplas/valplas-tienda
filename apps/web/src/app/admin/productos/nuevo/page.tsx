@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import * as React from 'react';
@@ -6,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { ProductForm } from '@/components/admin/product-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { createProduct } from '@/lib/services/products.service';
+import { parsePriceInput } from '@/lib/formatters';
+import type { ProductFormData } from '@/lib/validations/product';
 
 /**
  * Generate slug from product name
@@ -19,56 +21,27 @@ function generateSlug(name: string): string {
     .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
 }
 
-/**
- * Map frontend data (snake_case) to backend format (camelCase)
- */
-function mapToBackendFormat(data: any): any {
-  return {
-    name: data.name,
-    sku: data.sku.toUpperCase(), // Backend requires uppercase
-    slug: generateSlug(data.name), // Auto-generate from name
-    description: data.description,
-    categoryId: data.category_id,
-    brandId: data.brand_id,
-    basePrice: data.base_price,
-    stock: data.stock,
-    isFeatured: data.is_featured,
-    unit: data.unit
-  };
-}
-
-async function createProduct(data: any): Promise<any> {
-  const backendData = mapToBackendFormat(data);
-
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('access_token')}`
-    },
-    credentials: 'include',
-    body: JSON.stringify(backendData)
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Error al crear producto');
-  }
-
-  return response.json();
-}
-
 export default function NewProductPage() {
   const router = useRouter();
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: ProductFormData & { images?: string[] }) => {
     try {
-      await createProduct(data);
+      const centavos = parsePriceInput(String(data.base_price));
+      await createProduct({
+        name: data.name,
+        slug: generateSlug(data.name),
+        description: data.description,
+        basePrice: centavos,
+        categoryId: data.category_id,
+        brandId: data.brand_id,
+        isActive: data.is_active ?? true
+      });
       toast.success('Producto creado correctamente');
       router.push('/admin/productos');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating product:', error);
-      toast.error(error?.message || 'Error al crear producto. Intentá de nuevo.');
+      const message = error instanceof Error ? error.message : undefined;
+      toast.error(message || 'Error al crear producto. Intentá de nuevo.');
     }
   };
 
