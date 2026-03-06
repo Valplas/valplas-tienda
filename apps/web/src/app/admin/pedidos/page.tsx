@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { OrderStatus } from '@/types';
 import { getAdminOrders } from '@/lib/services/orders.service';
 import type { Order } from '@/lib/services/orders.service';
 import { DataTable } from '@/components/admin/data-table';
@@ -160,11 +159,11 @@ export default function PedidosPage() {
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="pending_payment">Pendiente de pago</SelectItem>
               <SelectItem value="payment_confirmed">Pago confirmado</SelectItem>
-              <SelectItem value={OrderStatus.PROCESSING}>En proceso</SelectItem>
+              <SelectItem value="processing">En proceso</SelectItem>
               <SelectItem value="ready_to_ship">Listo para enviar</SelectItem>
-              <SelectItem value={OrderStatus.SHIPPED}>Enviado</SelectItem>
-              <SelectItem value={OrderStatus.DELIVERED}>Entregado</SelectItem>
-              <SelectItem value={OrderStatus.CANCELLED}>Cancelado</SelectItem>
+              <SelectItem value="shipped">Enviado</SelectItem>
+              <SelectItem value="delivered">Entregado</SelectItem>
+              <SelectItem value="cancelled">Cancelado</SelectItem>
               <SelectItem value="refunded">Reembolsado</SelectItem>
             </SelectContent>
           </Select>

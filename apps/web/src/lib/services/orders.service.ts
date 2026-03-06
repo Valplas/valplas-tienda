@@ -162,6 +162,8 @@ export async function getAdminOrders(params?: {
   };
 }
 
+// NOTE: Same endpoint as getOrderById but used from admin context.
+// In the future, admin may need a separate admin-scoped endpoint.
 export async function getAdminOrderById(id: string): Promise<Order> {
   const res = await get<Order>(`/orders/${id}`);
   if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Pedido no encontrado');
