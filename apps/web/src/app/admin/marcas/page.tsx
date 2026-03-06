@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Brand } from '@/types';
 import {
   getAdminBrands,
@@ -101,64 +101,69 @@ export default function MarcasPage() {
   };
 
   // Table columns
-  const columns: ColumnDef<Brand>[] = [
-    createCheckboxColumn<Brand>(),
-    {
-      accessorKey: 'logo_url',
-      header: 'Logo',
-      cell: ({ row }) => {
-        const logoUrl = row.original.logo_url;
-        return (
-          <div className="w-12 h-12 relative rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
-            {logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt={row.original.name}
-                fill
-                className="object-contain p-1"
-                unoptimized
-              />
-            ) : (
-              <Package className="h-6 w-6 text-gray-400" />
-            )}
-          </div>
-        );
+  const columns = useMemo<ColumnDef<Brand>[]>(
+    () => [
+      createCheckboxColumn<Brand>(),
+      {
+        accessorKey: 'logo_url',
+        header: 'Logo',
+        cell: ({ row }) => {
+          const logoUrl = row.original.logo_url;
+          return (
+            <div className="w-12 h-12 relative rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
+              {logoUrl ? (
+                <Image
+                  src={logoUrl}
+                  alt={row.original.name}
+                  fill
+                  className="object-contain p-1"
+                  unoptimized
+                />
+              ) : (
+                <Package className="h-6 w-6 text-gray-400" />
+              )}
+            </div>
+          );
+        },
+        enableSorting: false
       },
-      enableSorting: false
-    },
-    {
-      accessorKey: 'name',
-      header: 'Nombre',
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>
-    },
-    {
-      accessorKey: 'slug',
-      header: 'Slug',
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.slug}</span>
-    },
-    {
-      accessorKey: 'is_active',
-      header: 'Estado',
-      cell: ({ row }) =>
-        row.original.is_active ? (
-          <Badge variant="default" className="bg-green-500">
-            Activa
-          </Badge>
-        ) : (
-          <Badge variant="outline">Inactiva</Badge>
+      {
+        accessorKey: 'name',
+        header: 'Nombre',
+        cell: ({ row }) => <span className="font-medium">{row.original.name}</span>
+      },
+      {
+        accessorKey: 'slug',
+        header: 'Slug',
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">{row.original.slug}</span>
         )
-    },
-    {
-      id: 'actions',
-      header: 'Acciones',
-      cell: ({ row }) => (
-        <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}>
-          <Edit className="h-4 w-4" />
-        </Button>
-      ),
-      enableSorting: false
-    }
-  ];
+      },
+      {
+        accessorKey: 'is_active',
+        header: 'Estado',
+        cell: ({ row }) =>
+          row.original.is_active ? (
+            <Badge variant="default" className="bg-green-500">
+              Activa
+            </Badge>
+          ) : (
+            <Badge variant="outline">Inactiva</Badge>
+          )
+      },
+      {
+        id: 'actions',
+        header: 'Acciones',
+        cell: ({ row }) => (
+          <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+        ),
+        enableSorting: false
+      }
+    ],
+    []
+  );
 
   return (
     <div className="space-y-6">
