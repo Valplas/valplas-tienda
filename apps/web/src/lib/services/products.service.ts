@@ -102,7 +102,11 @@ export function normalizeProduct(raw: RawProduct): Product {
     category_id: raw.categoryId ?? '',
     brand_id: raw.brandId ?? '',
     available_stock: raw.availableStock ?? 0,
-    image_url: raw.images?.[0]?.url ?? ''
+    image_url: raw.images?.[0]?.url ?? '',
+    // Fields needed by the edit form:
+    sku: (raw.sku as string) ?? '',
+    stock: (raw.stock as number) ?? 0,
+    is_featured: (raw.is_featured as boolean) ?? false
   } as unknown as Product;
 }
 
