@@ -142,6 +142,9 @@ export async function createProduct(data: {
   basePrice: number; // centavos
   categoryId: string;
   brandId: string;
+  sku: string; // required by backend
+  stock?: number;
+  isFeatured?: boolean;
   isActive?: boolean;
 }) {
   const res = await post<{ product: RawProduct }>('/products', data);
@@ -158,6 +161,9 @@ export async function updateProduct(
     basePrice: number; // centavos
     categoryId: string;
     brandId: string;
+    sku: string;
+    stock: number;
+    isFeatured: boolean;
     isActive: boolean;
   }>
 ) {

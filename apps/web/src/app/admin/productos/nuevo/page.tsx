@@ -34,6 +34,9 @@ export default function NewProductPage() {
         basePrice: centavos,
         categoryId: data.category_id,
         brandId: data.brand_id,
+        sku: data.sku,
+        stock: data.stock,
+        isFeatured: data.is_featured,
         isActive: data.is_active ?? true
       });
       toast.success('Producto creado correctamente');
