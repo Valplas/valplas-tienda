@@ -44,6 +44,10 @@ export const listOrdersSchema = z.object({
   order_number: z.string().optional()
 });
 
-export const adminListOrdersSchema = listOrdersSchema.extend({
-  user_id: z.string().uuid().optional()
-});
+export const adminListOrdersSchema = listOrdersSchema
+  .extend({
+    user_id: z.string().uuid().optional()
+  })
+  .extend({
+    limit: z.coerce.number().int().min(1).max(500).optional().default(20)
+  });

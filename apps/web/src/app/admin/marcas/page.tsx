@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Brand } from '@/types';
 import {
   getAdminBrands,
@@ -14,53 +14,109 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
-import { Edit, Plus, Package } from 'lucide-react';
+import { Edit, Plus, Package, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import { type BrandFormData } from '@/lib/validations/brand';
 
+const PAGE_SIZE = 50;
+
 export default function MarcasPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(false);
 
-  // Load brands
-  const loadBrands = async () => {
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const loadBrands = useCallback(async () => {
     setIsLoading(true);
+    setPage(1);
+    setHasMore(true);
     try {
-      const data = await getAdminBrands();
+      const data = await getAdminBrands({ page: 1, limit: PAGE_SIZE });
+      if (!isMountedRef.current) return;
       setBrands(data.brands);
-    } catch (error) {
+      setHasMore(data.brands.length === PAGE_SIZE);
+    } catch {
+      if (!isMountedRef.current) return;
       toast.error('Error al cargar marcas');
-      console.error(error);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, []);
+
+  const loadMore = useCallback(async (nextPage: number) => {
+    setIsLoadingMore(true);
+    try {
+      const data = await getAdminBrands({ page: nextPage, limit: PAGE_SIZE });
+      if (!isMountedRef.current) return;
+      setBrands((prev) => [...prev, ...data.brands]);
+      setHasMore(data.brands.length === PAGE_SIZE);
+      setPage(nextPage);
+    } catch {
+      if (!isMountedRef.current) return;
+      setHasMore(false);
+      toast.error('Error al cargar más marcas');
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingMore(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     loadBrands();
-  }, []);
+  }, [loadBrands]);
 
-  // Handle create
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    let active = true;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (active && entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading) {
+          loadMore(page + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, [hasMore, isLoadingMore, isLoading, page, loadMore]);
+
   const handleCreate = () => {
     setSelectedBrand(undefined);
     setSheetOpen(true);
   };
 
-  // Handle edit
   const handleEdit = (brand: Brand) => {
     setSelectedBrand(brand);
     setSheetOpen(true);
   };
 
-  // Handle form submit
   const handleSubmit = async (data: BrandFormData) => {
     setIsSubmitting(true);
     try {
-      // Map frontend snake_case fields to API camelCase
       const payload = {
         name: data.name,
         slug: data.slug,
@@ -86,7 +142,6 @@ export default function MarcasPage() {
     }
   };
 
-  // Handle bulk delete
   const handleDelete = async (items: Brand[]) => {
     try {
       await deleteBrands(items.map((b) => b.id));
@@ -100,7 +155,6 @@ export default function MarcasPage() {
     }
   };
 
-  // Table columns
   const columns = useMemo<ColumnDef<Brand>[]>(
     () => [
       createCheckboxColumn<Brand>(),
@@ -190,6 +244,19 @@ export default function MarcasPage() {
         getRowId={(row) => row.id}
         getRowName={(row) => row.name}
       />
+
+      {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} className="h-4" />
+      {isLoadingMore && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      {!hasMore && brands.length > 0 && (
+        <p className="text-center text-sm text-muted-foreground py-2">
+          {brands.length} marca(s) en total
+        </p>
+      )}
 
       {/* Form Sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>

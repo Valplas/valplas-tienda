@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProductForm } from '@/components/admin/product-form';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,9 +12,9 @@ import { normalizeProduct, updateProduct, type Product } from '@/lib/services/pr
 import { parsePriceInput } from '@/lib/formatters';
 
 interface EditProductPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 // Raw shape returned by GET /products/:id → data.product
@@ -31,7 +32,8 @@ interface RawProductShape {
   [key: string]: unknown;
 }
 
-export default function EditProductPage({ params }: EditProductPageProps) {
+export default function EditProductPage({ params: paramsPromise }: EditProductPageProps) {
+  const { id } = use(paramsPromise);
   const router = useRouter();
   const [product, setProduct] = React.useState<Product | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -40,7 +42,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     const loadProduct = async () => {
       setIsLoading(true);
       try {
-        const res = await get<{ product: RawProductShape }>(`/products/${params.id}`);
+        const res = await get<{ product: RawProductShape }>(`/products/${id}`);
         if (!res.success || !res.data) {
           throw new Error('Producto no encontrado');
         }
@@ -57,7 +59,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     };
 
     loadProduct();
-  }, [params.id, router]);
+  }, [id, router]);
 
   const handleSubmit = async (data: {
     name: string;
@@ -73,7 +75,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   }) => {
     try {
       const centavos = parsePriceInput(String(data.base_price));
-      await updateProduct(params.id, {
+      await updateProduct(id, {
         name: data.name,
         slug: data.slug,
         description: data.description,

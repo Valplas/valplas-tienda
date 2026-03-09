@@ -101,8 +101,10 @@ export function DataTable<TData>({
   }, [searchValue, searchKey, table]);
 
   React.useEffect(() => {
-    onSelectionChange?.(selectedRows);
-  }, [rowSelection, onSelectionChange, selectedRows]);
+    if (!onSelectionChange) return;
+    const selected = table.getFilteredSelectedRowModel().rows.map((row) => row.original);
+    onSelectionChange(selected);
+  }, [rowSelection, onSelectionChange, table]);
 
   const handleDelete = async () => {
     if (!onDelete || selectedRows.length === 0) return;

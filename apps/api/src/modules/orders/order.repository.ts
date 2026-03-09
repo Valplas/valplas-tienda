@@ -12,6 +12,7 @@ import type {
   OrderFilters,
   OrderStatus
 } from './order.types.js';
+import type { User } from '../users/user.types.js';
 
 /**
  * Generate order number (VLP-YYYYMMDD-NNNN)
@@ -77,7 +78,7 @@ export async function findOrders(
     paramIndex++;
   }
 
-  const whereClause = conditions.join(' AND ');
+  const whereClause = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
 
   // Count total
   const countResult = await query<{ count: string }>(
@@ -87,9 +88,14 @@ export async function findOrders(
 
   const total = parseInt(countResult.rows[0].count, 10);
 
-  // Get orders
+  // Get orders with user info
   const ordersResult = await query<Order>(
-    `SELECT o.* FROM orders o
+    `SELECT o.*,
+            CASE WHEN u.id IS NOT NULL THEN
+              json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
+            END as user
+     FROM orders o
+     LEFT JOIN users u ON o.user_id = u.id
      WHERE ${whereClause}
      ORDER BY o.created_at DESC
      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -127,32 +133,40 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
   const order = await findOrderById(id);
   if (!order) return null;
 
-  // Get items with product details
-  const itemsResult = await query(
-    `SELECT
-      oi.*,
-      p.name as product_name,
-      p.sku as product_sku,
-      (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
-     FROM order_items oi
-     JOIN products p ON oi.product_id = p.id
-     WHERE oi.order_id = $1
-     ORDER BY oi.created_at`,
-    [id]
-  );
-
-  // Get status history
-  const historyResult = await query<OrderStatusHistory>(
-    `SELECT * FROM order_status_history
-     WHERE order_id = $1
-     ORDER BY created_at DESC`,
-    [id]
-  );
+  // Get items, user, and status history in parallel
+  const [itemsResult, userResult, historyResult] = await Promise.all([
+    query(
+      `SELECT
+        oi.*,
+        p.name as product_name,
+        p.sku as product_sku,
+        (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image
+       FROM order_items oi
+       JOIN products p ON oi.product_id = p.id
+       WHERE oi.order_id = $1
+       ORDER BY oi.created_at`,
+      [id]
+    ),
+    query<Omit<User, 'passwordHash'>>(
+      `SELECT id, email, username, phone, first_name, last_name, role,
+              is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
+       FROM users
+       WHERE id = $1`,
+      [order.user_id]
+    ),
+    query<OrderStatusHistory>(
+      `SELECT * FROM order_status_history
+       WHERE order_id = $1
+       ORDER BY created_at DESC`,
+      [id]
+    )
+  ]);
 
   return {
     ...order,
     items: itemsResult.rows as OrderItemWithProduct[],
-    status_history: historyResult.rows
+    status_history: historyResult.rows,
+    user: userResult.rows[0] ?? undefined
   };
 }
 

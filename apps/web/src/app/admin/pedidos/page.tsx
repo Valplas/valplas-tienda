@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getAdminOrders } from '@/lib/services/orders.service';
 import type { Order } from '@/lib/services/orders.service';
 import { DataTable } from '@/components/admin/data-table';
@@ -15,36 +15,97 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { ColumnDef } from '@tanstack/react-table';
-import { Eye, Package, X } from 'lucide-react';
+import { Eye, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
 
+const PAGE_SIZE = 50;
+
 export default function PedidosPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(false);
 
-  // Load orders
-  const loadOrders = async () => {
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const loadOrders = useCallback(async () => {
     setIsLoading(true);
+    setPage(1);
+    setHasMore(true);
     try {
-      const { orders: data } = await getAdminOrders({ limit: 500 });
+      const { orders: data } = await getAdminOrders({ page: 1, limit: PAGE_SIZE });
+      if (!isMountedRef.current) return;
       setOrders(data);
+      setHasMore(data.length === PAGE_SIZE);
     } catch (error) {
+      if (!isMountedRef.current) return;
       toast.error('Error al cargar pedidos');
       console.error(error);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, []);
+
+  const loadMore = useCallback(async (nextPage: number) => {
+    setIsLoadingMore(true);
+    try {
+      const { orders: data } = await getAdminOrders({ page: nextPage, limit: PAGE_SIZE });
+      if (!isMountedRef.current) return;
+      setOrders((prev) => [...prev, ...data]);
+      setHasMore(data.length === PAGE_SIZE);
+      setPage(nextPage);
+    } catch {
+      if (!isMountedRef.current) return;
+      setHasMore(false); // detener el loop si falla
+      toast.error('Error al cargar más pedidos');
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingMore(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [loadOrders]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    let active = true;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (active && entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading) {
+          loadMore(page + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, [hasMore, isLoadingMore, isLoading, page, loadMore]);
 
   // Apply filters client-side
   const filteredOrders = useMemo(() => {
@@ -54,11 +115,6 @@ export default function PedidosPage() {
       return true;
     });
   }, [orders, statusFilter, dateFilter]);
-
-  // Handle view order
-  const handleViewOrder = (order: Order) => {
-    router.push(`/admin/pedidos/${order.id}`);
-  };
 
   // Table columns
   const columns = useMemo<ColumnDef<Order>[]>(
@@ -75,18 +131,13 @@ export default function PedidosPage() {
         header: 'Cliente',
         cell: ({ row }) => {
           const user = row.original.user;
+          const name = user
+            ? [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email
+            : null;
           return (
             <div>
-              {user ? (
-                <>
-                  <div className="font-medium">
-                    {user.first_name} {user.last_name}
-                  </div>
-                  <div className="text-sm text-muted-foreground">{user.email}</div>
-                </>
-              ) : (
-                <div className="text-sm text-muted-foreground">{row.original.user_id}</div>
-              )}
+              <div className="font-medium">{name ?? row.original.user_id}</div>
+              {user?.email && <div className="text-sm text-muted-foreground">{user.phone}</div>}
             </div>
           );
         },
@@ -105,24 +156,10 @@ export default function PedidosPage() {
         )
       },
       {
-        id: 'items_count',
-        header: 'Productos',
-        cell: ({ row }) => {
-          const itemCount = row.original.items.reduce((sum, item) => sum + item.quantity, 0);
-          return (
-            <div className="flex items-center gap-1">
-              <Package className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>{itemCount}</span>
-            </div>
-          );
-        },
-        enableSorting: false
-      },
-      {
         accessorKey: 'total',
         header: 'Total',
         cell: ({ row }) => (
-          <span className="font-semibold">{formatCurrency(row.original.total)}</span>
+          <span className="font-semibold">{formatCurrency(row.original.subtotal)}</span>
         )
       },
       {
@@ -134,14 +171,18 @@ export default function PedidosPage() {
         id: 'actions',
         header: 'Acciones',
         cell: ({ row }) => (
-          <Button variant="ghost" size="icon" onClick={() => handleViewOrder(row.original)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push(`/admin/pedidos/${row.original.id}`)}
+          >
             <Eye className="h-4 w-4" />
           </Button>
         ),
         enableSorting: false
       }
     ],
-    []
+    [router]
   );
 
   return (
@@ -159,7 +200,7 @@ export default function PedidosPage() {
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">Estado:</span>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-45">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -182,7 +223,7 @@ export default function PedidosPage() {
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="w-[160px]"
+              className="w-40"
             />
             {dateFilter && (
               <Button
@@ -197,7 +238,9 @@ export default function PedidosPage() {
           </div>
         </div>
         <div className="text-sm text-muted-foreground">
-          Mostrando {filteredOrders.length} de {orders.length} pedido(s)
+          {filteredOrders.length !== orders.length
+            ? `${filteredOrders.length} de ${orders.length} pedido(s) cargados`
+            : `${orders.length} pedido(s) cargados`}
         </div>
       </div>
 
@@ -211,6 +254,19 @@ export default function PedidosPage() {
         getRowId={(row) => row.id}
         getRowName={(row) => row.order_number}
       />
+
+      {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} className="h-4" />
+      {isLoadingMore && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      {!hasMore && orders.length > 0 && (
+        <p className="text-center text-sm text-muted-foreground py-2">
+          {orders.length} pedido(s) en total
+        </p>
+      )}
     </div>
   );
 }

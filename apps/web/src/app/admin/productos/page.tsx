@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, Pencil, Trash2, Plus } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Plus, Loader2 } from 'lucide-react';
 import { DataTable, createCheckboxColumn } from '@/components/admin/data-table';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,27 +21,89 @@ import { getAdminProducts, deleteProduct } from '@/lib/services/products.service
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 
+const PAGE_SIZE = 50;
+
 export default function AdminProductsPage() {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [page, setPage] = React.useState(1);
+  const [hasMore, setHasMore] = React.useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [productToDelete, setProductToDelete] = React.useState<Product | null>(null);
+  const sentinelRef = React.useRef<HTMLDivElement>(null);
+  const isMountedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const loadProducts = React.useCallback(async () => {
     setIsLoading(true);
+    setPage(1);
+    setHasMore(true);
     try {
-      const result = await getAdminProducts({ limit: 500 });
+      const result = await getAdminProducts({ page: 1, limit: PAGE_SIZE });
+      if (!isMountedRef.current) return;
       setProducts(result.products);
+      setHasMore(result.products.length === PAGE_SIZE);
     } catch {
+      if (!isMountedRef.current) return;
       toast.error('Error al cargar productos');
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
+  const loadMore = React.useCallback(async (nextPage: number) => {
+    setIsLoadingMore(true);
+    try {
+      const result = await getAdminProducts({ page: nextPage, limit: PAGE_SIZE });
+      if (!isMountedRef.current) return;
+      setProducts((prev) => [...prev, ...result.products]);
+      setHasMore(result.products.length === PAGE_SIZE);
+      setPage(nextPage);
+    } catch {
+      if (!isMountedRef.current) return;
+      setHasMore(false); // detener el loop si falla
+      toast.error('Error al cargar más productos');
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingMore(false);
+      }
     }
   }, []);
 
   React.useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  // IntersectionObserver for infinite scroll
+  React.useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    let active = true;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (active && entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading) {
+          loadMore(page + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, [hasMore, isLoadingMore, isLoading, page, loadMore]);
 
   const handleDeleteProduct = async (product: Product) => {
     setProductToDelete(product);
@@ -214,6 +276,19 @@ export default function AdminProductsPage() {
         getRowId={(row) => row.id}
         getRowName={(row) => row.name}
       />
+
+      {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} className="h-4" />
+      {isLoadingMore && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      {!hasMore && products.length > 0 && (
+        <p className="text-center text-sm text-muted-foreground py-2">
+          {products.length} producto(s) en total
+        </p>
+      )}
 
       {/* Single delete confirmation */}
       {productToDelete && (

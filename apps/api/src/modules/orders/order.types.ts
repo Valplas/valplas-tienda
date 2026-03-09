@@ -31,6 +31,7 @@ export interface Order {
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
+  user?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'phone'> | null;
 }
 
 export interface OrderItem {

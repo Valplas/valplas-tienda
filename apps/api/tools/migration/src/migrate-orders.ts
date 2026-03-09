@@ -11,7 +11,7 @@ import { source, target, closeAll } from './db.ts';
 const rows = await source.query(`
   SELECT o."OrderID", o."ClientID", o."OrderNumber",
          o."OrderStatus", o."OrderDate",
-         o."TotalAmount", o."Amount",
+         o."Total", o."TotalAmount",
          o."Address", o."IsDeleted"
   FROM "Orders" o
   WHERE o."IsDeleted" = false
@@ -49,8 +49,9 @@ for (const row of rows.rows) {
       String(date.getDate()).padStart(2, '0');
     const orderNumber = `VLP-${ymd}-${String(row.OrderNumber).padStart(4, '0')}`;
 
-    // Totals in centavos
-    const totalCents = Math.round(parseFloat(row.TotalAmount || row.Amount || '0') * 100);
+    // Totals in centavos (TotalAmount → subtotal, Total → total)
+    const subtotalCents = Math.round(parseFloat(row.TotalAmount || '0') * 100);
+    const totalCents = Math.round(parseFloat(row.Total || row.TotalAmount || '0') * 100);
 
     // Shipping address: store full address in street, defaults for required fields
     const address = (row.Address || 'Sin dirección').substring(0, 255);
@@ -76,7 +77,7 @@ for (const row of rows.rows) {
         row.OrderID,
         row.ClientID,
         orderNumber,
-        totalCents,
+        subtotalCents,
         totalCents,
         address,
         new Date(row.OrderDate).toISOString(),
