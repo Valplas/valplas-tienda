@@ -74,7 +74,7 @@ interface RawProduct {
   name: string;
   slug: string;
   description?: string;
-  base_price: number; // centavos
+  base_price: number; // pesos ARS
   is_active: boolean;
   categoryId?: string;
   brandId?: string;
@@ -86,11 +86,10 @@ interface RawProduct {
 /**
  * Maps API response fields to the frontend Product shape:
  * - camelCase → snake_case
- * - centavos → pesos
  * - images[0].url → image_url
  */
 export function normalizeProduct(raw: RawProduct): Product {
-  const basePricePesos = (raw.base_price ?? 0) / 100;
+  const basePricePesos = raw.base_price ?? 0;
   return {
     id: raw.id,
     name: raw.name,
@@ -143,7 +142,7 @@ export async function createProduct(data: {
   name: string;
   slug: string;
   description?: string;
-  basePrice: number; // centavos
+  basePrice: number; // pesos ARS
   categoryId: string;
   brandId: string;
   sku: string; // required by backend
@@ -162,7 +161,7 @@ export async function updateProduct(
     name: string;
     slug: string;
     description: string;
-    basePrice: number; // centavos
+    basePrice: number; // pesos ARS
     categoryId: string;
     brandId: string;
     sku: string;

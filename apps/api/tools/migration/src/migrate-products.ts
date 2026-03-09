@@ -1,6 +1,6 @@
 /**
  * Migrate: Products → products
- * - base_price = cost_price = CostPrice * 100 (centavos)
+ * - base_price = cost_price = CostPrice (pesos ARS, NUMERIC(12,2))
  * - SKU from Code field (or auto-generated)
  * - slug from Name (unique-ified)
  * - brand_id from brand-mapping.json
@@ -71,8 +71,8 @@ for (const row of rows.rows) {
     const manufacturerKey = row.Manufacturer?.trim().toLowerCase() ?? null;
     const brandId = manufacturerKey ? (brandMapping[manufacturerKey] ?? null) : null;
 
-    // Price in centavos
-    const costPrice = Math.round(parseFloat(row.CostPrice) * 100);
+    // Price in pesos ARS
+    const costPrice = parseFloat(row.CostPrice) || 0;
 
     // Deleted
     const deletedAt = row.IsDeleted ? new Date().toISOString() : null;

@@ -23,7 +23,7 @@ interface RawProductShape {
   name: string;
   slug: string;
   description?: string;
-  base_price: number; // centavos
+  base_price: number; // pesos ARS
   is_active: boolean;
   categoryId?: string;
   brandId?: string;
@@ -74,12 +74,12 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
     is_active?: boolean;
   }) => {
     try {
-      const centavos = parsePriceInput(String(data.base_price));
+      const price = parsePriceInput(String(data.base_price));
       await updateProduct(id, {
         name: data.name,
         slug: data.slug,
         description: data.description,
-        basePrice: centavos,
+        basePrice: price,
         categoryId: data.category_id,
         brandId: data.brand_id,
         sku: data.sku?.toUpperCase(),

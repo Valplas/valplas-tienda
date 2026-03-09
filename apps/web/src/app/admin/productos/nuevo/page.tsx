@@ -26,12 +26,12 @@ export default function NewProductPage() {
 
   const handleSubmit = async (data: ProductFormData & { images?: string[] }) => {
     try {
-      const centavos = parsePriceInput(String(data.base_price));
+      const price = parsePriceInput(String(data.base_price));
       await createProduct({
         name: data.name,
         slug: generateSlug(data.name),
         description: data.description,
-        basePrice: centavos,
+        basePrice: price,
         categoryId: data.category_id,
         brandId: data.brand_id,
         sku: data.sku.toUpperCase(),
