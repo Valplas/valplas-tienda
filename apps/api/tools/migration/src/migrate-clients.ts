@@ -1,16 +1,34 @@
 /**
- * Migrate: Clients → users (role = 'customer')
+ * Migrate: Clients → users (role = 'customer') + user_addresses
  * - Preserves ClientID as UUID
  * - Generates username from name
  * - Placeholder password hash (account inactive until reset)
  * - IsDeleted → deleted_at
- * Idempotent: ON CONFLICT (id) DO UPDATE
+ * - ClientAddress + ClientLocality → user_addresses (is_default = true)
+ * Idempotent: ON CONFLICT (id) DO UPDATE for users;
+ *             delete-then-insert for addresses (no CRM address ID to reuse)
  */
 import { source, target, closeAll } from './db.ts';
 import bcrypt from 'bcryptjs';
 import slugifyLib from 'slugify';
 
 const slugify = (s: string) => slugifyLib(s, { lower: true, strict: true, locale: 'es' });
+
+/**
+ * Parse a free-form Argentine address string into structured fields.
+ * E.g. "Av. Corrientes 1234 piso 3" → { street: "Av. Corrientes", street_number: "1234", notes: "piso 3" }
+ */
+function parseAddress(raw: string): { street: string; street_number: string; notes?: string } {
+  const trimmed = raw.trim();
+  // Match: text before the first standalone number, then optional remainder
+  const match = trimmed.match(/^(.+?)\s+(\d+[\w/]*)(.*)$/);
+  if (match) {
+    const notes = match[3].trim() || undefined;
+    return { street: match[1].trim(), street_number: match[2].trim(), notes };
+  }
+  // No number found (e.g. "s/n" or just a name) — store whole as street
+  return { street: trimmed, street_number: 's/n' };
+}
 
 // Single placeholder hash — clients must reset password on first login
 const PLACEHOLDER_HASH = await bcrypt.hash('ValplasCambiar2026!', 10);
@@ -42,6 +60,7 @@ existing.rows.forEach((r) => {
 
 let inserted = 0;
 let updated = 0;
+let addressesInserted = 0;
 let errors = 0;
 
 for (const row of rows.rows) {
@@ -104,11 +123,34 @@ for (const row of rows.rows) {
     );
     if (res.rows[0].inserted) inserted++;
     else updated++;
+
+    // --- Migrate address ---
+    const rawAddress = row.ClientAddress?.trim() || '';
+    if (rawAddress) {
+      const { street, street_number, notes } = parseAddress(rawAddress);
+      const city = (row.ClientLocality?.trim() || 'Sin especificar').substring(0, 100);
+
+      // Idempotent: remove any previously migrated address for this user, then re-insert
+      await target.query(`DELETE FROM user_addresses WHERE user_id = $1`, [row.ClientID]);
+
+      await target.query(
+        `INSERT INTO user_addresses (
+          user_id, street, street_number, city, province, postcode,
+          notes, is_default, is_active, created_at
+        )
+        VALUES ($1, $2, $3, $4, 'Buenos Aires', '0000', $5, true, true, $6)`,
+        [row.ClientID, street, street_number, city, notes ?? null, createdAt]
+      );
+      addressesInserted++;
+    }
   } catch (e) {
     console.error(`  ❌ ${row.ClientID} "${row.ClientName}": ${(e as Error).message}`);
     errors++;
   }
 }
 
-console.log(`\n✅ Clients: ${inserted} inserted, ${updated} updated, ${errors} errors`);
+console.log(
+  `\n✅ Clients: ${inserted} inserted, ${updated} updated, ${errors} errors` +
+    `\n✅ Addresses: ${addressesInserted} inserted`
+);
 await closeAll();
