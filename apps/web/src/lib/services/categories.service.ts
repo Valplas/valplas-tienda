@@ -5,12 +5,13 @@ import type { Category } from '@/types';
 
 /**
  * Obtener árbol completo de categorías
+ * API returns: { success: true, data: { categories: Category[] } }
  */
 export async function getCategories(): Promise<Category[]> {
-  const response = await get<Category[]>('/categories');
+  const response = await get<{ categories: Category[] }>('/categories');
 
   if (response.success && response.data) {
-    return response.data;
+    return response.data.categories ?? [];
   }
 
   throw new Error(response.error?.message || 'Error al obtener categorías');

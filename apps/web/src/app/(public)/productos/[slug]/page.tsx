@@ -9,15 +9,16 @@ import { getProductBySlug } from '@/services';
 import { Metadata } from 'next';
 
 interface ProductPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   try {
-    const product = await getProductBySlug(params.slug);
+    const { slug } = await params;
+    const product = await getProductBySlug(slug);
 
     // images es un array de strings (URLs)
     const primaryImage = product.image_url || product.images?.[0];
@@ -39,9 +40,10 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
+  const { slug } = await params;
   let product;
   try {
-    product = await getProductBySlug(params.slug);
+    product = await getProductBySlug(slug);
   } catch {
     notFound();
   }

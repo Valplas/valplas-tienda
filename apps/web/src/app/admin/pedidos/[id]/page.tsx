@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, use } from 'react';
 import {
   getAdminOrderById,
   updateOrderStatus,
@@ -37,7 +37,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dayjs from 'dayjs';
 
-export default function PedidoDetailPage({ params }: { params: { id: string } }) {
+export default function PedidoDetailPage({
+  params: paramsPromise
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(paramsPromise);
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +54,7 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
   const loadOrder = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await getAdminOrderById(params.id);
+      const data = await getAdminOrderById(id);
       setOrder(data);
     } catch (error) {
       toast.error('Error al cargar pedido');
@@ -58,7 +63,7 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
     } finally {
       setIsLoading(false);
     }
-  }, [params.id, router]);
+  }, [id, router]);
 
   useEffect(() => {
     loadOrder();
@@ -92,8 +97,8 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-[200px]" />
-        <Skeleton className="h-[400px]" />
+        <Skeleton className="h-50" />
+        <Skeleton className="h-100" />
       </div>
     );
   }
@@ -162,7 +167,6 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
                 <div className="font-medium">
                   {order.user.first_name} {order.user.last_name}
                 </div>
-                <div className="text-sm text-muted-foreground">{order.user.email}</div>
                 {order.user.phone && (
                   <div className="text-sm text-muted-foreground">{order.user.phone}</div>
                 )}
@@ -265,17 +269,20 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
               </TableRow>
             </TableHeader>
             <TableBody>
-              {order.items.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell className="font-mono text-sm">{item.product_sku}</TableCell>
-                  <TableCell>{item.product_name}</TableCell>
-                  <TableCell className="text-center">{item.quantity}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(item.subtotal)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {order.items.map((item, index) => {
+                console.log(item);
+                return (
+                  <TableRow key={index}>
+                    <TableCell className="font-mono text-sm">{item.product_sku}</TableCell>
+                    <TableCell>{item.product_name}</TableCell>
+                    <TableCell className="text-center">{item.quantity}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(item.subtotal)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

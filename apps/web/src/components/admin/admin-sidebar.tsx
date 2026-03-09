@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
 interface NavItem {
   title: string;
@@ -184,6 +184,7 @@ export function AdminSidebarMobile({ open, onOpenChange }: AdminSidebarMobilePro
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-64 p-0">
+        <SheetTitle className="sr-only">Menú de navegación</SheetTitle>
         <AdminSidebarContent onMobileLinkClick={() => onOpenChange(false)} />
       </SheetContent>
     </Sheet>

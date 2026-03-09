@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { PriceList } from '@/types';
 import {
   getPriceLists,
@@ -14,39 +14,104 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
-import { Edit, Plus } from 'lucide-react';
+import { Edit, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PriceListFormData } from '@/lib/validations/price-list';
+
+const PAGE_SIZE = 50;
 
 export default function ListasDePrecioPage() {
   const [priceLists, setPriceLists] = useState<PriceList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selected, setSelected] = useState<PriceList | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(false);
 
-  const load = async () => {
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const load = useCallback(async () => {
     setIsLoading(true);
+    setPage(1);
+    setHasMore(true);
     try {
-      const res = await getPriceLists({ limit: 100 });
+      const res = await getPriceLists({ page: 1, limit: PAGE_SIZE });
+      if (!isMountedRef.current) return;
       if (res.success && res.data) {
         setPriceLists(res.data.priceLists);
+        setHasMore(res.data.priceLists.length === PAGE_SIZE);
       }
     } catch {
+      if (!isMountedRef.current) return;
       toast.error('Error al cargar listas de precios');
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, []);
+
+  const loadMore = useCallback(async (nextPage: number) => {
+    setIsLoadingMore(true);
+    try {
+      const res = await getPriceLists({ page: nextPage, limit: PAGE_SIZE });
+      if (!isMountedRef.current) return;
+      if (res.success && res.data) {
+        setPriceLists((prev) => [...prev, ...res.data!.priceLists]);
+        setHasMore(res.data.priceLists.length === PAGE_SIZE);
+        setPage(nextPage);
+      }
+    } catch {
+      if (!isMountedRef.current) return;
+      setHasMore(false);
+      toast.error('Error al cargar más listas de precios');
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingMore(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    let active = true;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (active && entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading) {
+          loadMore(page + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, [hasMore, isLoadingMore, isLoading, page, loadMore]);
 
   const handleCreate = () => {
     setSelected(undefined);
     setSheetOpen(true);
   };
+
   const handleEdit = (pl: PriceList) => {
     setSelected(pl);
     setSheetOpen(true);
@@ -161,6 +226,19 @@ export default function ListasDePrecioPage() {
         getRowId={(row) => row.id}
         getRowName={(row) => row.name}
       />
+
+      {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} className="h-4" />
+      {isLoadingMore && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      {!hasMore && priceLists.length > 0 && (
+        <p className="text-center text-sm text-muted-foreground py-2">
+          {priceLists.length} lista(s) en total
+        </p>
+      )}
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="sm:max-w-[480px] overflow-y-auto">

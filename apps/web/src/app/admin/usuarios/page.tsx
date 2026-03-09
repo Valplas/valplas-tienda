@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, Loader2 } from 'lucide-react';
 import { DataTable } from '@/components/admin/data-table';
 import { RoleBadge } from '@/components/admin/role-badge';
 import { Button } from '@/components/ui/button';
@@ -46,18 +46,32 @@ import {
 import { useAuthStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
 
+const PAGE_SIZE = 50;
+
 export default function UsuariosPage() {
   const router = useRouter();
   const currentUser = useAuthStore((state) => state.user);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Check if current user is owner
   useEffect(() => {
@@ -68,24 +82,80 @@ export default function UsuariosPage() {
     }
   }, [currentUser, router]);
 
-  // Load users
   const loadUsers = useCallback(async () => {
     setLoading(true);
+    setPage(1);
+    setHasMore(true);
     try {
       const result = await getAdminUsers({
+        page: 1,
+        limit: PAGE_SIZE,
         role: roleFilter === 'all' ? undefined : roleFilter
       });
+      if (!isMountedRef.current) return;
       setUsers(result.users);
+      setHasMore(result.users.length === PAGE_SIZE);
     } catch {
+      if (!isMountedRef.current) return;
       toast.error('Error al cargar usuarios');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [roleFilter]);
+
+  const loadMore = useCallback(
+    async (nextPage: number) => {
+      setIsLoadingMore(true);
+      try {
+        const result = await getAdminUsers({
+          page: nextPage,
+          limit: PAGE_SIZE,
+          role: roleFilter === 'all' ? undefined : roleFilter
+        });
+        if (!isMountedRef.current) return;
+        setUsers((prev) => [...prev, ...result.users]);
+        setHasMore(result.users.length === PAGE_SIZE);
+        setPage(nextPage);
+      } catch {
+        if (!isMountedRef.current) return;
+        setHasMore(false);
+        toast.error('Error al cargar más usuarios');
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoadingMore(false);
+        }
+      }
+    },
+    [roleFilter]
+  );
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    let active = true;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (active && entries[0].isIntersecting && hasMore && !isLoadingMore && !loading) {
+          loadMore(page + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
+  }, [hasMore, isLoadingMore, loading, page, loadMore]);
 
   const handleCreate = () => {
     setSelectedUser(null);
@@ -102,7 +172,6 @@ export default function UsuariosPage() {
 
     try {
       if (selectedUser) {
-        // Build update payload — only send fields that have values
         const updateData: Parameters<typeof updateAdminUser>[1] = {
           email: data.email,
           username: data.username || undefined,
@@ -142,12 +211,10 @@ export default function UsuariosPage() {
 
   const handleDelete = useCallback(
     (user: AdminUser) => {
-      // Prevent self-delete
       if (currentUser && user.id === currentUser.id) {
         toast.error('No podés eliminar tu propia cuenta');
         return;
       }
-
       setUserToDelete(user);
       setDeleteDialogOpen(true);
     },
@@ -265,7 +332,6 @@ export default function UsuariosPage() {
     [currentUser, handleDelete]
   );
 
-  // Don't render if not owner
   if (!currentUser || currentUser.role !== UserRole.OWNER) {
     return null;
   }
@@ -280,7 +346,6 @@ export default function UsuariosPage() {
       </div>
 
       <div className="flex items-center justify-between gap-4">
-        {/* Filter by role */}
         <Select
           value={roleFilter}
           onValueChange={(value) => setRoleFilter(value as UserRole | 'all')}
@@ -312,6 +377,19 @@ export default function UsuariosPage() {
         getRowId={(row) => row.id}
         getRowName={(row) => `${row.first_name} ${row.last_name}`}
       />
+
+      {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} className="h-4" />
+      {isLoadingMore && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+      {!hasMore && users.length > 0 && (
+        <p className="text-center text-sm text-muted-foreground py-2">
+          {users.length} usuario(s) en total
+        </p>
+      )}
 
       {/* User Sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>

@@ -5,7 +5,6 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
@@ -72,7 +71,6 @@ export function DataTable<TData>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: pagination ? undefined : getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: setSorting,
@@ -103,8 +101,10 @@ export function DataTable<TData>({
   }, [searchValue, searchKey, table]);
 
   React.useEffect(() => {
-    onSelectionChange?.(selectedRows);
-  }, [rowSelection, onSelectionChange, selectedRows]);
+    if (!onSelectionChange) return;
+    const selected = table.getFilteredSelectedRowModel().rows.map((row) => row.original);
+    onSelectionChange(selected);
+  }, [rowSelection, onSelectionChange, table]);
 
   const handleDelete = async () => {
     if (!onDelete || selectedRows.length === 0) return;

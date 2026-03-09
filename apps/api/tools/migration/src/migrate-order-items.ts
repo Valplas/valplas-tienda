@@ -1,10 +1,10 @@
 /**
  * Migrate: OrderProducts → order_items
- * - Joins with Products to get product_name and product_sku (required snapshot fields)
+ * - Joins with Products to get product_name and product_sku (required snapshot fields, NOT NULL)
  * - UnitaryPrice * 100 → unit_price (centavos)
  * - CostPrice * 100 → cost_price_snapshot (centavos)
- * - subtotal is auto-calculated by DB trigger
- * - revenue is GENERATED column (from migration 017)
+ * - Subtotal is queried from source but overwritten by DB trigger (quantity * unit_price)
+ * - Revenue is a GENERATED ALWAYS column (migration 017) — computed automatically, not inserted
  * Idempotent: deletes existing items per order before re-inserting
  */
 import { source, target, closeAll } from './db.ts';
@@ -12,7 +12,7 @@ import { source, target, closeAll } from './db.ts';
 const rows = await source.query(`
   SELECT
     op."OrderID", op."ProductID", op."Quantity",
-    op."UnitaryPrice", op."CostPrice", op."ListPriceID",
+    op."UnitaryPrice", op."Subtotal", op."CostPrice", op."ListPriceID",
     p."Name" as "ProductName", p."Code" as "ProductCode"
   FROM "OrderProducts" op
   INNER JOIN "Orders" o ON op."OrderID" = o."OrderID"

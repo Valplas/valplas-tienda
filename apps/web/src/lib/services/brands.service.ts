@@ -1,14 +1,18 @@
 // apps/web/src/lib/services/brands.service.ts
 
 import { get, post, put, del } from '../api';
-import type { ApiResponse } from '../api';
 import type { Brand } from '@/types';
 
 /**
  * Obtener todas las marcas activas
+ * API returns: { success: true, data: { brands: Brand[], pagination: {...} } }
  */
-export async function getBrands(): Promise<ApiResponse<Brand[]>> {
-  return get<Brand[]>('/brands');
+export async function getBrands(): Promise<Brand[]> {
+  const response = await get<{ brands: Brand[] }>('/brands');
+  if (response.success && response.data) {
+    return response.data.brands ?? [];
+  }
+  return [];
 }
 
 /**

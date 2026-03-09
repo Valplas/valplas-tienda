@@ -73,13 +73,10 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
     const loadData = async () => {
       setIsLoadingData(true);
       try {
-        const [categoriesData, brandsRes] = await Promise.all([getCategories(), getBrands()]);
+        const [categoriesData, brandsData] = await Promise.all([getCategories(), getBrands()]);
 
         setCategories(categoriesData.filter((c) => c.is_active));
-
-        if (brandsRes.success && brandsRes.data) {
-          setBrands(brandsRes.data.filter((b) => b.is_active));
-        }
+        setBrands(brandsData.filter((b) => b.is_active));
       } catch (error) {
         console.error('Error loading form data:', error);
       } finally {
