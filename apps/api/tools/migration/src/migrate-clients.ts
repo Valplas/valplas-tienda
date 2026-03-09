@@ -65,11 +65,14 @@ let errors = 0;
 
 for (const row of rows.rows) {
   try {
-    const firstName = (row.ClientName?.trim() || 'Sin').substring(0, 100);
-    const lastName = (row.ClientSurname?.trim() || 'Nombre').substring(0, 100);
+    const firstName = (row.ClientName?.trim() ?? '').substring(0, 100);
+    const lastName = (row.ClientSurname?.trim() ?? '').substring(0, 100);
 
-    // Username: firstname.lastname, unique-ified
-    const baseUsername = slugify(`${firstName}.${lastName}`).substring(0, 40) || 'cliente';
+    // Username: from name+surname if available, else 'cliente'
+    const baseUsername =
+      slugify(`${firstName}.${lastName}`)
+        .replace(/^\.+|\.+$/g, '')
+        .substring(0, 40) || 'cliente';
     let username = baseUsername;
     let i = 2;
     while (usedUsernames.has(username)) username = `${baseUsername}${i++}`;
