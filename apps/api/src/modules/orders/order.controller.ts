@@ -167,6 +167,18 @@ export async function createAdminOrder(req: Request, res: Response, next: NextFu
 }
 
 /**
+ * Update order items and/or address (admin only, processing status only)
+ */
+export async function updateAdminOrder(req: Request, res: Response, next: NextFunction) {
+  try {
+    const order = await orderDomain.updateAdminOrder(req.params.id as string, req.body);
+    return res.json(ApiResponse.success(order));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Get user order summary
  */
 export async function getOrderSummary(req: Request, res: Response, next: NextFunction) {

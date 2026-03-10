@@ -7,6 +7,7 @@ import { authMiddleware, requireRole } from '../../shared/middleware/auth.middle
 import {
   createOrderSchema,
   createAdminOrderSchema,
+  updateAdminOrderSchema,
   updateOrderStatusSchema,
   listOrdersSchema,
   adminListOrdersSchema
@@ -264,6 +265,22 @@ router.post(
   requireRole(['admin', 'owner']),
   validate(createAdminOrderSchema, 'body'),
   orderController.createAdminOrder
+);
+
+/**
+ * @swagger
+ * /api/orders/admin/{id}:
+ *   patch:
+ *     summary: Update order items and address (admin only, processing status only)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch(
+  '/admin/:id',
+  requireRole(['admin', 'owner']),
+  validate(updateAdminOrderSchema, 'body'),
+  orderController.updateAdminOrder
 );
 
 export default router;
