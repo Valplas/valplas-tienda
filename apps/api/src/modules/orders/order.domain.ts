@@ -326,9 +326,9 @@ export async function updateAdminOrder(
     throw new Error('Solo se pueden editar órdenes en estado "En proceso"');
   }
 
-  // Validate address is active
+  // Validate address belongs to the order's user and is active
   const address = await addressRepository.findAddressById(data.shipping_address_id);
-  if (!address || !address.is_active) {
+  if (!address || address.user_id !== order.user_id || !address.is_active) {
     throw new Error('Dirección de envío inválida');
   }
 
