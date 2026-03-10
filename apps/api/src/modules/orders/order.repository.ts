@@ -454,3 +454,140 @@ export async function isOrderOwnedByUser(orderId: string, userId: string): Promi
 
   return parseInt(result.rows[0].count, 10) > 0;
 }
+
+interface UpdateAdminOrderData {
+  items: Array<{
+    product_id: string;
+    product_name: string;
+    product_sku: string;
+    quantity: number;
+    unit_price: number;
+  }>;
+  shipping_street: string;
+  shipping_street_number: string;
+  shipping_floor?: string | null;
+  shipping_apartment?: string | null;
+  shipping_city: string;
+  shipping_province: string;
+  shipping_postcode: string;
+  shipping_address_id: string;
+}
+
+export async function updateAdminOrder(
+  orderId: string,
+  data: UpdateAdminOrderData
+): Promise<Order | null> {
+  return transaction(async (client) => {
+    // Disable stock trigger — we handle stock manually in this function
+    await client.query("SET LOCAL app.skip_stock_trigger = 'true'");
+
+    // Lock the order row and verify status
+    const orderResult = await client.query<Order>('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [
+      orderId
+    ]);
+    const order = orderResult.rows[0];
+    if (!order || order.status !== 'processing') return null;
+
+    // Load current items to calculate stock deltas
+    const currentItemsResult = await client.query<{ product_id: string; quantity: number }>(
+      'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+      [orderId]
+    );
+
+    // Build old and new quantity maps (product_id → total qty)
+    const oldMap = new Map<string, number>();
+    for (const item of currentItemsResult.rows) {
+      oldMap.set(item.product_id, (oldMap.get(item.product_id) ?? 0) + item.quantity);
+    }
+    const newMap = new Map<string, number>();
+    for (const item of data.items) {
+      newMap.set(item.product_id, (newMap.get(item.product_id) ?? 0) + item.quantity);
+    }
+
+    // Apply stock deltas for every product involved
+    const allProductIds = new Set([...oldMap.keys(), ...newMap.keys()]);
+    for (const productId of allProductIds) {
+      const oldQty = oldMap.get(productId) ?? 0;
+      const newQty = newMap.get(productId) ?? 0;
+      const delta = newQty - oldQty;
+
+      if (delta === 0) continue;
+
+      if (delta > 0) {
+        // Need additional stock — check availability first
+        const stockResult = await client.query<{ available: number }>(
+          'SELECT (stock - reserved_stock) AS available FROM products WHERE id = $1 FOR UPDATE',
+          [productId]
+        );
+        const available = stockResult.rows[0]?.available ?? 0;
+        if (available < delta) {
+          throw new Error(
+            `Stock insuficiente para producto ${productId}. Disponible: ${available}, necesario: ${delta}`
+          );
+        }
+        await client.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [
+          delta,
+          productId
+        ]);
+      } else {
+        // Release stock back (delta is negative)
+        await client.query('UPDATE products SET stock = stock + $1 WHERE id = $2', [
+          -delta,
+          productId
+        ]);
+      }
+    }
+
+    // Replace order items
+    await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+
+    for (const item of data.items) {
+      await client.query(
+        `INSERT INTO order_items
+           (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          orderId,
+          item.product_id,
+          item.product_name,
+          item.product_sku,
+          item.quantity,
+          item.unit_price,
+          Math.round(item.unit_price * item.quantity * 100) / 100
+        ]
+      );
+    }
+
+    // Recalculate totals
+    const subtotal =
+      Math.round(data.items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0) * 100) /
+      100;
+
+    // Update the order record
+    const updatedResult = await client.query<Order>(
+      `UPDATE orders
+       SET subtotal = $1, total = $1,
+           shipping_address_id = $2,
+           shipping_street = $3, shipping_street_number = $4,
+           shipping_floor = $5, shipping_apartment = $6,
+           shipping_city = $7, shipping_province = $8, shipping_postcode = $9,
+           updated_at = NOW()
+       WHERE id = $10
+       RETURNING *`,
+      [
+        subtotal,
+        data.shipping_address_id,
+        data.shipping_street,
+        data.shipping_street_number,
+        data.shipping_floor ?? null,
+        data.shipping_apartment ?? null,
+        data.shipping_city,
+        data.shipping_province,
+        data.shipping_postcode,
+        orderId
+      ]
+    );
+
+    return updatedResult.rows[0] ?? null;
+  });
+}
