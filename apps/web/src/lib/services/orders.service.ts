@@ -194,3 +194,22 @@ export async function adminCreateOrder(data: {
   if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear pedido');
   return res.data;
 }
+
+export interface AdminUpdateOrderItem {
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export async function adminUpdateOrder(
+  id: string,
+  data: {
+    shipping_address_id: string;
+    items: AdminUpdateOrderItem[];
+  }
+): Promise<Order> {
+  const res = await patch<Order>(`/orders/admin/${id}`, data);
+  if (!res.success || !res.data)
+    throw new Error(res.error?.message ?? 'Error al actualizar pedido');
+  return res.data;
+}
