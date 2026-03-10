@@ -475,7 +475,8 @@ interface UpdateAdminOrderData {
 
 export async function updateAdminOrder(
   orderId: string,
-  data: UpdateAdminOrderData
+  data: UpdateAdminOrderData,
+  adminId: string
 ): Promise<Order | null> {
   return transaction(async (client) => {
     // Disable stock trigger — we handle stock manually in this function
@@ -586,6 +587,13 @@ export async function updateAdminOrder(
         data.shipping_postcode,
         orderId
       ]
+    );
+
+    // Record the edit in status history for audit trail
+    await client.query(
+      `INSERT INTO order_status_history (order_id, status, notes, changed_by)
+       VALUES ($1, $2, $3, $4)`,
+      [orderId, 'processing', 'Pedido editado por administrador', adminId]
     );
 
     return updatedResult.rows[0] ?? null;

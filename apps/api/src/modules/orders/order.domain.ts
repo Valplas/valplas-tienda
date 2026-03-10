@@ -318,7 +318,8 @@ export async function createAdminOrder(
  */
 export async function updateAdminOrder(
   orderId: string,
-  data: UpdateAdminOrderInput
+  data: UpdateAdminOrderInput,
+  adminId: string
 ): Promise<OrderWithDetails> {
   const order = await orderRepository.findOrderById(orderId);
   if (!order) throw new Error('Orden no encontrada');
@@ -348,17 +349,21 @@ export async function updateAdminOrder(
     });
   }
 
-  const updated = await orderRepository.updateAdminOrder(orderId, {
-    items: enrichedItems,
-    shipping_address_id: data.shipping_address_id,
-    shipping_street: address.street,
-    shipping_street_number: address.street_number,
-    shipping_floor: address.floor ?? null,
-    shipping_apartment: address.apartment ?? null,
-    shipping_city: address.city,
-    shipping_province: address.province,
-    shipping_postcode: address.postcode
-  });
+  const updated = await orderRepository.updateAdminOrder(
+    orderId,
+    {
+      items: enrichedItems,
+      shipping_address_id: data.shipping_address_id,
+      shipping_street: address.street,
+      shipping_street_number: address.street_number,
+      shipping_floor: address.floor ?? null,
+      shipping_apartment: address.apartment ?? null,
+      shipping_city: address.city,
+      shipping_province: address.province,
+      shipping_postcode: address.postcode
+    },
+    adminId
+  );
 
   if (!updated) throw new Error('Error al actualizar pedido');
 

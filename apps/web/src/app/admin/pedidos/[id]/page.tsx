@@ -278,7 +278,6 @@ export default function PedidoDetailPage({
             </TableHeader>
             <TableBody>
               {order.items.map((item, index) => {
-                console.log(item);
                 return (
                   <TableRow key={index}>
                     <TableCell className="font-mono text-sm">{item.product_sku}</TableCell>

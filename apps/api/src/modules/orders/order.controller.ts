@@ -171,7 +171,8 @@ export async function createAdminOrder(req: Request, res: Response, next: NextFu
  */
 export async function updateAdminOrder(req: Request, res: Response, next: NextFunction) {
   try {
-    const order = await orderDomain.updateAdminOrder(req.params.id as string, req.body);
+    const adminId = (req.user as AuthenticatedUser).userId;
+    const order = await orderDomain.updateAdminOrder(req.params.id as string, req.body, adminId);
     return res.json(ApiResponse.success(order));
   } catch (error) {
     next(error);
