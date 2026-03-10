@@ -285,19 +285,21 @@ export async function createAdminOrder(
     const orderResult = await client.query<Order>(
       `INSERT INTO orders (
         order_number, user_id, status, subtotal, shipping_cost, total,
+        shipping_address_id,
         shipping_street, shipping_street_number, shipping_floor, shipping_apartment,
         shipping_city, shipping_province, shipping_postcode,
         payment_method, customer_notes
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *`,
       [
         orderNumber,
         data.user_id,
-        'payment_confirmed',
+        'processing',
         data.subtotal,
         0,
         data.total,
+        data.shipping_address_id,
         data.shipping_street,
         data.shipping_street_number,
         data.shipping_floor ?? null,
@@ -331,7 +333,7 @@ export async function createAdminOrder(
     await client.query(
       `INSERT INTO order_status_history (order_id, status, notes, changed_by)
        VALUES ($1, $2, $3, $4)`,
-      [order.id, 'payment_confirmed', 'Orden creada por administrador', adminId]
+      [order.id, 'processing', 'Orden creada por administrador', adminId]
     );
 
     return order;
