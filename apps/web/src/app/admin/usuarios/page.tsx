@@ -57,6 +57,7 @@ export default function UsuariosPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -82,28 +83,32 @@ export default function UsuariosPage() {
     }
   }, [currentUser, router]);
 
-  const loadUsers = useCallback(async () => {
-    setLoading(true);
-    setPage(1);
-    setHasMore(true);
-    try {
-      const result = await getAdminUsers({
-        page: 1,
-        limit: PAGE_SIZE,
-        role: roleFilter === 'all' ? undefined : roleFilter
-      });
-      if (!isMountedRef.current) return;
-      setUsers(result.users);
-      setHasMore(result.users.length === PAGE_SIZE);
-    } catch {
-      if (!isMountedRef.current) return;
-      toast.error('Error al cargar usuarios');
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
+  const loadUsers = useCallback(
+    async (searchTerm: string) => {
+      setLoading(true);
+      setPage(1);
+      setHasMore(true);
+      try {
+        const result = await getAdminUsers({
+          page: 1,
+          limit: PAGE_SIZE,
+          role: roleFilter === 'all' ? undefined : roleFilter,
+          search: searchTerm || undefined
+        });
+        if (!isMountedRef.current) return;
+        setUsers(result.users);
+        setHasMore(result.users.length === PAGE_SIZE);
+      } catch {
+        if (!isMountedRef.current) return;
+        toast.error('Error al cargar usuarios');
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
-    }
-  }, [roleFilter]);
+    },
+    [roleFilter]
+  );
 
   const loadMore = useCallback(
     async (nextPage: number) => {
@@ -112,7 +117,8 @@ export default function UsuariosPage() {
         const result = await getAdminUsers({
           page: nextPage,
           limit: PAGE_SIZE,
-          role: roleFilter === 'all' ? undefined : roleFilter
+          role: roleFilter === 'all' ? undefined : roleFilter,
+          search: search || undefined
         });
         if (!isMountedRef.current) return;
         setUsers((prev) => [...prev, ...result.users]);
@@ -128,12 +134,16 @@ export default function UsuariosPage() {
         }
       }
     },
-    [roleFilter]
+    [roleFilter, search]
   );
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    loadUsers(search);
+  }, [loadUsers, search]);
+
+  const handleSearch = useCallback((value: string) => {
+    setSearch(value);
+  }, []);
 
   // IntersectionObserver for infinite scroll
   useEffect(() => {
@@ -183,7 +193,7 @@ export default function UsuariosPage() {
         };
         await updateAdminUser(selectedUser.id, updateData);
         toast.success('Usuario actualizado correctamente');
-        await loadUsers();
+        await loadUsers(search);
         setSheetOpen(false);
       } else {
         const createData = data as CreateUserFormData;
@@ -198,7 +208,7 @@ export default function UsuariosPage() {
           is_active: createData.is_active
         });
         toast.success('Usuario creado correctamente');
-        await loadUsers();
+        await loadUsers(search);
         setSheetOpen(false);
       }
     } catch (err) {
@@ -227,7 +237,7 @@ export default function UsuariosPage() {
     try {
       await deleteAdminUser(userToDelete.id);
       toast.success('Usuario eliminado correctamente');
-      await loadUsers();
+      await loadUsers(search);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al eliminar usuario';
       toast.error(message);
@@ -371,8 +381,8 @@ export default function UsuariosPage() {
       <DataTable
         data={users}
         columns={columns}
-        searchKey="email"
-        searchPlaceholder="Buscar por email, nombre o teléfono..."
+        onSearch={handleSearch}
+        searchPlaceholder="Buscar por nombre, email o teléfono..."
         isLoading={loading}
         getRowId={(row) => row.id}
         getRowName={(row) => `${row.first_name} ${row.last_name}`}

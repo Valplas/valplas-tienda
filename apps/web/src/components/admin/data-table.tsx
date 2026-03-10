@@ -40,6 +40,8 @@ export interface DataTableProps<TData> {
   columns: ColumnDef<TData>[];
   searchKey?: keyof TData;
   searchPlaceholder?: string;
+  /** When provided, search is delegated to the parent (server-side). Called with debounce. */
+  onSearch?: (value: string) => void;
   onSelectionChange?: (selectedRows: TData[]) => void;
   onDelete?: (items: TData[]) => Promise<void>;
   isLoading?: boolean;
@@ -53,6 +55,7 @@ export function DataTable<TData>({
   columns,
   searchKey,
   searchPlaceholder = 'Buscar...',
+  onSearch,
   onSelectionChange,
   onDelete,
   isLoading = false,
@@ -89,16 +92,18 @@ export function DataTable<TData>({
 
   const selectedRows = table.getFilteredSelectedRowModel().rows.map((row) => row.original);
 
-  // Debounced search
+  // Debounced search — server-side when onSearch is provided, otherwise client-side via TanStack
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchKey) {
+      if (onSearch) {
+        onSearch(searchValue);
+      } else if (searchKey) {
         table.getColumn(String(searchKey))?.setFilterValue(searchValue);
       }
-    }, 300);
+    }, 400);
 
     return () => clearTimeout(timer);
-  }, [searchValue, searchKey, table]);
+  }, [searchValue, searchKey, onSearch, table]);
 
   React.useEffect(() => {
     if (!onSelectionChange) return;
@@ -123,7 +128,7 @@ export function DataTable<TData>({
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4">
         {/* Search */}
-        {searchKey && (
+        {(searchKey || onSearch) && (
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input

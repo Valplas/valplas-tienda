@@ -99,10 +99,11 @@ export async function findProducts(
 
   const whereClause = conditions.join(' AND ');
 
-  // Query para contar total
+  // Query para contar total (necesita el JOIN con brands cuando se busca por marca)
   const countResult = await query<{ count: string }>(
     `SELECT COUNT(*) as count
      FROM products p
+     LEFT JOIN brands b ON p.brand_id = b.id
      WHERE ${whereClause}`,
     params
   );
