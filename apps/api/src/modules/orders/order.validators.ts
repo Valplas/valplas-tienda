@@ -65,3 +65,8 @@ export const adminListOrdersSchema = listOrdersSchema
   .extend({
     limit: z.coerce.number().int().min(1).max(500).optional().default(20)
   });
+
+export const updateAdminOrderSchema = z.object({
+  shipping_address_id: z.string().uuid(),
+  items: z.array(createAdminOrderItemSchema).min(1)
+});

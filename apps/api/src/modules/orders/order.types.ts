@@ -104,6 +104,11 @@ export interface CreateAdminOrderItemInput {
   unit_price: number;
 }
 
+export interface UpdateAdminOrderInput {
+  shipping_address_id: string;
+  items: CreateAdminOrderItemInput[];
+}
+
 export interface CreateOrderItemInput {
   product_id: string;
   quantity: number;
