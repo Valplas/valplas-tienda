@@ -194,13 +194,22 @@ export default function EditarPedidoPage({
       setUnitPrice(0);
       return;
     }
+    let cancelled = false;
     setIsCalculatingPrice(true);
     calculatePrice(selectedPriceListId, selectedProduct.id)
       .then((res) => {
+        if (cancelled) return;
         if (res.success && res.data) setUnitPrice(res.data.unitPrice);
       })
-      .catch(() => setUnitPrice(0))
-      .finally(() => setIsCalculatingPrice(false));
+      .catch(() => {
+        if (!cancelled) setUnitPrice(0);
+      })
+      .finally(() => {
+        if (!cancelled) setIsCalculatingPrice(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedProduct?.id, selectedPriceListId]);
 
   const handleSelectProduct = useCallback((product: ProductSearchResult) => {
@@ -570,6 +579,7 @@ export default function EditarPedidoPage({
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
+                              aria-label={`Editar ${item.product_name}`}
                               onClick={() => handleEditItem(i)}
                             >
                               <Pencil className="h-3.5 w-3.5" />
@@ -578,6 +588,7 @@ export default function EditarPedidoPage({
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive hover:text-destructive"
+                              aria-label={`Eliminar ${item.product_name}`}
                               onClick={() => handleRemoveItem(i)}
                             >
                               <Trash2 className="h-4 w-4" />
