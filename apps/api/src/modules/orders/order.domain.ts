@@ -281,6 +281,8 @@ export async function createAdminOrder(
     subtotal += itemSubtotal;
     validatedItems.push({
       product_id: item.product_id,
+      product_name: product.name,
+      product_sku: product.sku,
       quantity: item.quantity,
       unit_price: item.unit_price
     });

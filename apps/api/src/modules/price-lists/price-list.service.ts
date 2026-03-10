@@ -59,8 +59,8 @@ export async function calculatePrice(
 ): Promise<PriceListCalculation> {
   const priceList = await getPriceListById(priceListId);
 
-  const result = await query<{ cost_price: number }>(
-    'SELECT cost_price FROM products WHERE id = $1 AND deleted_at IS NULL',
+  const result = await query<{ cost_price: number; base_price: number }>(
+    'SELECT cost_price, base_price FROM products WHERE id = $1 AND deleted_at IS NULL',
     [productId]
   );
 
@@ -68,7 +68,9 @@ export async function calculatePrice(
     throw new AppError('PRODUCT_NOT_FOUND', 'Producto no encontrado', 404);
   }
 
-  const costPrice = result.rows[0].cost_price;
+  // Fall back to base_price if cost_price is not set
+  const costPrice =
+    result.rows[0].cost_price > 0 ? result.rows[0].cost_price : result.rows[0].base_price;
   const margin = Number(priceList.margin);
   // Formula from CRM: unit_price = cost_price * (1 + margin / 100), rounded to 2 decimals
   const unitPrice = Math.round(costPrice * (1 + margin / 100) * 100) / 100;

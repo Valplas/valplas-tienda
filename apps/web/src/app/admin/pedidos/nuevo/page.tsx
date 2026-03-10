@@ -24,7 +24,17 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { ArrowLeft, Search, Trash2, Plus, Loader2, User, MapPin, Package } from 'lucide-react';
+import {
+  ArrowLeft,
+  Search,
+  Trash2,
+  Plus,
+  Loader2,
+  User,
+  MapPin,
+  Package,
+  Pencil
+} from 'lucide-react';
 import { getAdminUsers } from '@/lib/services/users.service';
 import { getAdminUserAddresses } from '@/lib/services/addresses.service';
 import { getAdminProducts } from '@/lib/services/products.service';
@@ -80,6 +90,7 @@ export default function NuevoPedidoPage() {
 
   // Order items
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
 
   // Submit
@@ -94,15 +105,15 @@ export default function NuevoPedidoPage() {
     });
   }, []);
 
-  // Search users with debounce
+  // Search users with debounce (min 3 chars)
   const searchUsers = useCallback(async (search: string) => {
-    if (!search.trim()) {
+    if (search.trim().length < 3) {
       setUserResults([]);
       return;
     }
     setIsSearchingUsers(true);
     try {
-      const { users } = await getAdminUsers({ search, limit: 10 });
+      const { users } = await getAdminUsers({ search, limit: 20 });
       setUserResults(users);
     } finally {
       setIsSearchingUsers(false);
@@ -132,15 +143,15 @@ export default function NuevoPedidoPage() {
     }
   }, []);
 
-  // Search products with debounce
+  // Search products with debounce (min 3 chars)
   const searchProducts = useCallback(async (search: string) => {
-    if (!search.trim()) {
+    if (search.trim().length < 3) {
       setProductResults([]);
       return;
     }
     setIsSearchingProducts(true);
     try {
-      const { products } = await getAdminProducts({ search, limit: 10 });
+      const { products } = await getAdminProducts({ search, limit: 20 });
       setProductResults(
         products.map((p) => ({
           id: p.id,
@@ -185,6 +196,26 @@ export default function NuevoPedidoPage() {
     setQuantity(1);
   }, []);
 
+  // Load an existing item back into the form for editing
+  const handleEditItem = useCallback(
+    (index: number) => {
+      const item = items[index];
+      setEditingIndex(index);
+      setSelectedProduct({
+        id: item.product_id,
+        name: item.product_name,
+        sku: item.product_sku,
+        available_stock: item.available_stock
+      });
+      setSelectedPriceListId(item.price_list_id);
+      setUnitPrice(item.unit_price);
+      setQuantity(item.quantity);
+      setProductSearch('');
+      setProductResults([]);
+    },
+    [items]
+  );
+
   const handleAddItem = useCallback(() => {
     if (!selectedProduct || !selectedPriceListId || unitPrice <= 0) {
       toast.error('Seleccioná un producto y una lista de precios');
@@ -196,42 +227,57 @@ export default function NuevoPedidoPage() {
     }
 
     const priceList = priceLists.find((p) => p.id === selectedPriceListId);
-    const existingIndex = items.findIndex((i) => i.product_id === selectedProduct.id);
+    const newItem: OrderItem = {
+      product_id: selectedProduct.id,
+      product_name: selectedProduct.name,
+      product_sku: selectedProduct.sku,
+      available_stock: selectedProduct.available_stock,
+      price_list_id: selectedPriceListId,
+      price_list_name: priceList?.name ?? '',
+      unit_price: unitPrice,
+      quantity
+    };
 
-    if (existingIndex >= 0) {
-      const newQty = items[existingIndex].quantity + quantity;
-      if (newQty > selectedProduct.available_stock) {
-        toast.error(`Stock insuficiente. Disponible: ${selectedProduct.available_stock}`);
-        return;
-      }
-      setItems((prev) =>
-        prev.map((item, i) => (i === existingIndex ? { ...item, quantity: newQty } : item))
-      );
+    if (editingIndex !== null) {
+      // Replace the item being edited
+      setItems((prev) => prev.map((item, i) => (i === editingIndex ? newItem : item)));
+      setEditingIndex(null);
     } else {
-      setItems((prev) => [
-        ...prev,
-        {
-          product_id: selectedProduct.id,
-          product_name: selectedProduct.name,
-          product_sku: selectedProduct.sku,
-          available_stock: selectedProduct.available_stock,
-          price_list_id: selectedPriceListId,
-          price_list_name: priceList?.name ?? '',
-          unit_price: unitPrice,
-          quantity
+      const existingIndex = items.findIndex((i) => i.product_id === selectedProduct.id);
+      if (existingIndex >= 0) {
+        const newQty = items[existingIndex].quantity + quantity;
+        if (newQty > selectedProduct.available_stock) {
+          toast.error(`Stock insuficiente. Disponible: ${selectedProduct.available_stock}`);
+          return;
         }
-      ]);
+        setItems((prev) =>
+          prev.map((item, i) => (i === existingIndex ? { ...item, quantity: newQty } : item))
+        );
+      } else {
+        setItems((prev) => [...prev, newItem]);
+      }
     }
 
     setSelectedProduct(null);
     setSelectedPriceListId('');
     setUnitPrice(0);
     setQuantity(1);
-  }, [selectedProduct, selectedPriceListId, unitPrice, quantity, items, priceLists]);
+  }, [selectedProduct, selectedPriceListId, unitPrice, quantity, items, priceLists, editingIndex]);
 
-  const handleRemoveItem = useCallback((index: number) => {
-    setItems((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+  const handleRemoveItem = useCallback(
+    (index: number) => {
+      if (editingIndex === index) {
+        // Cancel edit if removing the item being edited
+        setEditingIndex(null);
+        setSelectedProduct(null);
+        setSelectedPriceListId('');
+        setUnitPrice(0);
+        setQuantity(1);
+      }
+      setItems((prev) => prev.filter((_, i) => i !== index));
+    },
+    [editingIndex]
+  );
 
   const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
 
@@ -520,7 +566,7 @@ export default function NuevoPedidoPage() {
                       disabled={!selectedPriceListId || unitPrice <= 0}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Agregar al pedido
+                      {editingIndex !== null ? 'Actualizar ítem' : 'Agregar al pedido'}
                     </Button>
                     <Button
                       variant="outline"
@@ -529,6 +575,7 @@ export default function NuevoPedidoPage() {
                         setSelectedPriceListId('');
                         setUnitPrice(0);
                         setQuantity(1);
+                        setEditingIndex(null);
                       }}
                     >
                       Cancelar
@@ -541,7 +588,12 @@ export default function NuevoPedidoPage() {
             {/* Items table */}
             {items.length > 0 && (
               <div className="space-y-2">
-                <Label>Productos del pedido</Label>
+                <Label>
+                  Productos del pedido{' '}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    (hacé clic para editar)
+                  </span>
+                </Label>
                 <div className="rounded-lg border overflow-hidden">
                   <Table>
                     <TableHeader>
@@ -551,12 +603,16 @@ export default function NuevoPedidoPage() {
                         <TableHead className="hidden sm:table-cell">Lista</TableHead>
                         <TableHead className="text-right">P. Unit.</TableHead>
                         <TableHead className="text-right">Subtotal</TableHead>
-                        <TableHead className="w-10" />
+                        <TableHead className="w-20" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {items.map((item, i) => (
-                        <TableRow key={i}>
+                        <TableRow
+                          key={i}
+                          className={`cursor-pointer hover:bg-muted/50 ${editingIndex === i ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}
+                          onClick={() => editingIndex !== i && handleEditItem(i)}
+                        >
                           <TableCell>
                             <div className="font-medium text-sm">{item.product_name}</div>
                             <div className="text-xs text-muted-foreground">{item.product_sku}</div>
@@ -572,14 +628,27 @@ export default function NuevoPedidoPage() {
                             {formatCurrency(item.unit_price * item.quantity)}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => handleRemoveItem(i)}
+                            <div
+                              className="flex gap-1 justify-end"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleEditItem(i)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => handleRemoveItem(i)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

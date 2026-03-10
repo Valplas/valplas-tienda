@@ -314,9 +314,17 @@ export async function createAdminOrder(
 
     for (const item of data.items) {
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [order.id, item.product_id, item.quantity, item.unit_price, item.unit_price * item.quantity]
+        `INSERT INTO order_items (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          order.id,
+          item.product_id,
+          item.product_name,
+          item.product_sku,
+          item.quantity,
+          item.unit_price,
+          item.unit_price * item.quantity
+        ]
       );
     }
 

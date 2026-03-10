@@ -41,11 +41,23 @@ export async function findUsers(filters: UserFilters): Promise<{ users: User[]; 
   }
 
   if (search) {
-    conditions.push(
-      `(email ILIKE $${paramIndex} OR username ILIKE $${paramIndex} OR first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex})`
-    );
-    params.push(`%${search}%`);
-    paramIndex++;
+    // Strip non-digits to enable fuzzy phone matching across different stored formats
+    // e.g. user types "1144" matches +5491144223344, 1144223344, etc.
+    const phoneDigits = search.replace(/\D/g, '');
+    if (phoneDigits.length >= 3) {
+      conditions.push(
+        `(email ILIKE $${paramIndex} OR username ILIKE $${paramIndex} OR first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR REGEXP_REPLACE(COALESCE(phone, ''), '\\D', '', 'g') LIKE $${paramIndex + 1})`
+      );
+      params.push(`%${search}%`);
+      params.push(`%${phoneDigits}%`);
+      paramIndex += 2;
+    } else {
+      conditions.push(
+        `(email ILIKE $${paramIndex} OR username ILIKE $${paramIndex} OR first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex})`
+      );
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
   }
 
   const whereClause = conditions.join(' AND ');
