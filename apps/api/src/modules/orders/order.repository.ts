@@ -8,6 +8,7 @@ import type {
   OrderWithDetails,
   OrderItemWithProduct,
   CreateOrderInput,
+  CreateAdminOrderInput,
   UpdateOrderStatusInput,
   OrderFilters,
   OrderStatus
@@ -162,11 +163,36 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
     )
   ]);
 
+  // Build shipping_address object from denormalized columns
+  const shipping_address = order.shipping_street
+    ? {
+        id: order.id,
+        user_id: order.user_id,
+        alias: 'Dirección de entrega',
+        street: order.shipping_street,
+        street_number: order.shipping_street_number,
+        floor: order.shipping_floor ?? null,
+        apartment: order.shipping_apartment ?? null,
+        city: order.shipping_city,
+        province: order.shipping_province,
+        postcode: order.shipping_postcode,
+        latitude: null,
+        longitude: null,
+        place_id: null,
+        is_default: false,
+        is_active: true,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        deleted_at: null
+      }
+    : undefined;
+
   return {
     ...order,
     items: itemsResult.rows as OrderItemWithProduct[],
     status_history: historyResult.rows,
-    user: userResult.rows[0] ?? undefined
+    user: userResult.rows[0] ?? undefined,
+    shipping_address
   };
 }
 
@@ -230,6 +256,74 @@ export async function createOrder(
       `INSERT INTO order_status_history (order_id, status, notes, changed_by)
        VALUES ($1, $2, $3, $4)`,
       [order.id, 'pending_payment', 'Orden creada', userId]
+    );
+
+    return order;
+  });
+}
+
+/**
+ * Create order by admin with pre-calculated prices
+ */
+export async function createAdminOrder(
+  adminId: string,
+  data: CreateAdminOrderInput & {
+    shipping_street: string;
+    shipping_street_number: string;
+    shipping_floor?: string | null;
+    shipping_apartment?: string | null;
+    shipping_city: string;
+    shipping_province: string;
+    shipping_postcode: string;
+    subtotal: number;
+    total: number;
+  }
+): Promise<Order> {
+  return transaction(async (client) => {
+    const orderNumber = await generateOrderNumber();
+
+    const orderResult = await client.query<Order>(
+      `INSERT INTO orders (
+        order_number, user_id, status, subtotal, shipping_cost, total,
+        shipping_street, shipping_street_number, shipping_floor, shipping_apartment,
+        shipping_city, shipping_province, shipping_postcode,
+        payment_method, customer_notes
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      RETURNING *`,
+      [
+        orderNumber,
+        data.user_id,
+        'payment_confirmed',
+        data.subtotal,
+        0,
+        data.total,
+        data.shipping_street,
+        data.shipping_street_number,
+        data.shipping_floor ?? null,
+        data.shipping_apartment ?? null,
+        data.shipping_city,
+        data.shipping_province,
+        data.shipping_postcode,
+        data.payment_method ?? 'manual',
+        data.notes ?? null
+      ]
+    );
+
+    const order = orderResult.rows[0];
+
+    for (const item of data.items) {
+      await client.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [order.id, item.product_id, item.quantity, item.unit_price, item.unit_price * item.quantity]
+      );
+    }
+
+    await client.query(
+      `INSERT INTO order_status_history (order_id, status, notes, changed_by)
+       VALUES ($1, $2, $3, $4)`,
+      [order.id, 'payment_confirmed', 'Orden creada por administrador', adminId]
     );
 
     return order;

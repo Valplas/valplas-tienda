@@ -176,3 +176,21 @@ export async function updateOrderStatus(id: string, status: string): Promise<Ord
     throw new Error(res.error?.message ?? 'Error al actualizar estado');
   return res.data;
 }
+
+export interface AdminCreateOrderItem {
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export async function adminCreateOrder(data: {
+  user_id: string;
+  shipping_address_id: string;
+  items: AdminCreateOrderItem[];
+  notes?: string;
+  payment_method?: string;
+}): Promise<Order> {
+  const res = await post<Order>('/orders/admin/create', data);
+  if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear pedido');
+  return res.data;
+}

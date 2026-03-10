@@ -112,6 +112,14 @@ export async function deleteAddress(id: string): Promise<void> {
 }
 
 /**
+ * Get addresses for a specific user (admin only)
+ */
+export async function getAdminUserAddresses(userId: string): Promise<Address[]> {
+  const response = await get<Address[]>(`/addresses/admin/all?user_id=${userId}&limit=100`);
+  return response.data ?? [];
+}
+
+/**
  * Set address as default
  */
 export async function setDefaultAddress(id: string): Promise<Address> {

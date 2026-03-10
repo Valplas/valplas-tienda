@@ -15,7 +15,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { ColumnDef } from '@tanstack/react-table';
-import { Eye, X, Loader2 } from 'lucide-react';
+import { Eye, X, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -193,6 +193,10 @@ export default function PedidosPage() {
           <h1 className="text-3xl font-bold">Pedidos</h1>
           <p className="text-muted-foreground">Gestión de pedidos de clientes</p>
         </div>
+        <Button onClick={() => router.push('/admin/pedidos/nuevo')}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nueva Orden
+        </Button>
       </div>
 
       {/* Filters */}

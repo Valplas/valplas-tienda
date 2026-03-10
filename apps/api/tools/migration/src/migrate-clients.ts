@@ -134,7 +134,7 @@ for (const row of rows.rows) {
       const city = (row.ClientLocality?.trim() || 'Sin especificar').substring(0, 100);
 
       // Idempotent: remove any previously migrated address for this user, then re-insert
-      await target.query(`DELETE FROM user_addresses WHERE user_id = $1`, [row.ClientID]);
+      await target.query('DELETE FROM user_addresses WHERE user_id = $1', [row.ClientID]);
 
       await target.query(
         `INSERT INTO user_addresses (

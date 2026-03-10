@@ -154,6 +154,19 @@ export async function cancelOrder(req: Request, res: Response, next: NextFunctio
 }
 
 /**
+ * Create order as admin for a specific user
+ */
+export async function createAdminOrder(req: Request, res: Response, next: NextFunction) {
+  try {
+    const adminId = (req.user as AuthenticatedUser).userId;
+    const order = await orderDomain.createAdminOrder(adminId, req.body);
+    return res.status(201).json(ApiResponse.success(order));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Get user order summary
  */
 export async function getOrderSummary(req: Request, res: Response, next: NextFunction) {
