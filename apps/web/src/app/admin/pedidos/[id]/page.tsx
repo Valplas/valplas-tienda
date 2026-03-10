@@ -30,7 +30,7 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Package, User, MapPin, CreditCard, Truck } from 'lucide-react';
+import { ArrowLeft, Package, Pencil, User, MapPin, CreditCard, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -125,6 +125,14 @@ export default function PedidoDetailPage({
             Creado el {dayjs(order.created_at).format('DD/MM/YYYY [a las] HH:mm')}
           </p>
         </div>
+        {order.status === 'processing' && (
+          <Button variant="outline" asChild>
+            <Link href={`/admin/pedidos/${order.id}/editar`}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar Pedido
+            </Link>
+          </Button>
+        )}
         <OrderStatusBadge status={order.status} />
       </div>
 
