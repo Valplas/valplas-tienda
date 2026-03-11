@@ -16,24 +16,22 @@ import type {
 import type { User } from '../users/user.types.js';
 
 /**
- * Generate order number (VLP-YYYYMMDD-NNNN)
+ * Generate order number (PREFIX-YYYYMMDD-NNNNNN)
+ * VLP = customer web order, ADM = admin/owner created order
  */
-export async function generateOrderNumber(): Promise<string> {
+export async function generateOrderNumber(prefix: 'VLP' | 'ADM'): Promise<string> {
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
 
-  // Get count of orders today
   const result = await query<{ count: string }>(
-    `SELECT COUNT(*) as count
-     FROM orders
-     WHERE order_number LIKE $1`,
-    [`VLP-${dateStr}-%`]
+    `SELECT COUNT(*) as count FROM orders WHERE order_number LIKE $1`,
+    [`${prefix}-${dateStr}-%`]
   );
 
   const count = parseInt(result.rows[0].count, 10);
-  const sequence = (count + 1).toString().padStart(4, '0');
+  const sequence = (count + 1).toString().padStart(6, '0');
 
-  return `VLP-${dateStr}-${sequence}`;
+  return `${prefix}-${dateStr}-${sequence}`;
 }
 
 /**
@@ -208,7 +206,7 @@ export async function createOrder(
 ): Promise<Order> {
   return transaction(async (client) => {
     // Generate order number
-    const orderNumber = await generateOrderNumber();
+    const orderNumber = await generateOrderNumber('VLP');
 
     // Create order
     const orderResult = await client.query<Order>(
@@ -280,7 +278,7 @@ export async function createAdminOrder(
   }
 ): Promise<Order> {
   return transaction(async (client) => {
-    const orderNumber = await generateOrderNumber();
+    const orderNumber = await generateOrderNumber('ADM');
 
     const orderResult = await client.query<Order>(
       `INSERT INTO orders (
