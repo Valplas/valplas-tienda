@@ -95,8 +95,12 @@ export async function runMigrations() {
   }
 }
 
-// Ejecutar si es llamado directamente
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Ejecutar si es llamado directamente (compatible con Windows y Unix)
+const isMain =
+  import.meta.url === `file://${process.argv[1]}` ||
+  import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`;
+
+if (isMain) {
   runMigrations()
     .then(() => process.exit(0))
     .catch(() => process.exit(1));

@@ -1,10 +1,10 @@
 /**
  * Migrate: OrderProducts → order_items
  * - Joins with Products to get product_name and product_sku (required snapshot fields, NOT NULL)
- * - UnitaryPrice * 100 → unit_price (centavos)
- * - CostPrice * 100 → cost_price_snapshot (centavos)
- * - Subtotal is queried from source but overwritten by DB trigger (quantity * unit_price)
- * - Revenue is a GENERATED ALWAYS column (migration 017) — computed automatically, not inserted
+ * - UnitaryPrice → unit_price (pesos ARS, NUMERIC(12,2))
+ * - CostPrice → cost_price_snapshot (pesos ARS, NUMERIC(12,2))
+ * - Subtotal is overwritten by DB trigger (quantity * unit_price)
+ * - Revenue is a GENERATED ALWAYS column (migration 018) — computed automatically, not inserted
  * Idempotent: deletes existing items per order before re-inserting
  */
 import { source, target, closeAll } from './db.ts';
@@ -60,8 +60,8 @@ for (const [orderId, items] of byOrder) {
     if (!validProducts.has(row.ProductID)) continue;
 
     try {
-      const unitPrice = Math.round(parseFloat(row.UnitaryPrice) * 100);
-      const costSnapshot = Math.round(parseFloat(row.CostPrice) * 100);
+      const unitPrice = parseFloat(row.UnitaryPrice) || 0;
+      const costSnapshot = parseFloat(row.CostPrice) || 0;
       const priceListId =
         row.ListPriceID && validPriceLists.has(row.ListPriceID) ? row.ListPriceID : null;
 

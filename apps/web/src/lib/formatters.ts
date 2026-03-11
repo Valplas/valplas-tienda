@@ -68,13 +68,12 @@ export function formatPhone(phone: string): string {
 }
 
 /**
- * Converts an Argentine price string typed by an admin user into centavos integer.
+ * Parses an Argentine price string typed by an admin user into pesos ARS (float, 2 decimals).
  * Rules:
- *   "100"      → 10000   (100 pesos = 10000 centavos)
- *   "12,50"    → 1250    (comma = decimal separator)
- *   "12.50"    → 1250    (dot NOT followed by exactly 3 digits = decimal)
- *   "10.000"   → 1000000 (dot followed by exactly 3 digits = thousands separator)
- *   "10000"    → 1000000 (plain integer = pesos)
+ *   "100"    → 100.00  (plain integer = pesos)
+ *   "12,50"  → 12.50   (comma = decimal separator)
+ *   "12.50"  → 12.50   (dot NOT followed by exactly 3 digits = decimal)
+ *   "10.000" → 10000   (dot followed by exactly 3 digits = thousands separator)
  */
 export function parsePriceInput(value: string): number {
   const str = value.trim().replace(/\s/g, '');
@@ -88,5 +87,5 @@ export function parsePriceInput(value: string): number {
 
   const pesos = parseFloat(normalized);
   if (isNaN(pesos)) return 0;
-  return Math.round(pesos * 100);
+  return Math.round(pesos * 100) / 100;
 }

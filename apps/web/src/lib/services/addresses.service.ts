@@ -112,6 +112,26 @@ export async function deleteAddress(id: string): Promise<void> {
 }
 
 /**
+ * Create address for a specific user (admin only)
+ */
+export async function adminCreateUserAddress(
+  userId: string,
+  data: CreateAddressInput
+): Promise<Address> {
+  const response = await post<Address>(`/addresses/admin/user/${userId}`, data);
+  if (response.success && response.data) return response.data;
+  throw new Error(response.error?.message || 'Error al crear dirección');
+}
+
+/**
+ * Get addresses for a specific user (admin only)
+ */
+export async function getAdminUserAddresses(userId: string): Promise<Address[]> {
+  const response = await get<Address[]>(`/addresses/admin/all?user_id=${userId}&limit=100`);
+  return response.data ?? [];
+}
+
+/**
  * Set address as default
  */
 export async function setDefaultAddress(id: string): Promise<Address> {

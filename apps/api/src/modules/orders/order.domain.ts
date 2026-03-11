@@ -9,6 +9,8 @@ import type {
   Order,
   OrderWithDetails,
   CreateOrderInput,
+  CreateAdminOrderInput,
+  UpdateAdminOrderInput,
   UpdateOrderStatusInput,
   OrderFilters
 } from './order.types.js';
@@ -244,6 +246,130 @@ export async function cancelOrder(
   }
 
   return cancelled;
+}
+
+/**
+ * Create order by admin (bypasses shipping validation, uses pre-calculated prices)
+ */
+export async function createAdminOrder(
+  adminId: string,
+  data: CreateAdminOrderInput
+): Promise<OrderWithDetails> {
+  // Validate address belongs to user
+  const address = await addressRepository.findAddressById(data.shipping_address_id);
+  if (!address || address.user_id !== data.user_id || !address.is_active) {
+    throw new Error('Dirección de envío inválida');
+  }
+
+  // Validate items and calculate totals
+  let subtotal = 0;
+  const validatedItems = [];
+
+  for (const item of data.items) {
+    const product = await findProductById(item.product_id);
+    if (!product || !product.is_active) {
+      throw new Error(`Producto ${item.product_id} no encontrado o inactivo`);
+    }
+
+    const availableStock = product.stock - product.reserved_stock;
+    if (availableStock < item.quantity) {
+      throw new Error(
+        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, solicitado: ${item.quantity}`
+      );
+    }
+
+    const itemSubtotal = Math.round(item.unit_price * item.quantity * 100) / 100;
+    subtotal += itemSubtotal;
+    validatedItems.push({
+      product_id: item.product_id,
+      product_name: product.name,
+      product_sku: product.sku,
+      quantity: item.quantity,
+      unit_price: item.unit_price
+    });
+  }
+
+  subtotal = Math.round(subtotal * 100) / 100;
+
+  const order = await orderRepository.createAdminOrder(adminId, {
+    ...data,
+    shipping_street: address.street,
+    shipping_street_number: address.street_number,
+    shipping_floor: address.floor ?? null,
+    shipping_apartment: address.apartment ?? null,
+    shipping_city: address.city,
+    shipping_province: address.province,
+    shipping_postcode: address.postcode,
+    items: validatedItems,
+    subtotal,
+    total: subtotal
+  });
+
+  const orderWithDetails = await orderRepository.findOrderWithDetails(order.id);
+  if (!orderWithDetails) {
+    throw new Error('Error al obtener detalles de la orden creada');
+  }
+
+  return orderWithDetails;
+}
+
+/**
+ * Update order items and/or address (admin only, processing status only)
+ */
+export async function updateAdminOrder(
+  orderId: string,
+  data: UpdateAdminOrderInput,
+  adminId: string
+): Promise<OrderWithDetails> {
+  const order = await orderRepository.findOrderById(orderId);
+  if (!order) throw new Error('Orden no encontrada');
+  if (order.status !== 'processing') {
+    throw new Error('Solo se pueden editar órdenes en estado "En proceso"');
+  }
+
+  // Validate address belongs to the order's user and is active
+  const address = await addressRepository.findAddressById(data.shipping_address_id);
+  if (!address || address.user_id !== order.user_id || !address.is_active) {
+    throw new Error('Dirección de envío inválida');
+  }
+
+  // Validate + enrich items with name/sku from DB
+  const enrichedItems = [];
+  for (const item of data.items) {
+    const product = await findProductById(item.product_id);
+    if (!product || !product.is_active) {
+      throw new Error(`Producto ${item.product_id} no encontrado o inactivo`);
+    }
+    enrichedItems.push({
+      product_id: item.product_id,
+      product_name: product.name,
+      product_sku: product.sku,
+      quantity: item.quantity,
+      unit_price: item.unit_price
+    });
+  }
+
+  const updated = await orderRepository.updateAdminOrder(
+    orderId,
+    {
+      items: enrichedItems,
+      shipping_address_id: data.shipping_address_id,
+      shipping_street: address.street,
+      shipping_street_number: address.street_number,
+      shipping_floor: address.floor ?? null,
+      shipping_apartment: address.apartment ?? null,
+      shipping_city: address.city,
+      shipping_province: address.province,
+      shipping_postcode: address.postcode
+    },
+    adminId
+  );
+
+  if (!updated) throw new Error('Error al actualizar pedido');
+
+  const orderWithDetails = await orderRepository.findOrderWithDetails(orderId);
+  if (!orderWithDetails) throw new Error('Error al obtener pedido actualizado');
+  return orderWithDetails;
 }
 
 /**

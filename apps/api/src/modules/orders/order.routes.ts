@@ -6,6 +6,8 @@ import { validate } from '../../shared/middleware/validation.middleware.js';
 import { authMiddleware, requireRole } from '../../shared/middleware/auth.middleware.js';
 import {
   createOrderSchema,
+  createAdminOrderSchema,
+  updateAdminOrderSchema,
   updateOrderStatusSchema,
   listOrdersSchema,
   adminListOrdersSchema
@@ -223,6 +225,62 @@ router.get(
   requireRole(['admin', 'owner']),
   validate(adminListOrdersSchema, 'query'),
   orderController.getAllOrders
+);
+
+/**
+ * @swagger
+ * /api/orders/admin/create:
+ *   post:
+ *     summary: Create order as admin for a specific user
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [user_id, shipping_address_id, items]
+ *             properties:
+ *               user_id:
+ *                 type: string
+ *               shipping_address_id:
+ *                 type: string
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [product_id, quantity, unit_price]
+ *               notes:
+ *                 type: string
+ *               payment_method:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Order created by admin
+ */
+router.post(
+  '/admin/create',
+  requireRole(['admin', 'owner']),
+  validate(createAdminOrderSchema, 'body'),
+  orderController.createAdminOrder
+);
+
+/**
+ * @swagger
+ * /api/orders/admin/{id}:
+ *   patch:
+ *     summary: Update order items and address (admin only, processing status only)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch(
+  '/admin/:id',
+  requireRole(['admin', 'owner']),
+  validate(updateAdminOrderSchema, 'body'),
+  orderController.updateAdminOrder
 );
 
 export default router;

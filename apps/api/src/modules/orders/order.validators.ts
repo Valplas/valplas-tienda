@@ -44,6 +44,20 @@ export const listOrdersSchema = z.object({
   order_number: z.string().optional()
 });
 
+export const createAdminOrderItemSchema = z.object({
+  product_id: z.string().uuid(),
+  quantity: z.number().int().min(1),
+  unit_price: z.number().positive()
+});
+
+export const createAdminOrderSchema = z.object({
+  user_id: z.string().uuid(),
+  shipping_address_id: z.string().uuid(),
+  items: z.array(createAdminOrderItemSchema).min(1),
+  notes: z.string().max(1000).optional(),
+  payment_method: z.string().max(50).optional()
+});
+
 export const adminListOrdersSchema = listOrdersSchema
   .extend({
     user_id: z.string().uuid().optional()
@@ -51,3 +65,8 @@ export const adminListOrdersSchema = listOrdersSchema
   .extend({
     limit: z.coerce.number().int().min(1).max(500).optional().default(20)
   });
+
+export const updateAdminOrderSchema = z.object({
+  shipping_address_id: z.string().uuid(),
+  items: z.array(createAdminOrderItemSchema).min(1)
+});

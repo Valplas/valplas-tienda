@@ -1,7 +1,7 @@
 /**
  * Migrate: Orders → orders
  * - OrderStatus 0 → 'delivered'
- * - Prices * 100 (centavos)
+ * - Prices in pesos ARS (NUMERIC(12,2), no conversion needed)
  * - Address split: full text → shipping_street, defaults for required fields
  * - order_number format: VLP-YYYYMMDD-{OrderNumber}
  * Idempotent: ON CONFLICT (id) DO UPDATE
@@ -49,9 +49,9 @@ for (const row of rows.rows) {
       String(date.getDate()).padStart(2, '0');
     const orderNumber = `VLP-${ymd}-${String(row.OrderNumber).padStart(4, '0')}`;
 
-    // Totals in centavos (TotalAmount → subtotal, Total → total)
-    const subtotalCents = Math.round(parseFloat(row.TotalAmount || '0') * 100);
-    const totalCents = Math.round(parseFloat(row.Total || row.TotalAmount || '0') * 100);
+    // Totals in pesos ARS (TotalAmount → subtotal, Total → total)
+    const subtotal = parseFloat(row.TotalAmount || '0') || 0;
+    const total = parseFloat(row.Total || row.TotalAmount || '0') || 0;
 
     // Shipping address: store full address in street, defaults for required fields
     const address = (row.Address || 'Sin dirección').substring(0, 255);
@@ -77,8 +77,8 @@ for (const row of rows.rows) {
         row.OrderID,
         row.ClientID,
         orderNumber,
-        subtotalCents,
-        totalCents,
+        subtotal,
+        total,
         address,
         new Date(row.OrderDate).toISOString(),
         new Date(row.OrderDate).toISOString()

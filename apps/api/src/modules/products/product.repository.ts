@@ -31,10 +31,12 @@ export async function findProducts(
   const params: unknown[] = [];
   let paramIndex = 1;
 
-  // Filtro de búsqueda (fuzzy con pg_trgm)
+  // Filtro de búsqueda (nombre, SKU, marca)
   if (search) {
-    conditions.push(`p.name % $${paramIndex}`);
-    params.push(search);
+    conditions.push(
+      `(p.name ILIKE $${paramIndex} OR p.sku ILIKE $${paramIndex} OR b.name ILIKE $${paramIndex})`
+    );
+    params.push(`%${search}%`);
     paramIndex++;
   }
 
@@ -97,10 +99,11 @@ export async function findProducts(
 
   const whereClause = conditions.join(' AND ');
 
-  // Query para contar total
+  // Query para contar total (necesita el JOIN con brands cuando se busca por marca)
   const countResult = await query<{ count: string }>(
     `SELECT COUNT(*) as count
      FROM products p
+     LEFT JOIN brands b ON p.brand_id = b.id
      WHERE ${whereClause}`,
     params
   );

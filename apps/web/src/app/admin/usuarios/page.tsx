@@ -32,6 +32,7 @@ import {
   deleteAdminUser
 } from '@/lib/services/users.service';
 import { UserForm } from '@/components/admin/user-form';
+import { UserAddressesSection } from '@/components/admin/user-addresses-section';
 import { CreateUserFormData, UpdateUserFormData } from '@/lib/validations/user-admin';
 import {
   AlertDialog,
@@ -57,9 +58,11 @@ export default function UsuariosPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
@@ -82,28 +85,32 @@ export default function UsuariosPage() {
     }
   }, [currentUser, router]);
 
-  const loadUsers = useCallback(async () => {
-    setLoading(true);
-    setPage(1);
-    setHasMore(true);
-    try {
-      const result = await getAdminUsers({
-        page: 1,
-        limit: PAGE_SIZE,
-        role: roleFilter === 'all' ? undefined : roleFilter
-      });
-      if (!isMountedRef.current) return;
-      setUsers(result.users);
-      setHasMore(result.users.length === PAGE_SIZE);
-    } catch {
-      if (!isMountedRef.current) return;
-      toast.error('Error al cargar usuarios');
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
+  const loadUsers = useCallback(
+    async (searchTerm: string) => {
+      setLoading(true);
+      setPage(1);
+      setHasMore(true);
+      try {
+        const result = await getAdminUsers({
+          page: 1,
+          limit: PAGE_SIZE,
+          role: roleFilter === 'all' ? undefined : roleFilter,
+          search: searchTerm || undefined
+        });
+        if (!isMountedRef.current) return;
+        setUsers(result.users);
+        setHasMore(result.users.length === PAGE_SIZE);
+      } catch {
+        if (!isMountedRef.current) return;
+        toast.error('Error al cargar usuarios');
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
-    }
-  }, [roleFilter]);
+    },
+    [roleFilter]
+  );
 
   const loadMore = useCallback(
     async (nextPage: number) => {
@@ -112,7 +119,8 @@ export default function UsuariosPage() {
         const result = await getAdminUsers({
           page: nextPage,
           limit: PAGE_SIZE,
-          role: roleFilter === 'all' ? undefined : roleFilter
+          role: roleFilter === 'all' ? undefined : roleFilter,
+          search: search || undefined
         });
         if (!isMountedRef.current) return;
         setUsers((prev) => [...prev, ...result.users]);
@@ -128,12 +136,16 @@ export default function UsuariosPage() {
         }
       }
     },
-    [roleFilter]
+    [roleFilter, search]
   );
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    loadUsers(search);
+  }, [loadUsers, search]);
+
+  const handleSearch = useCallback((value: string) => {
+    setSearch(value);
+  }, []);
 
   // IntersectionObserver for infinite scroll
   useEffect(() => {
@@ -159,6 +171,7 @@ export default function UsuariosPage() {
 
   const handleCreate = () => {
     setSelectedUser(null);
+    setCreatedUserId(null);
     setSheetOpen(true);
   };
 
@@ -183,11 +196,11 @@ export default function UsuariosPage() {
         };
         await updateAdminUser(selectedUser.id, updateData);
         toast.success('Usuario actualizado correctamente');
-        await loadUsers();
+        await loadUsers(search);
         setSheetOpen(false);
       } else {
         const createData = data as CreateUserFormData;
-        await createAdminUser({
+        const newUser = await createAdminUser({
           email: createData.email,
           username: createData.username || createData.email.split('@')[0],
           first_name: createData.first_name,
@@ -198,8 +211,8 @@ export default function UsuariosPage() {
           is_active: createData.is_active
         });
         toast.success('Usuario creado correctamente');
-        await loadUsers();
-        setSheetOpen(false);
+        await loadUsers(search);
+        setCreatedUserId(newUser.id);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al guardar usuario';
@@ -227,7 +240,7 @@ export default function UsuariosPage() {
     try {
       await deleteAdminUser(userToDelete.id);
       toast.success('Usuario eliminado correctamente');
-      await loadUsers();
+      await loadUsers(search);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al eliminar usuario';
       toast.error(message);
@@ -371,8 +384,8 @@ export default function UsuariosPage() {
       <DataTable
         data={users}
         columns={columns}
-        searchKey="email"
-        searchPlaceholder="Buscar por email, nombre o teléfono..."
+        onSearch={handleSearch}
+        searchPlaceholder="Buscar por nombre, email o teléfono..."
         isLoading={loading}
         getRowId={(row) => row.id}
         getRowName={(row) => `${row.first_name} ${row.last_name}`}
@@ -392,23 +405,48 @@ export default function UsuariosPage() {
       )}
 
       {/* User Sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) setCreatedUserId(null);
+        }}
+      >
         <SheetContent className="overflow-y-auto sm:max-w-xl">
           <SheetHeader>
             <SheetTitle>{selectedUser ? 'Editar Usuario' : 'Nuevo Usuario'}</SheetTitle>
             <SheetDescription>
               {selectedUser
                 ? 'Actualizá los datos del usuario'
-                : 'Creá un nuevo usuario en el sistema'}
+                : createdUserId
+                  ? 'Usuario creado. Podés agregar una dirección de entrega.'
+                  : 'Creá un nuevo usuario en el sistema'}
             </SheetDescription>
           </SheetHeader>
-          <div className="mt-6">
-            <UserForm
-              user={selectedUser || undefined}
-              onSubmit={handleSubmit}
-              onCancel={() => setSheetOpen(false)}
-              isLoading={saving}
-            />
+          <div className="mt-6 space-y-6">
+            {!createdUserId && (
+              <UserForm
+                user={selectedUser || undefined}
+                onSubmit={handleSubmit}
+                onCancel={() => setSheetOpen(false)}
+                isLoading={saving}
+              />
+            )}
+            {(createdUserId || selectedUser) && (
+              <UserAddressesSection
+                userId={createdUserId ?? selectedUser!.id}
+                userName={
+                  selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : ''
+                }
+              />
+            )}
+            {createdUserId && (
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => setSheetOpen(false)}>
+                  Cerrar
+                </Button>
+              </div>
+            )}
           </div>
         </SheetContent>
       </Sheet>

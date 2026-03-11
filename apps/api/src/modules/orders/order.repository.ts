@@ -8,6 +8,7 @@ import type {
   OrderWithDetails,
   OrderItemWithProduct,
   CreateOrderInput,
+  CreateAdminOrderInput,
   UpdateOrderStatusInput,
   OrderFilters,
   OrderStatus
@@ -15,24 +16,25 @@ import type {
 import type { User } from '../users/user.types.js';
 
 /**
- * Generate order number (VLP-YYYYMMDD-NNNN)
+ * Generate order number (PREFIX-YYYYMMDD-NNNNNN)
+ * VLP = customer web order, ADM = admin/owner created order
+ * Counter is yearly (resets each year). Example: VLP-20260311-000001
  */
-export async function generateOrderNumber(): Promise<string> {
-  const today = new Date();
-  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+export async function generateOrderNumber(prefix: 'VLP' | 'ADM'): Promise<string> {
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const year = dateStr.slice(0, 4);
 
-  // Get count of orders today
+  // Count all orders this year for this prefix (yearly counter)
   const result = await query<{ count: string }>(
-    `SELECT COUNT(*) as count
-     FROM orders
-     WHERE order_number LIKE $1`,
-    [`VLP-${dateStr}-%`]
+    'SELECT COUNT(*) as count FROM orders WHERE order_number LIKE $1',
+    [`${prefix}-${year}%`]
   );
 
   const count = parseInt(result.rows[0].count, 10);
-  const sequence = (count + 1).toString().padStart(4, '0');
+  const sequence = (count + 1).toString().padStart(6, '0');
 
-  return `VLP-${dateStr}-${sequence}`;
+  return `${prefix}-${dateStr}-${sequence}`;
 }
 
 /**
@@ -162,11 +164,36 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
     )
   ]);
 
+  // Build shipping_address object from denormalized columns
+  const shipping_address = order.shipping_street
+    ? {
+        id: order.id,
+        user_id: order.user_id,
+        alias: 'Dirección de entrega',
+        street: order.shipping_street,
+        street_number: order.shipping_street_number,
+        floor: order.shipping_floor ?? null,
+        apartment: order.shipping_apartment ?? null,
+        city: order.shipping_city,
+        province: order.shipping_province,
+        postcode: order.shipping_postcode,
+        latitude: null,
+        longitude: null,
+        place_id: null,
+        is_default: false,
+        is_active: true,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        deleted_at: null
+      }
+    : undefined;
+
   return {
     ...order,
     items: itemsResult.rows as OrderItemWithProduct[],
     status_history: historyResult.rows,
-    user: userResult.rows[0] ?? undefined
+    user: userResult.rows[0] ?? undefined,
+    shipping_address
   };
 }
 
@@ -182,7 +209,7 @@ export async function createOrder(
 ): Promise<Order> {
   return transaction(async (client) => {
     // Generate order number
-    const orderNumber = await generateOrderNumber();
+    const orderNumber = await generateOrderNumber('VLP');
 
     // Create order
     const orderResult = await client.query<Order>(
@@ -230,6 +257,84 @@ export async function createOrder(
       `INSERT INTO order_status_history (order_id, status, notes, changed_by)
        VALUES ($1, $2, $3, $4)`,
       [order.id, 'pending_payment', 'Orden creada', userId]
+    );
+
+    return order;
+  });
+}
+
+/**
+ * Create order by admin with pre-calculated prices
+ */
+export async function createAdminOrder(
+  adminId: string,
+  data: CreateAdminOrderInput & {
+    shipping_street: string;
+    shipping_street_number: string;
+    shipping_floor?: string | null;
+    shipping_apartment?: string | null;
+    shipping_city: string;
+    shipping_province: string;
+    shipping_postcode: string;
+    subtotal: number;
+    total: number;
+  }
+): Promise<Order> {
+  return transaction(async (client) => {
+    const orderNumber = await generateOrderNumber('ADM');
+
+    const orderResult = await client.query<Order>(
+      `INSERT INTO orders (
+        order_number, user_id, status, subtotal, shipping_cost, total,
+        shipping_address_id,
+        shipping_street, shipping_street_number, shipping_floor, shipping_apartment,
+        shipping_city, shipping_province, shipping_postcode,
+        payment_method, customer_notes
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      RETURNING *`,
+      [
+        orderNumber,
+        data.user_id,
+        'processing',
+        data.subtotal,
+        0,
+        data.total,
+        data.shipping_address_id,
+        data.shipping_street,
+        data.shipping_street_number,
+        data.shipping_floor ?? null,
+        data.shipping_apartment ?? null,
+        data.shipping_city,
+        data.shipping_province,
+        data.shipping_postcode,
+        data.payment_method ?? 'manual',
+        data.notes ?? null
+      ]
+    );
+
+    const order = orderResult.rows[0];
+
+    for (const item of data.items) {
+      await client.query(
+        `INSERT INTO order_items (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          order.id,
+          item.product_id,
+          item.product_name,
+          item.product_sku,
+          item.quantity,
+          item.unit_price,
+          item.unit_price * item.quantity
+        ]
+      );
+    }
+
+    await client.query(
+      `INSERT INTO order_status_history (order_id, status, notes, changed_by)
+       VALUES ($1, $2, $3, $4)`,
+      [order.id, 'processing', 'Orden creada por administrador', adminId]
     );
 
     return order;
@@ -349,4 +454,149 @@ export async function isOrderOwnedByUser(orderId: string, userId: string): Promi
   );
 
   return parseInt(result.rows[0].count, 10) > 0;
+}
+
+interface UpdateAdminOrderData {
+  items: Array<{
+    product_id: string;
+    product_name: string;
+    product_sku: string;
+    quantity: number;
+    unit_price: number;
+  }>;
+  shipping_street: string;
+  shipping_street_number: string;
+  shipping_floor?: string | null;
+  shipping_apartment?: string | null;
+  shipping_city: string;
+  shipping_province: string;
+  shipping_postcode: string;
+  shipping_address_id: string;
+}
+
+export async function updateAdminOrder(
+  orderId: string,
+  data: UpdateAdminOrderData,
+  adminId: string
+): Promise<Order | null> {
+  return transaction(async (client) => {
+    // Disable stock trigger — we handle stock manually in this function
+    await client.query("SET LOCAL app.skip_stock_trigger = 'true'");
+
+    // Lock the order row and verify status
+    const orderResult = await client.query<Order>('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [
+      orderId
+    ]);
+    const order = orderResult.rows[0];
+    if (!order || order.status !== 'processing') return null;
+
+    // Load current items to calculate stock deltas
+    const currentItemsResult = await client.query<{ product_id: string; quantity: number }>(
+      'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+      [orderId]
+    );
+
+    // Build old and new quantity maps (product_id → total qty)
+    const oldMap = new Map<string, number>();
+    for (const item of currentItemsResult.rows) {
+      oldMap.set(item.product_id, (oldMap.get(item.product_id) ?? 0) + item.quantity);
+    }
+    const newMap = new Map<string, number>();
+    for (const item of data.items) {
+      newMap.set(item.product_id, (newMap.get(item.product_id) ?? 0) + item.quantity);
+    }
+
+    // Apply stock deltas for every product involved
+    const allProductIds = new Set([...oldMap.keys(), ...newMap.keys()]);
+    for (const productId of allProductIds) {
+      const oldQty = oldMap.get(productId) ?? 0;
+      const newQty = newMap.get(productId) ?? 0;
+      const delta = newQty - oldQty;
+
+      if (delta === 0) continue;
+
+      if (delta > 0) {
+        // Need additional stock — check availability first
+        const stockResult = await client.query<{ available: number }>(
+          'SELECT (stock - reserved_stock) AS available FROM products WHERE id = $1 FOR UPDATE',
+          [productId]
+        );
+        const available = stockResult.rows[0]?.available ?? 0;
+        if (available < delta) {
+          throw new Error(
+            `Stock insuficiente para producto ${productId}. Disponible: ${available}, necesario: ${delta}`
+          );
+        }
+        await client.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [
+          delta,
+          productId
+        ]);
+      } else {
+        // Release stock back (delta is negative)
+        await client.query('UPDATE products SET stock = stock + $1 WHERE id = $2', [
+          -delta,
+          productId
+        ]);
+      }
+    }
+
+    // Replace order items
+    await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+
+    for (const item of data.items) {
+      await client.query(
+        `INSERT INTO order_items
+           (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          orderId,
+          item.product_id,
+          item.product_name,
+          item.product_sku,
+          item.quantity,
+          item.unit_price,
+          Math.round(item.unit_price * item.quantity * 100) / 100
+        ]
+      );
+    }
+
+    // Recalculate totals
+    const subtotal =
+      Math.round(data.items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0) * 100) /
+      100;
+
+    // Update the order record
+    const updatedResult = await client.query<Order>(
+      `UPDATE orders
+       SET subtotal = $1, total = $1,
+           shipping_address_id = $2,
+           shipping_street = $3, shipping_street_number = $4,
+           shipping_floor = $5, shipping_apartment = $6,
+           shipping_city = $7, shipping_province = $8, shipping_postcode = $9,
+           updated_at = NOW()
+       WHERE id = $10
+       RETURNING *`,
+      [
+        subtotal,
+        data.shipping_address_id,
+        data.shipping_street,
+        data.shipping_street_number,
+        data.shipping_floor ?? null,
+        data.shipping_apartment ?? null,
+        data.shipping_city,
+        data.shipping_province,
+        data.shipping_postcode,
+        orderId
+      ]
+    );
+
+    // Record the edit in status history for audit trail
+    await client.query(
+      `INSERT INTO order_status_history (order_id, status, notes, changed_by)
+       VALUES ($1, $2, $3, $4)`,
+      [orderId, 'processing', 'Pedido editado por administrador', adminId]
+    );
+
+    return updatedResult.rows[0] ?? null;
+  });
 }

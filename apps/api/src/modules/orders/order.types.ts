@@ -23,14 +23,26 @@ export interface Order {
   subtotal: number;
   shipping_cost: number;
   total: number;
-  shipping_address_id: string;
-  shipping_carrier_id: string;
-  payment_method: string;
+  // Denormalized shipping address snapshot
+  shipping_street: string;
+  shipping_street_number: string;
+  shipping_floor: string | null;
+  shipping_apartment: string | null;
+  shipping_city: string;
+  shipping_province: string;
+  shipping_postcode: string;
+  shipping_notes: string | null;
+  // Carrier
+  carrier_name: string | null;
+  // Payment
+  payment_method: string | null;
   payment_id: string | null;
-  notes: string | null;
+  paid_at: Date | null;
+  // Notes
+  customer_notes: string | null;
+  admin_notes: string | null;
   created_at: Date;
   updated_at: Date;
-  deleted_at: Date | null;
   user?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'phone'> | null;
 }
 
@@ -74,6 +86,27 @@ export interface CreateOrderInput {
   payment_method: string;
   notes?: string;
   items: CreateOrderItemInput[];
+}
+
+export interface CreateAdminOrderInput {
+  user_id: string;
+  shipping_address_id: string;
+  items: CreateAdminOrderItemInput[];
+  notes?: string;
+  payment_method?: string;
+}
+
+export interface CreateAdminOrderItemInput {
+  product_id: string;
+  product_name: string;
+  product_sku: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface UpdateAdminOrderInput {
+  shipping_address_id: string;
+  items: CreateAdminOrderItemInput[];
 }
 
 export interface CreateOrderItemInput {

@@ -1,7 +1,10 @@
 import pg from 'pg';
 import { env } from '@/env.js';
 
-const { Pool } = pg;
+const { Pool, types } = pg;
+
+// Parse NUMERIC (OID 1700) as float — pg returns NUMERIC as string by default
+types.setTypeParser(1700, parseFloat);
 
 /**
  * Pool de conexiones a PostgreSQL

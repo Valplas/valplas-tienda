@@ -29,6 +29,7 @@ export default function AdminProductsPage() {
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [page, setPage] = React.useState(1);
   const [hasMore, setHasMore] = React.useState(true);
+  const [search, setSearch] = React.useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [productToDelete, setProductToDelete] = React.useState<Product | null>(null);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
@@ -41,12 +42,16 @@ export default function AdminProductsPage() {
     };
   }, []);
 
-  const loadProducts = React.useCallback(async () => {
+  const loadProducts = React.useCallback(async (searchTerm: string) => {
     setIsLoading(true);
     setPage(1);
     setHasMore(true);
     try {
-      const result = await getAdminProducts({ page: 1, limit: PAGE_SIZE });
+      const result = await getAdminProducts({
+        page: 1,
+        limit: PAGE_SIZE,
+        search: searchTerm || undefined
+      });
       if (!isMountedRef.current) return;
       setProducts(result.products);
       setHasMore(result.products.length === PAGE_SIZE);
@@ -60,28 +65,39 @@ export default function AdminProductsPage() {
     }
   }, []);
 
-  const loadMore = React.useCallback(async (nextPage: number) => {
-    setIsLoadingMore(true);
-    try {
-      const result = await getAdminProducts({ page: nextPage, limit: PAGE_SIZE });
-      if (!isMountedRef.current) return;
-      setProducts((prev) => [...prev, ...result.products]);
-      setHasMore(result.products.length === PAGE_SIZE);
-      setPage(nextPage);
-    } catch {
-      if (!isMountedRef.current) return;
-      setHasMore(false); // detener el loop si falla
-      toast.error('Error al cargar más productos');
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoadingMore(false);
+  const loadMore = React.useCallback(
+    async (nextPage: number) => {
+      setIsLoadingMore(true);
+      try {
+        const result = await getAdminProducts({
+          page: nextPage,
+          limit: PAGE_SIZE,
+          search: search || undefined
+        });
+        if (!isMountedRef.current) return;
+        setProducts((prev) => [...prev, ...result.products]);
+        setHasMore(result.products.length === PAGE_SIZE);
+        setPage(nextPage);
+      } catch {
+        if (!isMountedRef.current) return;
+        setHasMore(false);
+        toast.error('Error al cargar más productos');
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoadingMore(false);
+        }
       }
-    }
-  }, []);
+    },
+    [search]
+  );
 
   React.useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
+    loadProducts(search);
+  }, [loadProducts, search]);
+
+  const handleSearch = React.useCallback((value: string) => {
+    setSearch(value);
+  }, []);
 
   // IntersectionObserver for infinite scroll
   React.useEffect(() => {
@@ -116,7 +132,7 @@ export default function AdminProductsPage() {
     try {
       await deleteProduct(productToDelete.id);
       toast.success('Producto eliminado correctamente');
-      loadProducts();
+      loadProducts(search);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar producto');
     }
@@ -129,7 +145,7 @@ export default function AdminProductsPage() {
     try {
       await Promise.all(ids.map((id) => deleteProduct(id)));
       toast.success(`${ids.length} producto(s) eliminado(s) correctamente`);
-      loadProducts();
+      loadProducts(search);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar productos');
     }
@@ -269,8 +285,8 @@ export default function AdminProductsPage() {
       <DataTable
         data={products}
         columns={columns}
-        searchKey="name"
-        searchPlaceholder="Buscar por nombre, SKU o descripción..."
+        onSearch={handleSearch}
+        searchPlaceholder="Buscar por nombre, SKU o marca..."
         isLoading={isLoading}
         onDelete={handleBulkDelete}
         getRowId={(row) => row.id}
