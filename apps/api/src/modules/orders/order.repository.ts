@@ -16,22 +16,25 @@ import type {
 import type { User } from '../users/user.types.js';
 
 /**
- * Generate order number (PREFIX-YYYY-NNNNNN)
+ * Generate order number (PREFIX-YYYYMMDD-NNNNNN)
  * VLP = customer web order, ADM = admin/owner created order
- * Counter resets yearly. Example: VLP-2026-000001
+ * Counter is yearly (resets each year). Example: VLP-20260311-000001
  */
 export async function generateOrderNumber(prefix: 'VLP' | 'ADM'): Promise<string> {
-  const year = new Date().getFullYear().toString();
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const year = dateStr.slice(0, 4);
 
+  // Count all orders this year for this prefix (yearly counter)
   const result = await query<{ count: string }>(
     `SELECT COUNT(*) as count FROM orders WHERE order_number LIKE $1`,
-    [`${prefix}-${year}-%`]
+    [`${prefix}-${year}%`]
   );
 
   const count = parseInt(result.rows[0].count, 10);
   const sequence = (count + 1).toString().padStart(6, '0');
 
-  return `${prefix}-${year}-${sequence}`;
+  return `${prefix}-${dateStr}-${sequence}`;
 }
 
 /**
