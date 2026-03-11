@@ -32,6 +32,7 @@ import {
   deleteAdminUser
 } from '@/lib/services/users.service';
 import { UserForm } from '@/components/admin/user-form';
+import { UserAddressesSection } from '@/components/admin/user-addresses-section';
 import { CreateUserFormData, UpdateUserFormData } from '@/lib/validations/user-admin';
 import {
   AlertDialog,
@@ -61,6 +62,7 @@ export default function UsuariosPage() {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
@@ -169,6 +171,7 @@ export default function UsuariosPage() {
 
   const handleCreate = () => {
     setSelectedUser(null);
+    setCreatedUserId(null);
     setSheetOpen(true);
   };
 
@@ -197,7 +200,7 @@ export default function UsuariosPage() {
         setSheetOpen(false);
       } else {
         const createData = data as CreateUserFormData;
-        await createAdminUser({
+        const newUser = await createAdminUser({
           email: createData.email,
           username: createData.username || createData.email.split('@')[0],
           first_name: createData.first_name,
@@ -209,7 +212,7 @@ export default function UsuariosPage() {
         });
         toast.success('Usuario creado correctamente');
         await loadUsers(search);
-        setSheetOpen(false);
+        setCreatedUserId(newUser.id);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al guardar usuario';
@@ -402,23 +405,48 @@ export default function UsuariosPage() {
       )}
 
       {/* User Sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) setCreatedUserId(null);
+        }}
+      >
         <SheetContent className="overflow-y-auto sm:max-w-xl">
           <SheetHeader>
             <SheetTitle>{selectedUser ? 'Editar Usuario' : 'Nuevo Usuario'}</SheetTitle>
             <SheetDescription>
               {selectedUser
                 ? 'Actualizá los datos del usuario'
-                : 'Creá un nuevo usuario en el sistema'}
+                : createdUserId
+                  ? 'Usuario creado. Podés agregar una dirección de entrega.'
+                  : 'Creá un nuevo usuario en el sistema'}
             </SheetDescription>
           </SheetHeader>
-          <div className="mt-6">
-            <UserForm
-              user={selectedUser || undefined}
-              onSubmit={handleSubmit}
-              onCancel={() => setSheetOpen(false)}
-              isLoading={saving}
-            />
+          <div className="mt-6 space-y-6">
+            {!createdUserId && (
+              <UserForm
+                user={selectedUser || undefined}
+                onSubmit={handleSubmit}
+                onCancel={() => setSheetOpen(false)}
+                isLoading={saving}
+              />
+            )}
+            {(createdUserId || selectedUser) && (
+              <UserAddressesSection
+                userId={createdUserId ?? selectedUser!.id}
+                userName={
+                  selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : ''
+                }
+              />
+            )}
+            {createdUserId && (
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => setSheetOpen(false)}>
+                  Cerrar
+                </Button>
+              </div>
+            )}
           </div>
         </SheetContent>
       </Sheet>

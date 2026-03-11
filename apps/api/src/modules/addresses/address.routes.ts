@@ -207,4 +207,11 @@ router.get(
   addressController.getAllAddresses
 );
 
+router.post(
+  '/admin/user/:userId',
+  requireRole(['admin', 'owner']),
+  validate(createAddressSchema, 'body'),
+  addressController.adminCreateAddress
+);
+
 export default router;

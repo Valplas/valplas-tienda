@@ -146,6 +146,18 @@ export async function deleteAddress(req: Request, res: Response, next: NextFunct
 }
 
 /**
+ * Create address for a specific user (admin only)
+ */
+export async function adminCreateAddress(req: Request, res: Response, next: NextFunction) {
+  try {
+    const address = await addressDomain.createAddress(req.params.userId as string, req.body);
+    return res.status(201).json(ApiResponse.success(address));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Set address as default
  */
 export async function setDefaultAddress(req: Request, res: Response, next: NextFunction) {
