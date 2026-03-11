@@ -27,7 +27,7 @@ export async function generateOrderNumber(prefix: 'VLP' | 'ADM'): Promise<string
 
   // Count all orders this year for this prefix (yearly counter)
   const result = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM orders WHERE order_number LIKE $1`,
+    'SELECT COUNT(*) as count FROM orders WHERE order_number LIKE $1',
     [`${prefix}-${year}%`]
   );
 
