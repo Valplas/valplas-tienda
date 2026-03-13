@@ -96,15 +96,20 @@ export function normalizeProduct(raw: RawProduct): Product {
     slug: raw.slug,
     description: raw.description ?? '',
     base_price: basePricePesos,
+    cost_price: (raw.cost_price as number) ?? 0,
     final_price: basePricePesos,
     is_active: raw.is_active,
     category_id: raw.categoryId ?? '',
     brand_id: raw.brandId ?? '',
     available_stock: raw.availableStock ?? 0,
     image_url: raw.images?.[0]?.url ?? '',
-    // Fields needed by the edit form:
     sku: (raw.sku as string) ?? '',
     stock: (raw.stock as number) ?? 0,
+    weight: (raw.weight as number | null) ?? null,
+    width: (raw.width as number | null) ?? null,
+    length: (raw.length as number | null) ?? null,
+    height: (raw.height as number | null) ?? null,
+    origin: (raw.origin as string | null) ?? null,
     is_featured: (raw.is_featured as boolean) ?? false
   } as unknown as Product;
 }
@@ -143,10 +148,16 @@ export async function createProduct(data: {
   slug: string;
   description?: string;
   basePrice: number; // pesos ARS
+  costPrice?: number;
   categoryId: string;
-  brandId: string;
+  brandId?: string;
   sku: string; // required by backend
   stock?: number;
+  weight?: number;
+  width?: number;
+  length?: number;
+  height?: number;
+  origin?: string;
   isFeatured?: boolean;
   isActive?: boolean;
 }) {
@@ -162,10 +173,16 @@ export async function updateProduct(
     slug: string;
     description: string;
     basePrice: number; // pesos ARS
+    costPrice: number;
     categoryId: string;
     brandId: string;
     sku: string;
     stock: number;
+    weight: number;
+    width: number;
+    length: number;
+    height: number;
+    origin: string;
     isFeatured: boolean;
     isActive: boolean;
   }>

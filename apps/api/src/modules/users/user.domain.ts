@@ -98,23 +98,35 @@ export async function createUser(data: CreateUserInput, requesterRole: UserRole)
     throw new Error(`No tienes permiso para crear usuarios con rol ${data.role}`);
   }
 
-  // Check if email already exists
-  const existingEmail = await userRepository.findUserByEmail(data.email);
-  if (existingEmail) {
-    throw new Error('El email ya está en uso');
+  // Check email uniqueness only if provided
+  if (data.email) {
+    const existingEmail = await userRepository.findUserByEmail(data.email);
+    if (existingEmail) {
+      throw new Error('El email ya está en uso');
+    }
   }
 
-  // Check if username already exists
-  const existingUsername = await userRepository.findUserByUsername(data.username);
-  if (existingUsername) {
-    throw new Error('El nombre de usuario ya está en uso');
+  // Resolve username: use provided or auto-generate from phone digits
+  let resolvedUsername = data.username || '';
+  if (!resolvedUsername) {
+    const phoneDigits = data.phone.replace(/\D/g, '');
+    resolvedUsername = phoneDigits;
+    const existing = await userRepository.findUserByUsername(resolvedUsername);
+    if (existing) {
+      resolvedUsername = `${phoneDigits}_${Date.now().toString(36)}`;
+    }
+  } else {
+    const existingUsername = await userRepository.findUserByUsername(resolvedUsername);
+    if (existingUsername) {
+      throw new Error('El nombre de usuario ya está en uso');
+    }
   }
 
   // Hash password
   const passwordHash = await hashPassword(data.password);
 
   // Create user
-  return userRepository.createUser(data, passwordHash);
+  return userRepository.createUser({ ...data, username: resolvedUsername }, passwordHash);
 }
 
 /**

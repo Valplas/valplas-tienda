@@ -23,6 +23,7 @@ export interface Order {
   subtotal: number;
   shipping_cost: number;
   total: number;
+  shipping_address_id: string | null;
   // Denormalized shipping address snapshot
   shipping_street: string;
   shipping_street_number: string;

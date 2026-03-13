@@ -124,9 +124,9 @@ export async function createAddress(
     const result = await client.query<UserAddress>(
       `INSERT INTO user_addresses (
         user_id, alias, street, street_number, floor, apartment,
-        city, province, postcode, latitude, longitude, place_id, is_default, is_active
+        city, province, postcode, latitude, longitude, place_id, notes, is_default, is_active
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *`,
       [
         userId,
@@ -141,6 +141,7 @@ export async function createAddress(
         data.latitude || null,
         data.longitude || null,
         data.place_id || null,
+        data.notes || null,
         data.is_default ?? false,
         true
       ]
@@ -237,6 +238,12 @@ export async function updateAddress(
     if (data.place_id !== undefined) {
       updates.push(`place_id = $${paramIndex}`);
       params.push(data.place_id);
+      paramIndex++;
+    }
+
+    if (data.notes !== undefined) {
+      updates.push(`notes = $${paramIndex}`);
+      params.push(data.notes || null);
       paramIndex++;
     }
 

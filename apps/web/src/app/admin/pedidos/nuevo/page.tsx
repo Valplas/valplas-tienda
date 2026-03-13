@@ -135,7 +135,7 @@ export default function NuevoPedidoPage() {
     try {
       const addrs = await getAdminUserAddresses(user.id);
       setAddresses(addrs.filter((a) => a.is_active));
-      if (addrs.length === 1) {
+      if (addrs.filter((a) => a.is_active).length === 1) {
         setSelectedAddressId(addrs[0].id);
       }
     } finally {

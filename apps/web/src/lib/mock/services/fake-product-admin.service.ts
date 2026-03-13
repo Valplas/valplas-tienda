@@ -112,6 +112,7 @@ export async function fake_createProduct(data: CreateProductInput): Promise<ApiR
     category_id: data.category_id,
     brand_id: data.brand_id,
     base_price: data.base_price,
+    cost_price: 0,
     final_price: data.base_price,
     stock: data.stock,
     reserved_stock: 0,

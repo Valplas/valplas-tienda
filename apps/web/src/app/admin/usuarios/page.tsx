@@ -186,10 +186,10 @@ export default function UsuariosPage() {
     try {
       if (selectedUser) {
         const updateData: Parameters<typeof updateAdminUser>[1] = {
-          email: data.email,
+          email: data.email || undefined,
           username: data.username || undefined,
           first_name: data.first_name,
-          last_name: data.last_name,
+          last_name: data.last_name || undefined,
           role: data.role,
           phone: data.phone || undefined,
           is_active: data.is_active
@@ -201,13 +201,13 @@ export default function UsuariosPage() {
       } else {
         const createData = data as CreateUserFormData;
         const newUser = await createAdminUser({
-          email: createData.email,
-          username: createData.username || createData.email.split('@')[0],
+          email: createData.email || undefined,
+          username: createData.username || undefined,
           first_name: createData.first_name,
-          last_name: createData.last_name,
+          last_name: createData.last_name || undefined,
           password: createData.password,
           role: createData.role,
-          phone: createData.phone || undefined,
+          phone: createData.phone,
           is_active: createData.is_active
         });
         toast.success('Usuario creado correctamente');
@@ -257,7 +257,7 @@ export default function UsuariosPage() {
         header: '',
         cell: ({ row }) => {
           const initials =
-            `${row.original.first_name[0]}${row.original.last_name[0]}`.toUpperCase();
+            `${row.original.first_name[0]}${row.original.last_name?.[0] ?? ''}`.toUpperCase();
           return (
             <Avatar className="h-8 w-8">
               <AvatarFallback>{initials}</AvatarFallback>
@@ -272,7 +272,7 @@ export default function UsuariosPage() {
         cell: ({ row }) => (
           <div>
             <div className="font-medium">
-              {row.original.first_name} {row.original.last_name}
+              {row.original.first_name} {row.original.last_name ?? ''}
             </div>
             <div className="text-sm text-muted-foreground">@{row.original.username}</div>
           </div>
@@ -388,7 +388,7 @@ export default function UsuariosPage() {
         searchPlaceholder="Buscar por nombre, email o teléfono..."
         isLoading={loading}
         getRowId={(row) => row.id}
-        getRowName={(row) => `${row.first_name} ${row.last_name}`}
+        getRowName={(row) => `${row.first_name} ${row.last_name ?? ''}`.trim()}
       />
 
       {/* Infinite scroll sentinel */}
@@ -436,7 +436,9 @@ export default function UsuariosPage() {
               <UserAddressesSection
                 userId={createdUserId ?? selectedUser!.id}
                 userName={
-                  selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : ''
+                  selectedUser
+                    ? `${selectedUser.first_name} ${selectedUser.last_name ?? ''}`.trim()
+                    : ''
                 }
               />
             )}
@@ -459,7 +461,7 @@ export default function UsuariosPage() {
             <AlertDialogDescription>
               ¿Estás seguro de que querés eliminar al usuario{' '}
               <strong>
-                {userToDelete?.first_name} {userToDelete?.last_name}
+                {userToDelete?.first_name} {userToDelete?.last_name ?? ''}
               </strong>
               ? Esta acción no se puede deshacer.
             </AlertDialogDescription>

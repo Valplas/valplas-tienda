@@ -135,11 +135,11 @@ export async function fake_createUser(data: CreateUserFormData): Promise<ApiResp
 
     const newUser: User = {
       id: `user-${Date.now()}`,
-      email: data.email,
+      email: data.email ?? '',
       username: data.username || '',
       phone: data.phone || '',
       first_name: data.first_name,
-      last_name: data.last_name,
+      last_name: data.last_name ?? '',
       role: data.role,
       is_active: data.is_active,
       created_at: new Date().toISOString(),
@@ -211,11 +211,11 @@ export async function fake_updateUser(
 
     users[index] = {
       ...users[index],
-      email: data.email,
+      email: data.email ?? '',
       username: data.username || '',
       phone: data.phone || '',
       first_name: data.first_name,
-      last_name: data.last_name,
+      last_name: data.last_name ?? '',
       role: data.role,
       is_active: data.is_active,
       updated_at: new Date().toISOString()

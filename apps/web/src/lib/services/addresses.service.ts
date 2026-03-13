@@ -17,6 +17,7 @@ export interface Address {
   latitude: number | null;
   longitude: number | null;
   place_id: string | null;
+  notes: string | null;
   is_default: boolean;
   is_active: boolean;
   created_at: string;
@@ -35,6 +36,7 @@ export interface CreateAddressInput {
   latitude?: number;
   longitude?: number;
   place_id?: string;
+  notes?: string;
   is_default?: boolean;
 }
 
@@ -50,6 +52,7 @@ export interface UpdateAddressInput {
   latitude?: number;
   longitude?: number;
   place_id?: string;
+  notes?: string;
   is_default?: boolean;
   is_active?: boolean;
 }

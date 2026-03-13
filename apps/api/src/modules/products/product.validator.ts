@@ -49,6 +49,12 @@ export const createProductSchema = z.object({
 
   stock: z.number().int().min(0, 'Stock debe ser mayor o igual a 0').optional().default(0),
 
+  weight: z.number().min(0).optional(),
+  width: z.number().min(0).optional(),
+  length: z.number().min(0).optional(),
+  height: z.number().min(0).optional(),
+  origin: z.string().max(100).optional(),
+
   isFeatured: z.boolean().optional().default(false)
 });
 
@@ -70,6 +76,11 @@ export const updateProductSchema = z
     basePrice: z.number().min(0).optional(),
     costPrice: z.number().min(0).optional(),
     stock: z.number().int().min(0).optional(),
+    weight: z.number().min(0).optional(),
+    width: z.number().min(0).optional(),
+    length: z.number().min(0).optional(),
+    height: z.number().min(0).optional(),
+    origin: z.string().max(100).optional(),
     isFeatured: z.boolean().optional(),
     isActive: z.boolean().optional()
   })

@@ -15,6 +15,11 @@ export interface Product {
   reserved_stock: number;
   category_id: string | null;
   brand_id: string | null;
+  weight: number | null; // kg
+  width: number | null; // cm
+  length: number | null; // cm
+  height: number | null; // cm
+  origin: string | null;
   is_featured: boolean;
   is_active: boolean;
   created_at: string;
@@ -68,6 +73,11 @@ export interface CreateProductInput {
   stock: number;
   category_id?: string;
   brand_id?: string;
+  weight?: number;
+  width?: number;
+  length?: number;
+  height?: number;
+  origin?: string;
   is_featured?: boolean;
   is_active?: boolean;
 }
@@ -80,6 +90,11 @@ export interface UpdateProductInput {
   stock?: number;
   category_id?: string;
   brand_id?: string;
+  weight?: number;
+  width?: number;
+  length?: number;
+  height?: number;
+  origin?: string;
   is_featured?: boolean;
   is_active?: boolean;
 }

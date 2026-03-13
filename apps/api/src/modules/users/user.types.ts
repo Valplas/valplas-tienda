@@ -4,11 +4,11 @@ export type UserRole = 'owner' | 'admin' | 'driver' | 'customer';
 
 export interface User {
   id: string;
-  email: string;
+  email: string | null;
   username: string;
   phone: string | null;
   first_name: string;
-  last_name: string;
+  last_name: string | null;
   role: UserRole;
   is_active: boolean;
   email_verified: boolean;
@@ -25,12 +25,12 @@ export interface UserWithStats extends User {
 }
 
 export interface CreateUserInput {
-  email: string;
-  username: string;
+  email?: string;
+  username?: string;
   password: string;
-  phone?: string;
+  phone: string;
   first_name: string;
-  last_name: string;
+  last_name?: string;
   role: UserRole;
   is_active?: boolean;
 }

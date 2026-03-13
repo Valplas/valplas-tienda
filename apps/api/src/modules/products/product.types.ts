@@ -47,6 +47,11 @@ export interface CreateProductData {
   basePrice: number;
   costPrice?: number;
   stock?: number;
+  weight?: number;
+  width?: number;
+  length?: number;
+  height?: number;
+  origin?: string;
   isFeatured?: boolean;
 }
 
@@ -62,6 +67,11 @@ export interface UpdateProductData {
   basePrice?: number;
   costPrice?: number;
   stock?: number;
+  weight?: number;
+  width?: number;
+  length?: number;
+  height?: number;
+  origin?: string;
   isFeatured?: boolean;
   isActive?: boolean;
 }

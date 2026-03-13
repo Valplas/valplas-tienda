@@ -118,11 +118,17 @@ export interface Product {
   category_id: string;
   brand_id: string;
   base_price: number;
+  cost_price: number;
   final_price: number; // Con descuentos aplicados
   stock: number;
   reserved_stock: number;
   available_stock: number; // stock - reserved_stock
   unit: string; // "unidad", "pack x 10", "caja x 50"
+  weight?: number | null; // kg
+  width?: number | null; // cm
+  length?: number | null; // cm
+  height?: number | null; // cm
+  origin?: string | null;
   image_url: string;
   images: string[]; // URLs adicionales
   is_featured: boolean;

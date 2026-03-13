@@ -5,16 +5,18 @@ import { z } from 'zod';
 const USER_ROLES = ['owner', 'admin', 'driver', 'customer'] as const;
 
 export const createUserSchema = z.object({
-  email: z.string().email(),
+  email: z.string().email().optional().or(z.literal('')),
   username: z
     .string()
     .min(3)
     .max(50)
-    .regex(/^[a-zA-Z0-9_-]+$/),
+    .regex(/^[a-zA-Z0-9_-]+$/)
+    .optional()
+    .or(z.literal('')),
   password: z.string().min(8),
-  phone: z.string().min(10).max(20).optional(),
+  phone: z.string().min(10).max(20),
   first_name: z.string().min(2).max(100),
-  last_name: z.string().min(2).max(100),
+  last_name: z.string().max(100).optional().or(z.literal('')),
   role: z.enum(USER_ROLES),
   is_active: z.boolean().optional().default(true)
 });

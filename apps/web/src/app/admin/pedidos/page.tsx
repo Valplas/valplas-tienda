@@ -159,7 +159,7 @@ export default function PedidosPage() {
         accessorKey: 'total',
         header: 'Total',
         cell: ({ row }) => (
-          <span className="font-semibold">{formatCurrency(row.original.subtotal)}</span>
+          <span className="font-semibold">{formatCurrency(row.original.total)}</span>
         )
       },
       {

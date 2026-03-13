@@ -5,6 +5,7 @@ import { Plus, MapPin, Star, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
@@ -30,6 +31,7 @@ const EMPTY_FORM: CreateAddressInput = {
   city: '',
   province: '',
   postcode: '',
+  notes: '',
   is_default: false
 };
 
@@ -79,6 +81,7 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
         ...form,
         floor: form.floor || undefined,
         apartment: form.apartment || undefined,
+        notes: form.notes || undefined,
         is_default: addresses.length === 0 ? true : form.is_default
       });
       toast.success('Dirección agregada');
@@ -159,6 +162,7 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
                 <div className="text-muted-foreground">
                   {addr.city}, {addr.province} ({addr.postcode})
                 </div>
+                {addr.notes && <div className="text-muted-foreground italic">{addr.notes}</div>}
               </div>
               <Button
                 type="button"
@@ -280,6 +284,20 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
               />
               {errors.postcode && <p className="text-xs text-red-500">{errors.postcode}</p>}
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="addr-notes" className="text-xs">
+              Notas
+            </Label>
+            <Textarea
+              id="addr-notes"
+              placeholder="Entre calles, color del negocio, horario de atención..."
+              className="text-sm resize-none"
+              rows={2}
+              value={form.notes ?? ''}
+              onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+            />
           </div>
 
           <div className="flex gap-2 pt-1">
