@@ -5,10 +5,10 @@ import { UserRole } from '@/types';
 
 export interface AdminUser {
   id: string;
-  email: string;
+  email: string | null;
   username: string;
   first_name: string;
-  last_name: string;
+  last_name: string | null;
   phone: string | null;
   role: UserRole;
   is_active: boolean;
@@ -46,13 +46,13 @@ export async function getAdminUsers(params?: GetAdminUsersParams) {
 }
 
 export interface CreateAdminUserData {
-  email: string;
-  username: string;
+  email?: string;
+  username?: string;
   first_name: string;
-  last_name: string;
+  last_name?: string;
   password: string;
   role: UserRole;
-  phone?: string;
+  phone: string;
   is_active?: boolean;
 }
 

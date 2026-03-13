@@ -26,10 +26,10 @@ import { UserRole } from '@/types';
 import { RoleBadge } from './role-badge';
 
 interface UserFormUser {
-  email: string;
+  email: string | null;
   username: string;
   first_name: string;
-  last_name: string;
+  last_name: string | null;
   phone: string | null;
   role: UserRole;
   is_active: boolean;
@@ -56,10 +56,10 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
     resolver: zodResolver(isEditing ? updateUserSchema : createUserSchema),
     defaultValues: user
       ? {
-          email: user.email,
+          email: user.email ?? '',
           username: user.username,
           first_name: user.first_name,
-          last_name: user.last_name,
+          last_name: user.last_name ?? '',
           phone: user.phone ?? '',
           role: user.role,
           password: '',
@@ -95,9 +95,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
 
       {/* Email */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="email">
-          Email <span className="text-red-500">*</span>
-        </Label>
+        <Label htmlFor="email">Email</Label>
         <Input
           id="email"
           type="email"
@@ -143,9 +141,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
         </div>
 
         <div className="space-y-2 relative pb-5">
-          <Label htmlFor="last_name">
-            Apellido <span className="text-red-500">*</span>
-          </Label>
+          <Label htmlFor="last_name">Apellido</Label>
           <Input
             id="last_name"
             {...register('last_name')}
@@ -160,7 +156,9 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
 
       {/* Phone */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="phone">Teléfono</Label>
+        <Label htmlFor="phone">
+          Teléfono <span className="text-red-500">*</span>
+        </Label>
         <Input
           id="phone"
           type="tel"

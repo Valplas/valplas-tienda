@@ -25,12 +25,12 @@ export interface UserWithStats extends User {
 }
 
 export interface CreateUserInput {
-  email: string;
-  username: string;
+  email?: string;
+  username?: string;
   password: string;
-  phone?: string;
+  phone: string;
   first_name: string;
-  last_name: string;
+  last_name?: string;
   role: UserRole;
   is_active?: boolean;
 }

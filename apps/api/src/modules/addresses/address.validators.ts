@@ -46,6 +46,7 @@ export const createAddressSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   place_id: z.string().optional(),
+  notes: z.string().max(500).optional(),
   is_default: z.boolean().optional().default(false)
 });
 
@@ -66,6 +67,7 @@ export const updateAddressSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   place_id: z.string().optional(),
+  notes: z.string().max(500).optional(),
   is_default: z.boolean().optional(),
   is_active: z.boolean().optional()
 });

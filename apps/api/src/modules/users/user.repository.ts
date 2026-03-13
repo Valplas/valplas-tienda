@@ -155,7 +155,10 @@ export async function findUserByUsername(username: string): Promise<User | null>
 /**
  * Create user (admin function - requires password hash from domain)
  */
-export async function createUser(data: CreateUserInput, passwordHash: string): Promise<User> {
+export async function createUser(
+  data: CreateUserInput & { username: string },
+  passwordHash: string
+): Promise<User> {
   const result = await query<User>(
     `INSERT INTO users (
       email, username, password_hash, phone, first_name, last_name, role, is_active
@@ -164,12 +167,12 @@ export async function createUser(data: CreateUserInput, passwordHash: string): P
     RETURNING id, email, username, phone, first_name, last_name, role,
               is_active, email_verified, phone_verified, created_at, updated_at, deleted_at`,
     [
-      data.email,
+      data.email || null,
       data.username,
       passwordHash,
       data.phone || null,
       data.first_name,
-      data.last_name,
+      data.last_name || null,
       data.role,
       data.is_active ?? true
     ]
