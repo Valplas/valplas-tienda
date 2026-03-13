@@ -144,13 +144,17 @@ export async function getAdminOrders(params?: {
   page?: number;
   limit?: number;
   status?: string;
+  from_date?: string;
+  to_date?: string;
   search?: string;
 }) {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
   if (params?.limit) query.set('limit', String(params.limit));
-  if (params?.status) query.set('status', params.status);
-  if (params?.search) query.set('order_number', params.search);
+  if (params?.status && params.status !== 'all') query.set('status', params.status);
+  if (params?.from_date) query.set('from_date', params.from_date);
+  if (params?.to_date) query.set('to_date', params.to_date);
+  if (params?.search) query.set('search', params.search);
 
   const qs = query.toString();
   const res = await get<Order[]>(`/orders/admin/all${qs ? `?${qs}` : ''}`);

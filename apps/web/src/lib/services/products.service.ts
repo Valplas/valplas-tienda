@@ -116,6 +116,16 @@ export function normalizeProduct(raw: RawProduct): Product {
 
 // ─── Admin CRUD ───────────────────────────────────────────────────────────────
 
+export type AdminProductSort =
+  | 'name_asc'
+  | 'name_desc'
+  | 'price_asc'
+  | 'price_desc'
+  | 'stock_asc'
+  | 'stock_desc'
+  | 'updated_desc'
+  | 'updated_asc';
+
 export async function getAdminProducts(params?: {
   page?: number;
   limit?: number;
@@ -123,6 +133,7 @@ export async function getAdminProducts(params?: {
   categoryId?: string;
   brandId?: string;
   isActive?: boolean;
+  sort?: AdminProductSort;
 }) {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
@@ -131,6 +142,7 @@ export async function getAdminProducts(params?: {
   if (params?.categoryId) query.set('categoryId', params.categoryId);
   if (params?.brandId) query.set('brandId', params.brandId);
   if (params?.isActive !== undefined) query.set('isActive', String(params.isActive));
+  if (params?.sort) query.set('sort', params.sort);
 
   const qs = query.toString();
   // API returns paginated shape: { success, data: RawProduct[], pagination: { total, totalPages, ... } }

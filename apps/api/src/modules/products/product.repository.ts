@@ -31,10 +31,10 @@ export async function findProducts(
   const params: unknown[] = [];
   let paramIndex = 1;
 
-  // Filtro de búsqueda (nombre, SKU, marca)
+  // Filtro de búsqueda (nombre, SKU, marca) — accent-insensitive via unaccent extension
   if (search) {
     conditions.push(
-      `(p.name ILIKE $${paramIndex} OR p.sku ILIKE $${paramIndex} OR b.name ILIKE $${paramIndex})`
+      `(unaccent(p.name) ILIKE unaccent($${paramIndex}) OR p.sku ILIKE $${paramIndex} OR unaccent(b.name) ILIKE unaccent($${paramIndex}))`
     );
     params.push(`%${search}%`);
     paramIndex++;
@@ -78,7 +78,7 @@ export async function findProducts(
   }
 
   // Determinar ordenamiento
-  let orderBy = 'p.created_at DESC'; // newest por defecto
+  let orderBy = 'p.name ASC'; // alfabético por defecto
   switch (sort) {
     case 'price_asc':
       orderBy = 'p.base_price ASC';
@@ -86,14 +86,26 @@ export async function findProducts(
     case 'price_desc':
       orderBy = 'p.base_price DESC';
       break;
-    case 'name_asc':
-      orderBy = 'p.name ASC';
-      break;
     case 'name_desc':
       orderBy = 'p.name DESC';
       break;
+    case 'newest':
+      orderBy = 'p.created_at DESC';
+      break;
     case 'oldest':
       orderBy = 'p.created_at ASC';
+      break;
+    case 'stock_asc':
+      orderBy = '(p.stock - p.reserved_stock) ASC';
+      break;
+    case 'stock_desc':
+      orderBy = '(p.stock - p.reserved_stock) DESC';
+      break;
+    case 'updated_desc':
+      orderBy = 'p.updated_at DESC';
+      break;
+    case 'updated_asc':
+      orderBy = 'p.updated_at ASC';
       break;
   }
 

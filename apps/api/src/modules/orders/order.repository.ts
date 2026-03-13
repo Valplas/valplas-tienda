@@ -43,7 +43,16 @@ export async function generateOrderNumber(prefix: 'VLP' | 'ADM'): Promise<string
 export async function findOrders(
   filters: OrderFilters
 ): Promise<{ orders: Order[]; total: number }> {
-  const { user_id, status, from_date, to_date, order_number, page = 1, limit = 20 } = filters;
+  const {
+    user_id,
+    status,
+    from_date,
+    to_date,
+    order_number,
+    search,
+    page = 1,
+    limit = 20
+  } = filters;
 
   const offset = (page - 1) * limit;
   const conditions: string[] = [];
@@ -80,11 +89,21 @@ export async function findOrders(
     paramIndex++;
   }
 
+  if (search) {
+    conditions.push(
+      `(o.order_number ILIKE $${paramIndex} OR u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex} OR u.phone ILIKE $${paramIndex})`
+    );
+    params.push(`%${search}%`);
+    paramIndex++;
+  }
+
   const whereClause = conditions.length > 0 ? conditions.join(' AND ') : '1=1';
+  // Need the users join in the count query when search is active (references u.first_name etc.)
+  const countJoin = search ? 'LEFT JOIN users u ON o.user_id = u.id' : '';
 
   // Count total
   const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM orders o WHERE ${whereClause}`,
+    `SELECT COUNT(*) as count FROM orders o ${countJoin} WHERE ${whereClause}`,
     params
   );
 

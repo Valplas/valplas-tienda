@@ -58,6 +58,7 @@ export interface UserFilters {
   search?: string;
   page?: number;
   limit?: number;
+  sort?: 'first_name' | 'created_at';
 }
 
 export interface UserStats {

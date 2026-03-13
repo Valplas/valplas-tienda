@@ -39,8 +39,8 @@ export const listOrdersSchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   status: z.enum(ORDER_STATUSES).optional(),
-  from_date: z.string().datetime().optional(),
-  to_date: z.string().datetime().optional(),
+  from_date: z.string().optional(),
+  to_date: z.string().optional(),
   order_number: z.string().optional()
 });
 
@@ -60,7 +60,8 @@ export const createAdminOrderSchema = z.object({
 
 export const adminListOrdersSchema = listOrdersSchema
   .extend({
-    user_id: z.string().uuid().optional()
+    user_id: z.string().uuid().optional(),
+    search: z.string().optional()
   })
   .extend({
     limit: z.coerce.number().int().min(1).max(500).optional().default(20)

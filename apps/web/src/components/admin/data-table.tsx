@@ -92,18 +92,34 @@ export function DataTable<TData>({
 
   const selectedRows = table.getFilteredSelectedRowModel().rows.map((row) => row.original);
 
-  // Debounced search — server-side when onSearch is provided, otherwise client-side via TanStack
+  // Keep a stable ref to table.getColumn so it doesn't need to be a dep in the effect
+  const tableRef = React.useRef(table);
+  tableRef.current = table;
+
+  // Track whether the user has performed at least one search, so we know when to call onSearch('')
+  // to clear results. Without this, DataTable would call onSearch('') on initial mount and trigger
+  // a React 19 warning ("state update on a component that hasn't mounted yet").
+  const hasSearchedRef = React.useRef(false);
+
+  // Debounced search — server-side when onSearch is provided, otherwise client-side via TanStack.
+  // For server-side (onSearch), only trigger when ≥3 chars, or when clearing after a prior search.
   React.useEffect(() => {
     const timer = setTimeout(() => {
       if (onSearch) {
-        onSearch(searchValue);
+        if (searchValue.length >= 3) {
+          hasSearchedRef.current = true;
+          onSearch(searchValue);
+        } else if (searchValue.length === 0 && hasSearchedRef.current) {
+          hasSearchedRef.current = false;
+          onSearch('');
+        }
       } else if (searchKey) {
-        table.getColumn(String(searchKey))?.setFilterValue(searchValue);
+        tableRef.current.getColumn(String(searchKey))?.setFilterValue(searchValue);
       }
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [searchValue, searchKey, onSearch, table]);
+  }, [searchValue, searchKey, onSearch]);
 
   React.useEffect(() => {
     if (!onSelectionChange) return;
