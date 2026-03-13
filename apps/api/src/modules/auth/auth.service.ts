@@ -151,7 +151,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<string> 
 /**
  * Generar access token (JWT)
  */
-function generateAccessToken(user: { id: string; email: string; role: string }): string {
+function generateAccessToken(user: { id: string; email: string | null; role: string }): string {
   const payload: JwtPayload = {
     userId: user.id,
     email: user.email,

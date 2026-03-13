@@ -170,7 +170,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
-            label="Precio de costo"
+            label="Precio base"
             type="number"
             step="0.01"
             placeholder="1234"

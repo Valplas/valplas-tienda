@@ -167,7 +167,7 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
   // Build shipping_address object from denormalized columns
   const shipping_address = order.shipping_street
     ? {
-        id: order.id,
+        id: order.shipping_address_id ?? order.id,
         user_id: order.user_id,
         alias: 'Dirección de entrega',
         street: order.shipping_street,

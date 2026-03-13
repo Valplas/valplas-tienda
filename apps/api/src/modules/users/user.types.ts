@@ -4,11 +4,11 @@ export type UserRole = 'owner' | 'admin' | 'driver' | 'customer';
 
 export interface User {
   id: string;
-  email: string;
+  email: string | null;
   username: string;
   phone: string | null;
   first_name: string;
-  last_name: string;
+  last_name: string | null;
   role: UserRole;
   is_active: boolean;
   email_verified: boolean;

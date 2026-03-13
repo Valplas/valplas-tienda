@@ -93,26 +93,6 @@ router.post('/', validate(createOrderSchema, 'body'), orderController.createOrde
 
 /**
  * @swagger
- * /api/orders/{id}:
- *   get:
- *     summary: Get order by ID
- *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Order details
- */
-router.get('/:id', orderController.getOrderById);
-
-/**
- * @swagger
  * /api/orders/number/{orderNumber}:
  *   get:
  *     summary: Get order by order number
@@ -130,6 +110,26 @@ router.get('/:id', orderController.getOrderById);
  *         description: Order details
  */
 router.get('/number/:orderNumber', orderController.getOrderByNumber);
+
+/**
+ * @swagger
+ * /api/orders/{id}:
+ *   get:
+ *     summary: Get order by ID
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Order details
+ */
+router.get('/:id', orderController.getOrderById);
 
 /**
  * @swagger
