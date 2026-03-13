@@ -11,14 +11,21 @@ export const productSchema = z.object({
   name: z.string().min(3, 'Mínimo 3 caracteres'),
   sku: z
     .string()
-    .min(1, 'SKU requerido')
-    .regex(/^[a-zA-Z0-9-]+$/, 'SKU solo puede contener letras, números y guiones'),
+    .regex(/^[a-zA-Z0-9-]*$/, 'SKU solo puede contener letras, números y guiones')
+    .optional(),
   description: z.string().min(10, 'Mínimo 10 caracteres'),
-  base_price: z.number().min(0, 'Precio debe ser mayor a 0'),
-  stock: z.number().min(0, 'Stock no puede ser negativo'),
+  base_price: z
+    .number({ message: 'Precio de costo requerido' })
+    .min(0, 'Debe ser mayor o igual a 0'),
+  stock: z.number({ message: 'Cantidad requerida' }).min(0, 'No puede ser negativo'),
   category_id: z.string().min(1, 'Seleccioná una categoría'),
-  brand_id: z.string().min(1, 'Seleccioná una marca'),
+  brand_id: z.string().optional(),
   unit: z.string().optional(),
+  weight: z.number().min(0).optional(),
+  width: z.number().min(0).optional(),
+  length: z.number().min(0).optional(),
+  height: z.number().min(0).optional(),
+  origin: z.string().max(100).optional(),
   is_featured: z.boolean(),
   is_active: z.boolean()
 });

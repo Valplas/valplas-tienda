@@ -33,9 +33,14 @@ export default function NewProductPage() {
         description: data.description,
         basePrice: price,
         categoryId: data.category_id,
-        brandId: data.brand_id,
-        sku: data.sku.toUpperCase(),
+        brandId: data.brand_id || undefined,
+        sku: data.sku?.toUpperCase() || generateSlug(data.name).toUpperCase(),
         stock: data.stock,
+        weight: data.weight,
+        width: data.width,
+        length: data.length,
+        height: data.height,
+        origin: data.origin,
         isFeatured: data.is_featured,
         isActive: data.is_active ?? true
       });

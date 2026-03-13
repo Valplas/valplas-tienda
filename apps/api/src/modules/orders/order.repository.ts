@@ -180,6 +180,7 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
         latitude: null,
         longitude: null,
         place_id: null,
+        notes: null,
         is_default: false,
         is_active: true,
         created_at: order.created_at,

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { get } from '@/lib/api';
 import { normalizeProduct, updateProduct, type Product } from '@/lib/services/products.service';
 import { parsePriceInput } from '@/lib/formatters';
+import type { ProductFormData } from '@/lib/validations/product';
 
 interface EditProductPageProps {
   params: Promise<{
@@ -61,29 +62,22 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
     loadProduct();
   }, [id, router]);
 
-  const handleSubmit = async (data: {
-    name: string;
-    slug?: string;
-    description?: string;
-    base_price: number;
-    category_id?: string;
-    brand_id?: string;
-    sku?: string;
-    stock?: number;
-    is_featured?: boolean;
-    is_active?: boolean;
-  }) => {
+  const handleSubmit = async (data: ProductFormData & { images?: string[] }) => {
     try {
       const price = parsePriceInput(String(data.base_price));
       await updateProduct(id, {
         name: data.name,
-        slug: data.slug,
         description: data.description,
         basePrice: price,
         categoryId: data.category_id,
-        brandId: data.brand_id,
+        brandId: data.brand_id || undefined,
         sku: data.sku?.toUpperCase(),
         stock: data.stock,
+        weight: data.weight,
+        width: data.width,
+        length: data.length,
+        height: data.height,
+        origin: data.origin,
         isFeatured: data.is_featured,
         isActive: data.is_active
       });

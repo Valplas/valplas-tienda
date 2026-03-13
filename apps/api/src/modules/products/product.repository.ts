@@ -264,9 +264,11 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
   const result = await query<Product>(
     `INSERT INTO products (
       sku, name, slug, description, category_id, brand_id,
-      base_price, cost_price, stock, is_featured, is_active
+      base_price, cost_price, stock,
+      weight, width, length, height, origin,
+      is_featured, is_active
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     RETURNING *`,
     [
       data.sku,
@@ -278,6 +280,11 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
       data.basePrice,
       data.costPrice || 0,
       data.stock || 0,
+      data.weight ?? null,
+      data.width ?? null,
+      data.length ?? null,
+      data.height ?? null,
+      data.origin || null,
       data.isFeatured || false,
       true
     ]
@@ -348,6 +355,36 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
     paramIndex++;
   }
 
+  if (data.weight !== undefined) {
+    updates.push(`weight = $${paramIndex}`);
+    params.push(data.weight);
+    paramIndex++;
+  }
+
+  if (data.width !== undefined) {
+    updates.push(`width = $${paramIndex}`);
+    params.push(data.width);
+    paramIndex++;
+  }
+
+  if (data.length !== undefined) {
+    updates.push(`length = $${paramIndex}`);
+    params.push(data.length);
+    paramIndex++;
+  }
+
+  if (data.height !== undefined) {
+    updates.push(`height = $${paramIndex}`);
+    params.push(data.height);
+    paramIndex++;
+  }
+
+  if (data.origin !== undefined) {
+    updates.push(`origin = $${paramIndex}`);
+    params.push(data.origin);
+    paramIndex++;
+  }
+
   if (data.isActive !== undefined) {
     updates.push(`is_active = $${paramIndex}`);
     params.push(data.isActive);
@@ -401,6 +438,11 @@ function transformProductRow(row: Record<string, unknown>): ProductWithDetails {
     stock: row.stock,
     reserved_stock: row.reserved_stock,
     availableStock: row.available_stock,
+    weight: row.weight ?? null,
+    width: row.width ?? null,
+    length: row.length ?? null,
+    height: row.height ?? null,
+    origin: row.origin ?? null,
     is_featured: row.is_featured,
     is_active: row.is_active,
     images: row.images || [],

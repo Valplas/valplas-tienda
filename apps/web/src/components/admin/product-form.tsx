@@ -21,6 +21,9 @@ import { ImageUpload } from '@/components/admin/image-upload';
 import { cn } from '@/lib/utils';
 import { getCategories, getBrands } from '@/services';
 
+const toNumber = (v: string) => (v === '' ? undefined : Number(v));
+const toRequiredNumber = (v: string) => (v === '' ? NaN : Number(v));
+
 export interface ProductFormProps {
   product?: Product;
   onSubmit: (data: ProductFormData & { images?: string[] }) => Promise<void>;
@@ -52,13 +55,17 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           category_id: product.category_id,
           brand_id: product.brand_id,
           unit: product.unit,
+          weight: product.weight ?? undefined,
+          width: product.width ?? undefined,
+          length: product.length ?? undefined,
+          height: product.height ?? undefined,
+          origin: product.origin ?? undefined,
           is_featured: product.is_featured,
           is_active: product.is_active
         }
       : {
           is_featured: false,
           is_active: true,
-          base_price: 0,
           stock: 0
         }
   });
@@ -68,13 +75,11 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const isFeatured = watch('is_featured');
   const isActive = watch('is_active');
 
-  // Load categories and brands on mount
   React.useEffect(() => {
     const loadData = async () => {
       setIsLoadingData(true);
       try {
         const [categoriesData, brandsData] = await Promise.all([getCategories(), getBrands()]);
-
         setCategories(categoriesData.filter((c) => c.is_active));
         setBrands(brandsData.filter((b) => b.is_active));
       } catch (error) {
@@ -101,69 +106,145 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      {/* Basic Info */}
+      {/* Información del Producto */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Información Básica</h2>
+        <h2 className="text-lg font-semibold">Información del Producto</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
-            label="Nombre del Producto"
+            label="Nombre"
+            placeholder="Nombre del producto"
             required
             error={errors.name?.message}
             {...register('name')}
           />
 
           <FormField
-            label="SKU"
+            label="Descripción"
+            placeholder="Descripción del producto"
             required
+            error={errors.description?.message}
+            {...register('description')}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Marca */}
+          <div className="relative pb-5">
+            <Label>Fabricante</Label>
+            <Select value={brandId} onValueChange={(value) => setValue('brand_id', value)}>
+              <SelectTrigger
+                className={cn(
+                  errors.brand_id && 'border-destructive focus-visible:ring-destructive'
+                )}
+              >
+                <SelectValue placeholder="Fabricante del producto" />
+              </SelectTrigger>
+              <SelectContent>
+                {isLoadingData ? (
+                  <div className="p-2 text-sm text-muted-foreground">Cargando...</div>
+                ) : (
+                  brands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.id}>
+                      {brand.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {errors.brand_id && (
+              <p className="absolute top-full left-0 text-xs text-destructive mt-1">
+                {errors.brand_id.message}
+              </p>
+            )}
+          </div>
+
+          <FormField
+            label="Código"
+            placeholder="Código del producto"
             error={errors.sku?.message}
-            helperText="Código único (se convertirá a mayúsculas automáticamente)"
+            helperText="Se convertirá a mayúsculas automáticamente"
             {...register('sku')}
           />
         </div>
 
-        <FormField
-          label="Descripción"
-          required
-          as="textarea"
-          rows={4}
-          error={errors.description?.message}
-          {...register('description')}
-        />
-
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <FormField
-            label="Precio Base"
+            label="Precio de costo"
             type="number"
             step="0.01"
+            placeholder="1234"
             required
             error={errors.base_price?.message}
-            {...register('base_price', { valueAsNumber: true })}
+            {...register('base_price', { setValueAs: toRequiredNumber })}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Peso (kg)"
+            type="number"
+            step="0.001"
+            placeholder="Peso en kg"
+            error={errors.weight?.message}
+            {...register('weight', { setValueAs: toNumber })}
           />
 
           <FormField
-            label="Stock"
+            label="Ancho"
             type="number"
+            step="0.01"
+            placeholder="Ancho en cm"
+            error={errors.width?.message}
+            {...register('width', { setValueAs: toNumber })}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Largo"
+            type="number"
+            step="0.01"
+            placeholder="Largo en cm"
+            error={errors.length?.message}
+            {...register('length', { setValueAs: toNumber })}
+          />
+
+          <FormField
+            label="Alto"
+            type="number"
+            step="0.01"
+            placeholder="Alto en cm"
+            error={errors.height?.message}
+            {...register('height', { setValueAs: toNumber })}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Origen"
+            placeholder="Origen del producto"
+            error={errors.origin?.message}
+            {...register('origin')}
+          />
+
+          <FormField
+            label="Cantidad"
+            type="number"
+            placeholder="Cantidad"
             required
             error={errors.stock?.message}
-            {...register('stock', { valueAsNumber: true })}
-          />
-
-          <FormField
-            label="Unidad"
-            placeholder="ej: unidad, pack x 10"
-            error={errors.unit?.message}
-            {...register('unit')}
+            {...register('stock', { setValueAs: toRequiredNumber })}
           />
         </div>
       </div>
 
-      {/* Category and Brand */}
+      {/* Clasificación */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Clasificación</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {/* Category */}
+          {/* Categoría */}
           <div className="relative pb-5">
             <Label className="after:content-['*'] after:ml-0.5 after:text-destructive">
               Categoría
@@ -195,45 +276,22 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             )}
           </div>
 
-          {/* Brand */}
-          <div className="relative pb-5">
-            <Label className="after:content-['*'] after:ml-0.5 after:text-destructive">Marca</Label>
-            <Select value={brandId} onValueChange={(value) => setValue('brand_id', value)}>
-              <SelectTrigger
-                className={cn(
-                  errors.brand_id && 'border-destructive focus-visible:ring-destructive'
-                )}
-              >
-                <SelectValue placeholder="Seleccioná una marca" />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingData ? (
-                  <div className="p-2 text-sm text-muted-foreground">Cargando...</div>
-                ) : (
-                  brands.map((brand) => (
-                    <SelectItem key={brand.id} value={brand.id}>
-                      {brand.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-            {errors.brand_id && (
-              <p className="absolute top-full left-0 text-xs text-destructive mt-1">
-                {errors.brand_id.message}
-              </p>
-            )}
-          </div>
+          <FormField
+            label="Unidad"
+            placeholder="ej: unidad, pack x 10"
+            error={errors.unit?.message}
+            {...register('unit')}
+          />
         </div>
       </div>
 
-      {/* Images */}
+      {/* Imágenes */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Imágenes</h2>
         <ImageUpload value={images} onChange={setImages} maxImages={5} />
       </div>
 
-      {/* Options */}
+      {/* Opciones */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Opciones</h2>
 
