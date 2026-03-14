@@ -93,6 +93,7 @@ import shippingRoutes from './modules/shipping/shipping.routes.js';
 import addressRoutes from './modules/addresses/address.routes.js';
 import orderRoutes from './modules/orders/order.routes.js';
 import userRoutes from './modules/users/user.routes.js';
+import accountingRoutes from './modules/accounting/accounting.routes.js';
 
 // Montar rutas
 app.use('/api/auth', authRoutes);
@@ -105,6 +106,7 @@ app.use('/api/shipping', shippingRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/accounting', accountingRoutes);
 
 // Swagger documentation
 app.use(
