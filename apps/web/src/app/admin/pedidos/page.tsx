@@ -26,10 +26,12 @@ const PAGE_SIZE = 50;
 export default function PedidosPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -42,48 +44,70 @@ export default function PedidosPage() {
     };
   }, []);
 
-  const loadOrders = useCallback(async () => {
-    setIsLoading(true);
-    setPage(1);
-    setHasMore(true);
-    try {
-      const { orders: data } = await getAdminOrders({ page: 1, limit: PAGE_SIZE });
-      if (!isMountedRef.current) return;
-      setOrders(data);
-      setHasMore(data.length === PAGE_SIZE);
-    } catch (error) {
-      if (!isMountedRef.current) return;
-      toast.error('Error al cargar pedidos');
-      console.error(error);
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoading(false);
+  const loadOrders = useCallback(
+    async (searchTerm: string) => {
+      setIsLoading(true);
+      setPage(1);
+      setHasMore(true);
+      try {
+        const { orders: data, total: t } = await getAdminOrders({
+          page: 1,
+          limit: PAGE_SIZE,
+          status: statusFilter,
+          from_date: dateFilter || undefined,
+          to_date: dateFilter ? `${dateFilter}T23:59:59` : undefined,
+          search: searchTerm || undefined
+        });
+        if (!isMountedRef.current) return;
+        setOrders(data);
+        setTotal(t);
+        setHasMore(data.length === PAGE_SIZE);
+      } catch (error) {
+        if (!isMountedRef.current) return;
+        toast.error('Error al cargar pedidos');
+        console.error(error);
+      } finally {
+        if (isMountedRef.current) setIsLoading(false);
       }
-    }
-  }, []);
+    },
+    [statusFilter, dateFilter]
+  );
 
-  const loadMore = useCallback(async (nextPage: number) => {
-    setIsLoadingMore(true);
-    try {
-      const { orders: data } = await getAdminOrders({ page: nextPage, limit: PAGE_SIZE });
-      if (!isMountedRef.current) return;
-      setOrders((prev) => [...prev, ...data]);
-      setHasMore(data.length === PAGE_SIZE);
-      setPage(nextPage);
-    } catch {
-      if (!isMountedRef.current) return;
-      setHasMore(false); // detener el loop si falla
-      toast.error('Error al cargar más pedidos');
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoadingMore(false);
+  const loadMore = useCallback(
+    async (nextPage: number) => {
+      setIsLoadingMore(true);
+      try {
+        const { orders: data } = await getAdminOrders({
+          page: nextPage,
+          limit: PAGE_SIZE,
+          status: statusFilter,
+          from_date: dateFilter || undefined,
+          to_date: dateFilter ? `${dateFilter}T23:59:59` : undefined,
+          search: search || undefined
+        });
+        if (!isMountedRef.current) return;
+        setOrders((prev) => [...prev, ...data]);
+        setHasMore(data.length === PAGE_SIZE);
+        setPage(nextPage);
+      } catch {
+        if (!isMountedRef.current) return;
+        setHasMore(false);
+        toast.error('Error al cargar más pedidos');
+      } finally {
+        if (isMountedRef.current) setIsLoadingMore(false);
       }
-    }
-  }, []);
+    },
+    [statusFilter, dateFilter, search]
+  );
 
+  // Reload from page 1 whenever filters change
   useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+    loadOrders(search);
+  }, [loadOrders, search]);
+
+  const handleSearch = useCallback((value: string) => {
+    setSearch(value);
+  }, []);
 
   // IntersectionObserver for infinite scroll
   useEffect(() => {
@@ -107,15 +131,6 @@ export default function PedidosPage() {
     };
   }, [hasMore, isLoadingMore, isLoading, page, loadMore]);
 
-  // Apply filters client-side
-  const filteredOrders = useMemo(() => {
-    return orders.filter((o) => {
-      if (statusFilter !== 'all' && o.status !== statusFilter) return false;
-      if (dateFilter && dayjs(o.created_at).format('YYYY-MM-DD') !== dateFilter) return false;
-      return true;
-    });
-  }, [orders, statusFilter, dateFilter]);
-
   // Table columns
   const columns = useMemo<ColumnDef<Order>[]>(
     () => [
@@ -137,7 +152,7 @@ export default function PedidosPage() {
           return (
             <div>
               <div className="font-medium">{name ?? row.original.user_id}</div>
-              {user?.email && <div className="text-sm text-muted-foreground">{user.phone}</div>}
+              {user?.phone && <div className="text-sm text-muted-foreground">{user.phone}</div>}
             </div>
           );
         },
@@ -222,7 +237,7 @@ export default function PedidosPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">Fecha:</span>
-          <div className="relative">
+          <div className="flex items-center gap-1">
             <Input
               type="date"
               value={dateFilter}
@@ -233,7 +248,7 @@ export default function PedidosPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute right-0 top-0 h-full w-8"
+                className="h-8 w-8 shrink-0"
                 onClick={() => setDateFilter('')}
               >
                 <X className="h-3 w-3" />
@@ -241,19 +256,15 @@ export default function PedidosPage() {
             )}
           </div>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {filteredOrders.length !== orders.length
-            ? `${filteredOrders.length} de ${orders.length} pedido(s) cargados`
-            : `${orders.length} pedido(s) cargados`}
-        </div>
+        {!isLoading && <div className="text-sm text-muted-foreground">{total} pedido(s)</div>}
       </div>
 
       {/* DataTable */}
       <DataTable
-        data={filteredOrders}
+        data={orders}
         columns={columns}
-        searchKey="order_number"
-        searchPlaceholder="Buscar por número de pedido o cliente..."
+        onSearch={handleSearch}
+        searchPlaceholder="Buscar por N° pedido, cliente, email o teléfono..."
         isLoading={isLoading}
         getRowId={(row) => row.id}
         getRowName={(row) => row.order_number}
@@ -268,7 +279,7 @@ export default function PedidosPage() {
       )}
       {!hasMore && orders.length > 0 && (
         <p className="text-center text-sm text-muted-foreground py-2">
-          {orders.length} pedido(s) en total
+          {orders.length} pedido(s) mostrado(s)
         </p>
       )}
     </div>

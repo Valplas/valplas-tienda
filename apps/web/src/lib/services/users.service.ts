@@ -25,6 +25,7 @@ export interface GetAdminUsersParams {
   search?: string;
   role?: string;
   is_active?: boolean;
+  sort?: 'first_name' | 'created_at';
 }
 
 export async function getAdminUsers(params?: GetAdminUsersParams) {
@@ -34,6 +35,7 @@ export async function getAdminUsers(params?: GetAdminUsersParams) {
   if (params?.search) query.set('search', params.search);
   if (params?.role) query.set('role', params.role);
   if (params?.is_active !== undefined) query.set('is_active', String(params.is_active));
+  if (params?.sort) query.set('sort', params.sort);
 
   const qs = query.toString();
   const res = await get<AdminUser[]>(`/users${qs ? `?${qs}` : ''}`);

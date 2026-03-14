@@ -36,7 +36,7 @@ export async function getMyOrders(req: Request, res: Response, next: NextFunctio
  */
 export async function getAllOrders(req: Request, res: Response, next: NextFunction) {
   try {
-    const { page, limit, user_id, status, from_date, to_date, order_number } = req.query;
+    const { page, limit, user_id, status, from_date, to_date, order_number, search } = req.query;
 
     const result = await orderDomain.getAllOrders({
       page: Number(page) || 1,
@@ -45,7 +45,8 @@ export async function getAllOrders(req: Request, res: Response, next: NextFuncti
       status: status as OrderStatus | undefined,
       from_date: from_date as string,
       to_date: to_date as string,
-      order_number: order_number as string
+      order_number: order_number as string,
+      search: search as string
     });
 
     return res.json(

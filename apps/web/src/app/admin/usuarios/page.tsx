@@ -64,6 +64,7 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'first_name' | 'created_at'>('first_name');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -95,7 +96,8 @@ export default function UsuariosPage() {
           page: 1,
           limit: PAGE_SIZE,
           role: roleFilter === 'all' ? undefined : roleFilter,
-          search: searchTerm || undefined
+          search: searchTerm || undefined,
+          sort: sortBy
         });
         if (!isMountedRef.current) return;
         setUsers(result.users);
@@ -109,7 +111,7 @@ export default function UsuariosPage() {
         }
       }
     },
-    [roleFilter]
+    [roleFilter, sortBy]
   );
 
   const loadMore = useCallback(
@@ -120,7 +122,8 @@ export default function UsuariosPage() {
           page: nextPage,
           limit: PAGE_SIZE,
           role: roleFilter === 'all' ? undefined : roleFilter,
-          search: search || undefined
+          search: search || undefined,
+          sort: sortBy
         });
         if (!isMountedRef.current) return;
         setUsers((prev) => [...prev, ...result.users]);
@@ -136,7 +139,7 @@ export default function UsuariosPage() {
         }
       }
     },
-    [roleFilter, search]
+    [roleFilter, search, sortBy]
   );
 
   useEffect(() => {
@@ -279,10 +282,6 @@ export default function UsuariosPage() {
         )
       },
       {
-        accessorKey: 'email',
-        header: 'Email'
-      },
-      {
         accessorKey: 'phone',
         header: 'Teléfono',
         cell: ({ row }) => row.original.phone || <span className="text-muted-foreground">—</span>
@@ -359,21 +358,32 @@ export default function UsuariosPage() {
       </div>
 
       <div className="flex items-center justify-between gap-4">
-        <Select
-          value={roleFilter}
-          onValueChange={(value) => setRoleFilter(value as UserRole | 'all')}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Filtrar por rol" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los roles</SelectItem>
-            <SelectItem value={UserRole.OWNER}>Dueños</SelectItem>
-            <SelectItem value={UserRole.ADMIN}>Administradores</SelectItem>
-            <SelectItem value={UserRole.DRIVER}>Choferes</SelectItem>
-            <SelectItem value={UserRole.CUSTOMER}>Clientes</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <Select
+            value={roleFilter}
+            onValueChange={(value) => setRoleFilter(value as UserRole | 'all')}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filtrar por rol" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los roles</SelectItem>
+              <SelectItem value={UserRole.OWNER}>Dueños</SelectItem>
+              <SelectItem value={UserRole.ADMIN}>Administradores</SelectItem>
+              <SelectItem value={UserRole.DRIVER}>Choferes</SelectItem>
+              <SelectItem value={UserRole.CUSTOMER}>Clientes</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Ordenar por" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="first_name">Orden alfabético</SelectItem>
+              <SelectItem value="created_at">Fecha de creación</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         <Button onClick={handleCreate}>
           <Plus className="h-4 w-4 mr-2" />

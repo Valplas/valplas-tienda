@@ -15,9 +15,20 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { DeleteConfirmModal } from '@/components/ui/delete-confirm-modal';
 import { Product } from '@/types';
-import { getAdminProducts, deleteProduct } from '@/lib/services/products.service';
+import {
+  getAdminProducts,
+  deleteProduct,
+  type AdminProductSort
+} from '@/lib/services/products.service';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -30,6 +41,7 @@ export default function AdminProductsPage() {
   const [page, setPage] = React.useState(1);
   const [hasMore, setHasMore] = React.useState(true);
   const [search, setSearch] = React.useState('');
+  const [sortBy, setSortBy] = React.useState<AdminProductSort>('name_asc');
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [productToDelete, setProductToDelete] = React.useState<Product | null>(null);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
@@ -42,28 +54,32 @@ export default function AdminProductsPage() {
     };
   }, []);
 
-  const loadProducts = React.useCallback(async (searchTerm: string) => {
-    setIsLoading(true);
-    setPage(1);
-    setHasMore(true);
-    try {
-      const result = await getAdminProducts({
-        page: 1,
-        limit: PAGE_SIZE,
-        search: searchTerm || undefined
-      });
-      if (!isMountedRef.current) return;
-      setProducts(result.products);
-      setHasMore(result.products.length === PAGE_SIZE);
-    } catch {
-      if (!isMountedRef.current) return;
-      toast.error('Error al cargar productos');
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoading(false);
+  const loadProducts = React.useCallback(
+    async (searchTerm: string) => {
+      setIsLoading(true);
+      setPage(1);
+      setHasMore(true);
+      try {
+        const result = await getAdminProducts({
+          page: 1,
+          limit: PAGE_SIZE,
+          search: searchTerm || undefined,
+          sort: sortBy
+        });
+        if (!isMountedRef.current) return;
+        setProducts(result.products);
+        setHasMore(result.products.length === PAGE_SIZE);
+      } catch {
+        if (!isMountedRef.current) return;
+        toast.error('Error al cargar productos');
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
       }
-    }
-  }, []);
+    },
+    [sortBy]
+  );
 
   const loadMore = React.useCallback(
     async (nextPage: number) => {
@@ -72,7 +88,8 @@ export default function AdminProductsPage() {
         const result = await getAdminProducts({
           page: nextPage,
           limit: PAGE_SIZE,
-          search: search || undefined
+          search: search || undefined,
+          sort: sortBy
         });
         if (!isMountedRef.current) return;
         setProducts((prev) => [...prev, ...result.products]);
@@ -88,7 +105,7 @@ export default function AdminProductsPage() {
         }
       }
     },
-    [search]
+    [search, sortBy]
   );
 
   React.useEffect(() => {
@@ -279,6 +296,25 @@ export default function AdminProductsPage() {
             Nuevo Producto
           </Link>
         </Button>
+      </div>
+
+      {/* Sort selector */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Ordenar por:</span>
+        <Select value={sortBy} onValueChange={(value) => setSortBy(value as AdminProductSort)}>
+          <SelectTrigger className="w-[220px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name_asc">Nombre A → Z</SelectItem>
+            <SelectItem value="name_desc">Nombre Z → A</SelectItem>
+            <SelectItem value="price_asc">Precio: menor a mayor</SelectItem>
+            <SelectItem value="price_desc">Precio: mayor a menor</SelectItem>
+            <SelectItem value="stock_desc">Stock: mayor a menor</SelectItem>
+            <SelectItem value="stock_asc">Stock: menor a mayor</SelectItem>
+            <SelectItem value="updated_desc">Última modificación</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* DataTable */}

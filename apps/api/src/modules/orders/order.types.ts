@@ -127,6 +127,7 @@ export interface OrderFilters {
   from_date?: string;
   to_date?: string;
   order_number?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }

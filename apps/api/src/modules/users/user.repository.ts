@@ -15,7 +15,15 @@ import type {
  * Find users with filters and pagination
  */
 export async function findUsers(filters: UserFilters): Promise<{ users: User[]; total: number }> {
-  const { role, is_active, email_verified, search, page = 1, limit = 20 } = filters;
+  const {
+    role,
+    is_active,
+    email_verified,
+    search,
+    page = 1,
+    limit = 20,
+    sort = 'first_name'
+  } = filters;
 
   const offset = (page - 1) * limit;
   const conditions: string[] = ['deleted_at IS NULL'];
@@ -76,7 +84,7 @@ export async function findUsers(filters: UserFilters): Promise<{ users: User[]; 
             is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
      FROM users
      WHERE ${whereClause}
-     ORDER BY created_at DESC
+     ORDER BY ${sort === 'first_name' ? 'first_name ASC, last_name ASC' : 'created_at DESC'}
      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
     [...params, limit, offset]
   );

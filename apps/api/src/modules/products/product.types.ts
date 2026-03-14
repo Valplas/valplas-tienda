@@ -13,7 +13,17 @@ export interface ProductFilters {
   featured?: boolean;
   page?: number;
   limit?: number;
-  sort?: 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc' | 'newest' | 'oldest';
+  sort?:
+    | 'price_asc'
+    | 'price_desc'
+    | 'name_asc'
+    | 'name_desc'
+    | 'newest'
+    | 'oldest'
+    | 'stock_asc'
+    | 'stock_desc'
+    | 'updated_desc'
+    | 'updated_asc';
 }
 
 /**
