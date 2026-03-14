@@ -52,7 +52,7 @@ export const createAdminOrderItemSchema = z.object({
 
 export const createAdminOrderSchema = z.object({
   user_id: z.string().uuid(),
-  shipping_address_id: z.string().uuid(),
+  shipping_address_id: z.string().uuid().nullable().optional(),
   items: z.array(createAdminOrderItemSchema).min(1),
   notes: z.string().max(1000).optional(),
   payment_method: z.string().max(50).optional()

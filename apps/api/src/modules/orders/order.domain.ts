@@ -255,10 +255,31 @@ export async function createAdminOrder(
   adminId: string,
   data: CreateAdminOrderInput
 ): Promise<OrderWithDetails> {
-  // Validate address belongs to user
-  const address = await addressRepository.findAddressById(data.shipping_address_id);
-  if (!address || address.user_id !== data.user_id || !address.is_active) {
-    throw new Error('Dirección de envío inválida');
+  // Validate address if provided
+  let addressSnapshot = {
+    shipping_street: '',
+    shipping_street_number: '',
+    shipping_floor: null as string | null,
+    shipping_apartment: null as string | null,
+    shipping_city: '',
+    shipping_province: '',
+    shipping_postcode: ''
+  };
+
+  if (data.shipping_address_id) {
+    const address = await addressRepository.findAddressById(data.shipping_address_id);
+    if (!address || address.user_id !== data.user_id || !address.is_active) {
+      throw new Error('Dirección de envío inválida');
+    }
+    addressSnapshot = {
+      shipping_street: address.street,
+      shipping_street_number: address.street_number,
+      shipping_floor: address.floor ?? null,
+      shipping_apartment: address.apartment ?? null,
+      shipping_city: address.city,
+      shipping_province: address.province,
+      shipping_postcode: address.postcode
+    };
   }
 
   // Validate items and calculate totals
@@ -293,13 +314,7 @@ export async function createAdminOrder(
 
   const order = await orderRepository.createAdminOrder(adminId, {
     ...data,
-    shipping_street: address.street,
-    shipping_street_number: address.street_number,
-    shipping_floor: address.floor ?? null,
-    shipping_apartment: address.apartment ?? null,
-    shipping_city: address.city,
-    shipping_province: address.province,
-    shipping_postcode: address.postcode,
+    ...addressSnapshot,
     items: validatedItems,
     subtotal,
     total: subtotal

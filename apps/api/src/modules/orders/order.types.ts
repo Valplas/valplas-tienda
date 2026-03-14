@@ -91,7 +91,7 @@ export interface CreateOrderInput {
 
 export interface CreateAdminOrderInput {
   user_id: string;
-  shipping_address_id: string;
+  shipping_address_id?: string | null;
   items: CreateAdminOrderItemInput[];
   notes?: string;
   payment_method?: string;

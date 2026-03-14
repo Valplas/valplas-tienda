@@ -189,7 +189,7 @@ export interface AdminCreateOrderItem {
 
 export async function adminCreateOrder(data: {
   user_id: string;
-  shipping_address_id: string;
+  shipping_address_id?: string;
   items: AdminCreateOrderItem[];
   notes?: string;
   payment_method?: string;
