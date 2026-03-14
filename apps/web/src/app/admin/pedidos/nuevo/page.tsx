@@ -298,9 +298,8 @@ export default function NuevoPedidoPage() {
         shipping_address_id: selectedAddressId || undefined,
         items: items.map((i) => ({
           product_id: i.product_id,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          price_list_id: i.price_list_id || undefined
+          price_list_id: i.price_list_id,
+          quantity: i.quantity
         })),
         notes: notes || undefined,
         payment_method: 'manual'
@@ -512,7 +511,7 @@ export default function NuevoPedidoPage() {
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-h-48 overflow-y-auto">
                           {priceLists.map((pl) => (
                             <SelectItem key={pl.id} value={pl.id}>
                               {pl.name}

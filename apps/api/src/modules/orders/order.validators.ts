@@ -47,8 +47,13 @@ export const listOrdersSchema = z.object({
 export const createAdminOrderItemSchema = z.object({
   product_id: z.string().uuid(),
   quantity: z.number().int().min(1),
-  unit_price: z.number().positive(),
-  price_list_id: z.string().uuid().nullable().optional()
+  price_list_id: z.string().uuid()
+});
+
+export const updateAdminOrderItemSchema = z.object({
+  product_id: z.string().uuid(),
+  quantity: z.number().int().min(0),
+  price_list_id: z.string().uuid()
 });
 
 export const createAdminOrderSchema = z.object({
@@ -70,5 +75,5 @@ export const adminListOrdersSchema = listOrdersSchema
 
 export const updateAdminOrderSchema = z.object({
   shipping_address_id: z.string().uuid(),
-  items: z.array(createAdminOrderItemSchema).min(1)
+  items: z.array(updateAdminOrderItemSchema).min(1)
 });

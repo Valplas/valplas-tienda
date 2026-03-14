@@ -47,6 +47,19 @@ const navItems: NavItem[] = [
     icon: Package
   },
   {
+    title: 'Usuarios',
+    href: '/admin/usuarios',
+    icon: Users,
+    roles: [UserRole.OWNER]
+  },
+  {
+    title: 'Contabilidad',
+    href: '/admin/contabilidad',
+    icon: Calculator,
+    roles: [UserRole.ADMIN, UserRole.OWNER]
+  },
+
+  {
     title: 'Categorías',
     href: '/admin/categorias',
     icon: FolderTree
@@ -66,18 +79,6 @@ const navItems: NavItem[] = [
     title: 'Envíos',
     href: '/admin/envios',
     icon: Truck
-  },
-  {
-    title: 'Contabilidad',
-    href: '/admin/contabilidad',
-    icon: Calculator,
-    roles: [UserRole.ADMIN, UserRole.OWNER]
-  },
-  {
-    title: 'Usuarios',
-    href: '/admin/usuarios',
-    icon: Users,
-    roles: [UserRole.OWNER]
   }
 ];
 
@@ -148,7 +149,7 @@ function AdminSidebarContent({
                   collapsed && 'justify-center'
                 )}
               >
-                <Icon className={cn('h-5 w-5 flex-shrink-0', collapsed && 'h-6 w-6')} />
+                <Icon className={cn('h-5 w-5 shrink-0', collapsed && 'h-6 w-6')} />
                 {!collapsed && <span>{item.title}</span>}
               </Link>
             );

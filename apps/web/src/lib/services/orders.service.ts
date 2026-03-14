@@ -183,14 +183,14 @@ export async function updateOrderStatus(id: string, status: string): Promise<Ord
 
 export interface AdminCreateOrderItem {
   product_id: string;
+  price_list_id: string;
   quantity: number;
-  unit_price: number;
 }
 
 export async function adminCreateOrder(data: {
   user_id: string;
   shipping_address_id?: string;
-  items: Array<AdminCreateOrderItem & { price_list_id?: string }>;
+  items: AdminCreateOrderItem[];
   notes?: string;
   payment_method?: string;
 }): Promise<Order> {
@@ -201,8 +201,8 @@ export async function adminCreateOrder(data: {
 
 export interface AdminUpdateOrderItem {
   product_id: string;
+  price_list_id: string;
   quantity: number;
-  unit_price: number;
 }
 
 export async function adminUpdateOrder(

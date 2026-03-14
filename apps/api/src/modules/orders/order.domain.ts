@@ -4,6 +4,7 @@ import * as orderRepository from './order.repository.js';
 import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
 import { findProductById } from '../products/product.repository.js';
+import { calculatePrice } from '../price-lists/price-list.service.js';
 import { VALID_STATUS_TRANSITIONS } from './order.types.js';
 import type {
   Order,
@@ -282,7 +283,7 @@ export async function createAdminOrder(
     };
   }
 
-  // Validate items and calculate totals
+  // Validate items, calculate prices server-side, and build totals
   let subtotal = 0;
   const validatedItems = [];
 
@@ -299,16 +300,17 @@ export async function createAdminOrder(
       );
     }
 
-    const itemSubtotal = Math.round(item.unit_price * item.quantity * 100) / 100;
-    subtotal += itemSubtotal;
+    const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
+
+    subtotal += Math.round(unitPrice * item.quantity * 100) / 100;
     validatedItems.push({
       product_id: item.product_id,
       product_name: product.name,
       product_sku: product.sku,
       quantity: item.quantity,
-      unit_price: item.unit_price,
-      price_list_id: item.price_list_id ?? null,
-      cost_price_snapshot: product.cost_price ?? null
+      unit_price: unitPrice,
+      price_list_id: item.price_list_id,
+      cost_price_snapshot: costPrice
     });
   }
 
@@ -350,21 +352,27 @@ export async function updateAdminOrder(
     throw new Error('Dirección de envío inválida');
   }
 
-  // Validate + enrich items with name/sku from DB
+  // Filter out items with quantity = 0, validate and calculate prices server-side
+  const activeItems = data.items.filter((i) => i.quantity > 0);
+  if (activeItems.length === 0) {
+    throw new Error('El pedido debe tener al menos un producto con cantidad mayor a 0');
+  }
+
   const enrichedItems = [];
-  for (const item of data.items) {
+  for (const item of activeItems) {
     const product = await findProductById(item.product_id);
     if (!product || !product.is_active) {
       throw new Error(`Producto ${item.product_id} no encontrado o inactivo`);
     }
+    const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
     enrichedItems.push({
       product_id: item.product_id,
       product_name: product.name,
       product_sku: product.sku,
       quantity: item.quantity,
-      unit_price: item.unit_price,
-      price_list_id: item.price_list_id ?? null,
-      cost_price_snapshot: product.cost_price ?? null
+      unit_price: unitPrice,
+      price_list_id: item.price_list_id,
+      cost_price_snapshot: costPrice
     });
   }
 

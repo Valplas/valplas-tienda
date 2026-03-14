@@ -286,9 +286,20 @@ export async function createOrder(
 /**
  * Create order by admin with pre-calculated prices
  */
+interface EnrichedAdminOrderItem {
+  product_id: string;
+  product_name: string;
+  product_sku: string;
+  quantity: number;
+  unit_price: number;
+  price_list_id: string;
+  cost_price_snapshot: number;
+}
+
 export async function createAdminOrder(
   adminId: string,
-  data: CreateAdminOrderInput & {
+  data: Omit<CreateAdminOrderInput, 'items'> & {
+    items: EnrichedAdminOrderItem[];
     shipping_street: string;
     shipping_street_number: string;
     shipping_floor?: string | null;
@@ -336,8 +347,6 @@ export async function createAdminOrder(
     const order = orderResult.rows[0];
 
     for (const item of data.items) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const enriched = item as any;
       await client.query(
         `INSERT INTO order_items
            (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
@@ -350,8 +359,8 @@ export async function createAdminOrder(
           item.quantity,
           item.unit_price,
           item.unit_price * item.quantity,
-          enriched.price_list_id ?? null,
-          enriched.cost_price_snapshot ?? null
+          item.price_list_id ?? null,
+          item.cost_price_snapshot ?? null
         ]
       );
     }
@@ -482,13 +491,7 @@ export async function isOrderOwnedByUser(orderId: string, userId: string): Promi
 }
 
 interface UpdateAdminOrderData {
-  items: Array<{
-    product_id: string;
-    product_name: string;
-    product_sku: string;
-    quantity: number;
-    unit_price: number;
-  }>;
+  items: EnrichedAdminOrderItem[];
   shipping_street: string;
   shipping_street_number: string;
   shipping_floor?: string | null;
@@ -569,8 +572,6 @@ export async function updateAdminOrder(
     await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
 
     for (const item of data.items) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const enriched = item as any;
       await client.query(
         `INSERT INTO order_items
            (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
@@ -583,8 +584,8 @@ export async function updateAdminOrder(
           item.quantity,
           item.unit_price,
           Math.round(item.unit_price * item.quantity * 100) / 100,
-          enriched.price_list_id ?? null,
-          enriched.cost_price_snapshot ?? null
+          item.price_list_id ?? null,
+          item.cost_price_snapshot ?? null
         ]
       );
     }
