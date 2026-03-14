@@ -190,7 +190,7 @@ export interface AdminCreateOrderItem {
 export async function adminCreateOrder(data: {
   user_id: string;
   shipping_address_id?: string;
-  items: AdminCreateOrderItem[];
+  items: Array<AdminCreateOrderItem & { price_list_id?: string }>;
   notes?: string;
   payment_method?: string;
 }): Promise<Order> {

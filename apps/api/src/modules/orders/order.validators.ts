@@ -47,7 +47,8 @@ export const listOrdersSchema = z.object({
 export const createAdminOrderItemSchema = z.object({
   product_id: z.string().uuid(),
   quantity: z.number().int().min(1),
-  unit_price: z.number().positive()
+  unit_price: z.number().positive(),
+  price_list_id: z.string().uuid().nullable().optional()
 });
 
 export const createAdminOrderSchema = z.object({

@@ -103,6 +103,7 @@ export interface CreateAdminOrderItemInput {
   product_sku: string;
   quantity: number;
   unit_price: number;
+  price_list_id?: string | null;
 }
 
 export interface UpdateAdminOrderInput {

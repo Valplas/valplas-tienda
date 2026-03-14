@@ -299,7 +299,8 @@ export default function NuevoPedidoPage() {
         items: items.map((i) => ({
           product_id: i.product_id,
           quantity: i.quantity,
-          unit_price: i.unit_price
+          unit_price: i.unit_price,
+          price_list_id: i.price_list_id || undefined
         })),
         notes: notes || undefined,
         payment_method: 'manual'

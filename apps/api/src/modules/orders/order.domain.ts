@@ -306,7 +306,9 @@ export async function createAdminOrder(
       product_name: product.name,
       product_sku: product.sku,
       quantity: item.quantity,
-      unit_price: item.unit_price
+      unit_price: item.unit_price,
+      price_list_id: item.price_list_id ?? null,
+      cost_price_snapshot: product.cost_price ?? null
     });
   }
 
@@ -360,7 +362,9 @@ export async function updateAdminOrder(
       product_name: product.name,
       product_sku: product.sku,
       quantity: item.quantity,
-      unit_price: item.unit_price
+      unit_price: item.unit_price,
+      price_list_id: item.price_list_id ?? null,
+      cost_price_snapshot: product.cost_price ?? null
     });
   }
 

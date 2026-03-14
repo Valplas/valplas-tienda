@@ -336,9 +336,12 @@ export async function createAdminOrder(
     const order = orderResult.rows[0];
 
     for (const item of data.items) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const enriched = item as any;
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO order_items
+           (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           order.id,
           item.product_id,
@@ -346,7 +349,9 @@ export async function createAdminOrder(
           item.product_sku,
           item.quantity,
           item.unit_price,
-          item.unit_price * item.quantity
+          item.unit_price * item.quantity,
+          enriched.price_list_id ?? null,
+          enriched.cost_price_snapshot ?? null
         ]
       );
     }
@@ -564,10 +569,12 @@ export async function updateAdminOrder(
     await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
 
     for (const item of data.items) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const enriched = item as any;
       await client.query(
         `INSERT INTO order_items
-           (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+           (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           orderId,
           item.product_id,
@@ -575,7 +582,9 @@ export async function updateAdminOrder(
           item.product_sku,
           item.quantity,
           item.unit_price,
-          Math.round(item.unit_price * item.quantity * 100) / 100
+          Math.round(item.unit_price * item.quantity * 100) / 100,
+          enriched.price_list_id ?? null,
+          enriched.cost_price_snapshot ?? null
         ]
       );
     }
