@@ -447,6 +447,7 @@ function transformProductRow(row: Record<string, unknown>): ProductWithDetails {
     brandId: row.brand_id,
     brandName: row.brand_name,
     base_price: row.base_price,
+    cost_price: row.cost_price,
     stock: row.stock,
     reserved_stock: row.reserved_stock,
     availableStock: row.available_stock,
