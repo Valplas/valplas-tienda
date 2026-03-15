@@ -499,17 +499,20 @@ async function seedShippingZones(): Promise<void> {
     const zoneResult = await query(
       `INSERT INTO shipping_zones (name, description, base_cost, free_shipping_threshold, is_active)
        VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (name) DO NOTHING
        RETURNING id`,
       [zone.name, zone.description, zone.base_cost, zone.free_shipping_threshold, true]
     );
 
-    const zoneId = zoneResult.rows[0].id;
+    const zoneId = zoneResult.rows[0]?.id;
+    if (!zoneId) continue; // already exists
 
     // Insert postcodes for this zone
     for (const postcode of zone.postcodes) {
       await query(
         `INSERT INTO zone_postcodes (zone_id, postcode, is_excluded)
-         VALUES ($1, $2, $3)`,
+         VALUES ($1, $2, $3)
+         ON CONFLICT DO NOTHING`,
         [zoneId, postcode, false]
       );
     }
@@ -518,8 +521,12 @@ async function seedShippingZones(): Promise<void> {
   logger.info('Shipping zones seeded successfully');
 }
 
-// Run seed if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run seed if called directly (compatible con Windows y Unix)
+const isMain =
+  import.meta.url === `file://${process.argv[1]}` ||
+  import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`;
+
+if (isMain) {
   seedDatabase()
     .then(() => {
       logger.info('Seed completed');

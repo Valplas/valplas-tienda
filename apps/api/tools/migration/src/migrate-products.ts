@@ -108,7 +108,7 @@ for (const row of rows.rows) {
         brandId,
         costPrice,
         costPrice,
-        row.Quantity ?? 0,
+        Math.max(Number(row.Quantity) || 0, 0),
         !row.IsDeleted,
         deletedAt
       ]

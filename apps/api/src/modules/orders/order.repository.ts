@@ -25,10 +25,10 @@ export async function generateOrderNumber(prefix: 'VLP' | 'ADM'): Promise<string
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
   const year = dateStr.slice(0, 4);
 
-  // Count all orders this year for this prefix (yearly counter)
+  // Global yearly counter across all prefixes (VLP + ADM)
   const result = await query<{ count: string }>(
-    'SELECT COUNT(*) as count FROM orders WHERE order_number LIKE $1',
-    [`${prefix}-${year}%`]
+    'SELECT COUNT(*) as count FROM orders WHERE EXTRACT(YEAR FROM created_at) = $1',
+    [year]
   );
 
   const count = parseInt(result.rows[0].count, 10);

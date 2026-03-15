@@ -30,12 +30,13 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Package, Pencil, User, MapPin, CreditCard, Truck } from 'lucide-react';
+import { ArrowLeft, Package, Pencil, Printer, User, MapPin, CreditCard, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dayjs from 'dayjs';
+import { printOrder } from '@/lib/generate-order-pdf';
 
 export default function PedidoDetailPage({
   params: paramsPromise
@@ -133,6 +134,10 @@ export default function PedidoDetailPage({
             </Link>
           </Button>
         )}
+        <Button variant="outline" onClick={() => printOrder(order)}>
+          <Printer className="h-4 w-4 mr-2" />
+          Imprimir
+        </Button>
         <OrderStatusBadge status={order.status} />
       </div>
 
