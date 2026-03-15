@@ -91,7 +91,7 @@ export interface CreateOrderInput {
 
 export interface CreateAdminOrderInput {
   user_id: string;
-  shipping_address_id: string;
+  shipping_address_id?: string | null;
   items: CreateAdminOrderItemInput[];
   notes?: string;
   payment_method?: string;
@@ -99,15 +99,19 @@ export interface CreateAdminOrderInput {
 
 export interface CreateAdminOrderItemInput {
   product_id: string;
-  product_name: string;
-  product_sku: string;
+  price_list_id: string;
   quantity: number;
-  unit_price: number;
+}
+
+export interface UpdateAdminOrderItemInput {
+  product_id: string;
+  price_list_id: string;
+  quantity: number;
 }
 
 export interface UpdateAdminOrderInput {
   shipping_address_id: string;
-  items: CreateAdminOrderItemInput[];
+  items: UpdateAdminOrderItemInput[];
 }
 
 export interface CreateOrderItemInput {

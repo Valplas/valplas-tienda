@@ -4,6 +4,7 @@ import * as orderRepository from './order.repository.js';
 import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
 import { findProductById } from '../products/product.repository.js';
+import { calculatePrice } from '../price-lists/price-list.service.js';
 import { VALID_STATUS_TRANSITIONS } from './order.types.js';
 import type {
   Order,
@@ -255,13 +256,34 @@ export async function createAdminOrder(
   adminId: string,
   data: CreateAdminOrderInput
 ): Promise<OrderWithDetails> {
-  // Validate address belongs to user
-  const address = await addressRepository.findAddressById(data.shipping_address_id);
-  if (!address || address.user_id !== data.user_id || !address.is_active) {
-    throw new Error('Dirección de envío inválida');
+  // Validate address if provided
+  let addressSnapshot = {
+    shipping_street: '',
+    shipping_street_number: '',
+    shipping_floor: null as string | null,
+    shipping_apartment: null as string | null,
+    shipping_city: '',
+    shipping_province: '',
+    shipping_postcode: ''
+  };
+
+  if (data.shipping_address_id) {
+    const address = await addressRepository.findAddressById(data.shipping_address_id);
+    if (!address || address.user_id !== data.user_id || !address.is_active) {
+      throw new Error('Dirección de envío inválida');
+    }
+    addressSnapshot = {
+      shipping_street: address.street,
+      shipping_street_number: address.street_number,
+      shipping_floor: address.floor ?? null,
+      shipping_apartment: address.apartment ?? null,
+      shipping_city: address.city,
+      shipping_province: address.province,
+      shipping_postcode: address.postcode
+    };
   }
 
-  // Validate items and calculate totals
+  // Validate items, calculate prices server-side, and build totals
   let subtotal = 0;
   const validatedItems = [];
 
@@ -278,14 +300,17 @@ export async function createAdminOrder(
       );
     }
 
-    const itemSubtotal = Math.round(item.unit_price * item.quantity * 100) / 100;
-    subtotal += itemSubtotal;
+    const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
+
+    subtotal += Math.round(unitPrice * item.quantity * 100) / 100;
     validatedItems.push({
       product_id: item.product_id,
       product_name: product.name,
       product_sku: product.sku,
       quantity: item.quantity,
-      unit_price: item.unit_price
+      unit_price: unitPrice,
+      price_list_id: item.price_list_id,
+      cost_price_snapshot: costPrice
     });
   }
 
@@ -293,13 +318,7 @@ export async function createAdminOrder(
 
   const order = await orderRepository.createAdminOrder(adminId, {
     ...data,
-    shipping_street: address.street,
-    shipping_street_number: address.street_number,
-    shipping_floor: address.floor ?? null,
-    shipping_apartment: address.apartment ?? null,
-    shipping_city: address.city,
-    shipping_province: address.province,
-    shipping_postcode: address.postcode,
+    ...addressSnapshot,
     items: validatedItems,
     subtotal,
     total: subtotal
@@ -333,19 +352,27 @@ export async function updateAdminOrder(
     throw new Error('Dirección de envío inválida');
   }
 
-  // Validate + enrich items with name/sku from DB
+  // Filter out items with quantity = 0, validate and calculate prices server-side
+  const activeItems = data.items.filter((i) => i.quantity > 0);
+  if (activeItems.length === 0) {
+    throw new Error('El pedido debe tener al menos un producto con cantidad mayor a 0');
+  }
+
   const enrichedItems = [];
-  for (const item of data.items) {
+  for (const item of activeItems) {
     const product = await findProductById(item.product_id);
     if (!product || !product.is_active) {
       throw new Error(`Producto ${item.product_id} no encontrado o inactivo`);
     }
+    const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
     enrichedItems.push({
       product_id: item.product_id,
       product_name: product.name,
       product_sku: product.sku,
       quantity: item.quantity,
-      unit_price: item.unit_price
+      unit_price: unitPrice,
+      price_list_id: item.price_list_id,
+      cost_price_snapshot: costPrice
     });
   }
 

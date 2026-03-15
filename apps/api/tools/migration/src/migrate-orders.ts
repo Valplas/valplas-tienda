@@ -11,7 +11,7 @@ import { source, target, closeAll } from './db.ts';
 const rows = await source.query(`
   SELECT o."OrderID", o."ClientID", o."OrderNumber",
          o."OrderStatus", o."OrderDate",
-         o."Total", o."TotalAmount",
+         o."Amount", o."TotalAmount",
          o."Address", o."IsDeleted"
   FROM "Orders" o
   WHERE o."IsDeleted" = false
@@ -47,11 +47,12 @@ for (const row of rows.rows) {
       date.getFullYear().toString() +
       String(date.getMonth() + 1).padStart(2, '0') +
       String(date.getDate()).padStart(2, '0');
-    const orderNumber = `VLP-${ymd}-${String(row.OrderNumber).padStart(4, '0')}`;
+    const orderNumber = `VLP-${ymd}-${String(row.OrderNumber).padStart(6, '0')}`;
 
-    // Totals in pesos ARS (TotalAmount → subtotal, Total → total)
-    const subtotal = parseFloat(row.TotalAmount || '0') || 0;
-    const total = parseFloat(row.Total || row.TotalAmount || '0') || 0;
+    // Totals in pesos ARS: Amount → subtotal, TotalAmount → total, shipping_cost derived
+    const subtotal = parseFloat(row.Amount || '0') || 0;
+    const total = parseFloat(row.TotalAmount || '0') || 0;
+    const shippingCost = Math.max(total - subtotal, 0);
 
     // Shipping address: store full address in street, defaults for required fields
     const address = (row.Address || 'Sin dirección').substring(0, 255);
@@ -65,7 +66,7 @@ for (const row of rows.rows) {
         payment_method, delivered_at,
         created_at
       )
-      VALUES ($1,$2,$3,'delivered',$4,0,$5,$6,'S/N','Buenos Aires','Buenos Aires','0000','cash',$7,$8)
+      VALUES ($1,$2,$3,'delivered',$4,$5,$6,$7,'S/N','Buenos Aires','Buenos Aires','0000','cash',$8,$9)
       ON CONFLICT (id) DO UPDATE SET
         order_number = EXCLUDED.order_number,
         subtotal = EXCLUDED.subtotal,
@@ -78,6 +79,7 @@ for (const row of rows.rows) {
         row.ClientID,
         orderNumber,
         subtotal,
+        shippingCost,
         total,
         address,
         new Date(row.OrderDate).toISOString(),

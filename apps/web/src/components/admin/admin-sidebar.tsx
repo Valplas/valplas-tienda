@@ -16,7 +16,8 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  Percent
+  Percent,
+  Calculator
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -36,10 +37,28 @@ const navItems: NavItem[] = [
     icon: LayoutDashboard
   },
   {
+    title: 'Pedidos',
+    href: '/admin/pedidos',
+    icon: ShoppingCart
+  },
+  {
     title: 'Productos',
     href: '/admin/productos',
     icon: Package
   },
+  {
+    title: 'Usuarios',
+    href: '/admin/usuarios',
+    icon: Users,
+    roles: [UserRole.OWNER]
+  },
+  {
+    title: 'Contabilidad',
+    href: '/admin/contabilidad',
+    icon: Calculator,
+    roles: [UserRole.ADMIN, UserRole.OWNER]
+  },
+
   {
     title: 'Categorías',
     href: '/admin/categorias',
@@ -57,20 +76,9 @@ const navItems: NavItem[] = [
     roles: [UserRole.ADMIN, UserRole.OWNER]
   },
   {
-    title: 'Pedidos',
-    href: '/admin/pedidos',
-    icon: ShoppingCart
-  },
-  {
     title: 'Envíos',
     href: '/admin/envios',
     icon: Truck
-  },
-  {
-    title: 'Usuarios',
-    href: '/admin/usuarios',
-    icon: Users,
-    roles: [UserRole.OWNER] // Only visible for owner
   }
 ];
 
@@ -141,7 +149,7 @@ function AdminSidebarContent({
                   collapsed && 'justify-center'
                 )}
               >
-                <Icon className={cn('h-5 w-5 flex-shrink-0', collapsed && 'h-6 w-6')} />
+                <Icon className={cn('h-5 w-5 shrink-0', collapsed && 'h-6 w-6')} />
                 {!collapsed && <span>{item.title}</span>}
               </Link>
             );

@@ -25,10 +25,10 @@ export async function generateOrderNumber(prefix: 'VLP' | 'ADM'): Promise<string
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
   const year = dateStr.slice(0, 4);
 
-  // Count all orders this year for this prefix (yearly counter)
+  // Global yearly counter across all prefixes (VLP + ADM)
   const result = await query<{ count: string }>(
-    'SELECT COUNT(*) as count FROM orders WHERE order_number LIKE $1',
-    [`${prefix}-${year}%`]
+    'SELECT COUNT(*) as count FROM orders WHERE EXTRACT(YEAR FROM created_at) = $1',
+    [year]
   );
 
   const count = parseInt(result.rows[0].count, 10);
@@ -286,9 +286,20 @@ export async function createOrder(
 /**
  * Create order by admin with pre-calculated prices
  */
+interface EnrichedAdminOrderItem {
+  product_id: string;
+  product_name: string;
+  product_sku: string;
+  quantity: number;
+  unit_price: number;
+  price_list_id: string;
+  cost_price_snapshot: number;
+}
+
 export async function createAdminOrder(
   adminId: string,
-  data: CreateAdminOrderInput & {
+  data: Omit<CreateAdminOrderInput, 'items'> & {
+    items: EnrichedAdminOrderItem[];
     shipping_street: string;
     shipping_street_number: string;
     shipping_floor?: string | null;
@@ -337,8 +348,9 @@ export async function createAdminOrder(
 
     for (const item of data.items) {
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO order_items
+           (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           order.id,
           item.product_id,
@@ -346,7 +358,9 @@ export async function createAdminOrder(
           item.product_sku,
           item.quantity,
           item.unit_price,
-          item.unit_price * item.quantity
+          item.unit_price * item.quantity,
+          item.price_list_id ?? null,
+          item.cost_price_snapshot ?? null
         ]
       );
     }
@@ -477,13 +491,7 @@ export async function isOrderOwnedByUser(orderId: string, userId: string): Promi
 }
 
 interface UpdateAdminOrderData {
-  items: Array<{
-    product_id: string;
-    product_name: string;
-    product_sku: string;
-    quantity: number;
-    unit_price: number;
-  }>;
+  items: EnrichedAdminOrderItem[];
   shipping_street: string;
   shipping_street_number: string;
   shipping_floor?: string | null;
@@ -566,8 +574,8 @@ export async function updateAdminOrder(
     for (const item of data.items) {
       await client.query(
         `INSERT INTO order_items
-           (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+           (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           orderId,
           item.product_id,
@@ -575,7 +583,9 @@ export async function updateAdminOrder(
           item.product_sku,
           item.quantity,
           item.unit_price,
-          Math.round(item.unit_price * item.quantity * 100) / 100
+          Math.round(item.unit_price * item.quantity * 100) / 100,
+          item.price_list_id ?? null,
+          item.cost_price_snapshot ?? null
         ]
       );
     }

@@ -136,7 +136,7 @@ export default function EditarPedidoPage({
           product_name: item.product_name,
           product_sku: item.product_sku,
           available_stock: item.quantity + 999,
-          price_list_id: '',
+          price_list_id: (item as unknown as { price_list_id?: string }).price_list_id ?? '',
           price_list_name: '',
           unit_price: item.unit_price,
           quantity: item.quantity
@@ -316,8 +316,8 @@ export default function EditarPedidoPage({
         shipping_address_id: selectedAddressId,
         items: items.map((i) => ({
           product_id: i.product_id,
-          quantity: i.quantity,
-          unit_price: i.unit_price
+          price_list_id: i.price_list_id,
+          quantity: i.quantity
         }))
       });
       toast.success('Pedido actualizado correctamente');

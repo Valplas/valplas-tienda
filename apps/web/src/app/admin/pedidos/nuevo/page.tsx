@@ -286,10 +286,6 @@ export default function NuevoPedidoPage() {
       toast.error('Seleccioná un cliente');
       return;
     }
-    if (!selectedAddressId) {
-      toast.error('Seleccioná una dirección de entrega');
-      return;
-    }
     if (items.length === 0) {
       toast.error('Agregá al menos un producto');
       return;
@@ -299,11 +295,11 @@ export default function NuevoPedidoPage() {
     try {
       const order = await adminCreateOrder({
         user_id: selectedUser.id,
-        shipping_address_id: selectedAddressId,
+        shipping_address_id: selectedAddressId || undefined,
         items: items.map((i) => ({
           product_id: i.product_id,
-          quantity: i.quantity,
-          unit_price: i.unit_price
+          price_list_id: i.price_list_id,
+          quantity: i.quantity
         })),
         notes: notes || undefined,
         payment_method: 'manual'
@@ -456,7 +452,7 @@ export default function NuevoPedidoPage() {
       )}
 
       {/* Step 3: Products */}
-      {selectedUser && selectedAddressId && (
+      {selectedUser && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -515,7 +511,7 @@ export default function NuevoPedidoPage() {
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-h-48 overflow-y-auto">
                           {priceLists.map((pl) => (
                             <SelectItem key={pl.id} value={pl.id}>
                               {pl.name}
@@ -666,7 +662,7 @@ export default function NuevoPedidoPage() {
       )}
 
       {/* Notes + Submit */}
-      {selectedUser && selectedAddressId && items.length > 0 && (
+      {selectedUser && items.length > 0 && (
         <Card>
           <CardContent className="pt-6 space-y-4">
             <div className="space-y-1">
@@ -690,8 +686,9 @@ export default function NuevoPedidoPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Dirección:</span>
                 <span>
-                  {selectedAddress?.street} {selectedAddress?.street_number},{' '}
-                  {selectedAddress?.city}
+                  {selectedAddress
+                    ? `${selectedAddress.street} ${selectedAddress.street_number}, ${selectedAddress.city}`
+                    : 'Sin dirección'}
                 </span>
               </div>
               <div className="flex justify-between">

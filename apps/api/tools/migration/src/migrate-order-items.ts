@@ -43,6 +43,9 @@ for (const row of rows.rows) {
   byOrder.get(row.OrderID)!.push(row);
 }
 
+// Disable stock trigger for migration (historical data, no stock validation needed)
+await target.query("SET app.skip_stock_trigger = 'true'");
+
 let inserted = 0;
 let skippedOrders = 0;
 let errors = 0;

@@ -40,13 +40,6 @@ async function getExecutedMigrations(): Promise<string[]> {
 }
 
 /**
- * Marca migracion como ejecutada
- */
-async function markMigrationAsExecuted(filename: string) {
-  await query('INSERT INTO schema_migrations (filename) VALUES ($1)', [filename]);
-}
-
-/**
  * Ejecuta todas las migraciones pendientes
  */
 export async function runMigrations() {
@@ -74,16 +67,25 @@ export async function runMigrations() {
 
     console.log(`📋 Migraciones pendientes: ${pending.length}`);
 
-    // Ejecutar cada migracion pendiente
+    // Ejecutar cada migracion pendiente dentro de una transaccion
     for (const file of pending) {
       console.log(`▶️  Ejecutando: ${file}`);
       const filepath = join(MIGRATIONS_DIR, file);
       const sql = await readFile(filepath, 'utf-8');
 
-      await query(sql);
-      await markMigrationAsExecuted(file);
-
-      console.log(`✅ Completada: ${file}`);
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(sql);
+        await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [file]);
+        await client.query('COMMIT');
+        console.log(`✅ Completada: ${file}`);
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
     }
 
     console.log('🎉 Migraciones completadas exitosamente');

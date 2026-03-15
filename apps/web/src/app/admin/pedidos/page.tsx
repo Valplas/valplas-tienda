@@ -1,10 +1,25 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { getAdminOrders } from '@/lib/services/orders.service';
+import {
+  getAdminOrders,
+  getAdminOrderById,
+  updateOrderStatus,
+  getValidNextStatuses
+} from '@/lib/services/orders.service';
 import type { Order } from '@/lib/services/orders.service';
 import { DataTable } from '@/components/admin/data-table';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -15,11 +30,12 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { ColumnDef } from '@tanstack/react-table';
-import { Eye, X, Loader2, Plus } from 'lucide-react';
+import { Eye, X, Loader2, Plus, Printer, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import dayjs from 'dayjs';
+import { printOrder, printOrders } from '@/lib/generate-order-pdf';
 
 const PAGE_SIZE = 50;
 
@@ -34,6 +50,9 @@ export default function PedidosPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
+  const [isPrintingToday, setIsPrintingToday] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
 
@@ -107,6 +126,45 @@ export default function PedidosPage() {
 
   const handleSearch = useCallback((value: string) => {
     setSearch(value);
+  }, []);
+
+  const handleCancelConfirm = useCallback(async () => {
+    if (!cancelTarget) return;
+    setIsCancelling(true);
+    try {
+      await updateOrderStatus(cancelTarget.id, 'cancelled');
+      toast.success(`Pedido ${cancelTarget.order_number} cancelado`);
+      setCancelTarget(null);
+      loadOrders(search);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error al cancelar el pedido');
+    } finally {
+      setIsCancelling(false);
+    }
+  }, [cancelTarget, search, loadOrders]);
+
+  const handlePrintToday = useCallback(async () => {
+    setIsPrintingToday(true);
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+      const { orders: todayOrders } = await getAdminOrders({
+        page: 1,
+        limit: 500,
+        from_date: today,
+        to_date: `${today}T23:59:59`
+      });
+      if (todayOrders.length === 0) {
+        toast.info('No hay pedidos para hoy');
+        return;
+      }
+      // Fetch full details (with items) in parallel
+      const fullOrders = await Promise.all(todayOrders.map((o) => getAdminOrderById(o.id)));
+      printOrders(fullOrders);
+    } catch {
+      toast.error('Error al obtener pedidos de hoy');
+    } finally {
+      setIsPrintingToday(false);
+    }
   }, []);
 
   // IntersectionObserver for infinite scroll
@@ -186,18 +244,46 @@ export default function PedidosPage() {
         id: 'actions',
         header: 'Acciones',
         cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push(`/admin/pedidos/${row.original.id}`)}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push(`/admin/pedidos/${row.original.id}`)}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Imprimir pedido"
+              onClick={async () => {
+                try {
+                  const full = await getAdminOrderById(row.original.id);
+                  printOrder(full);
+                } catch {
+                  toast.error('Error al generar el PDF');
+                }
+              }}
+            >
+              <Printer className="h-4 w-4" />
+            </Button>
+            {getValidNextStatuses(row.original.status).includes('cancelled') && (
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Cancelar pedido"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setCancelTarget(row.original)}
+              >
+                <Ban className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         ),
         enableSorting: false
       }
     ],
-    [router]
+    [router, setCancelTarget]
   );
 
   return (
@@ -208,10 +294,20 @@ export default function PedidosPage() {
           <h1 className="text-3xl font-bold">Pedidos</h1>
           <p className="text-muted-foreground">Gestión de pedidos de clientes</p>
         </div>
-        <Button onClick={() => router.push('/admin/pedidos/nuevo')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Orden
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handlePrintToday} disabled={isPrintingToday}>
+            {isPrintingToday ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Printer className="h-4 w-4 mr-2" />
+            )}
+            Imprimir de hoy
+          </Button>
+          <Button onClick={() => router.push('/admin/pedidos/nuevo')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Orden
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -282,6 +378,28 @@ export default function PedidosPage() {
           {orders.length} pedido(s) mostrado(s)
         </p>
       )}
+
+      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar pedido</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de cancelar el pedido <strong>{cancelTarget?.order_number}</strong>?
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCancelling}>Volver</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelConfirm}
+              disabled={isCancelling}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isCancelling ? 'Cancelando...' : 'Cancelar pedido'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

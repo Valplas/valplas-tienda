@@ -53,5 +53,10 @@
   "engines": {
     "node": ">=22.0.0",
     "bun": ">=1.0.0"
+  },
+  "dependencies": {
+    "jspdf": "^4.2.0",
+    "jspdf-autotable": "^5.0.7",
+    "web": "^0.0.2"
   }
 }
