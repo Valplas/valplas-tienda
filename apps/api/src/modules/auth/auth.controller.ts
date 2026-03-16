@@ -4,7 +4,9 @@ import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-respon
 import { AppError } from '../../shared/middleware/error.middleware.js';
 
 const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
+const ACCESS_TOKEN_COOKIE_NAME = 'accessToken';
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días en milisegundos
+const ACCESS_TOKEN_MAX_AGE = 15 * 60 * 1000; // 15 min en ms
 
 // Cookie options para refresh token
 const getCookieOptions = () => ({
@@ -12,6 +14,15 @@ const getCookieOptions = () => ({
   secure: process.env.NODE_ENV === 'production', // HTTPS en producción
   sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: COOKIE_MAX_AGE,
+  path: '/'
+});
+
+// Cookie options para access token
+const getAccessTokenCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax',
+  maxAge: ACCESS_TOKEN_MAX_AGE,
   path: '/'
 });
 
@@ -23,16 +34,12 @@ export async function register(req: Request, res: Response, next: NextFunction) 
   try {
     const result = await authService.register(req.body);
 
-    // Establecer refresh token en cookie HttpOnly
+    // Establecer tokens en cookies HttpOnly
+    res.cookie(ACCESS_TOKEN_COOKIE_NAME, result.accessToken, getAccessTokenCookieOptions());
     res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, getCookieOptions());
 
-    // Retornar usuario y access token
-    return res.status(201).json(
-      ApiResponse.success({
-        user: result.user,
-        accessToken: result.accessToken
-      })
-    );
+    // Retornar solo usuario (accessToken va en cookie)
+    return res.status(201).json(ApiResponse.success({ user: result.user }));
   } catch (error) {
     next(error);
   }
@@ -46,16 +53,12 @@ export async function login(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await authService.login(req.body);
 
-    // Establecer refresh token en cookie HttpOnly
+    // Establecer tokens en cookies HttpOnly
+    res.cookie(ACCESS_TOKEN_COOKIE_NAME, result.accessToken, getAccessTokenCookieOptions());
     res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, getCookieOptions());
 
-    // Retornar usuario y access token
-    return res.json(
-      ApiResponse.success({
-        user: result.user,
-        accessToken: result.accessToken
-      })
-    );
+    // Retornar solo usuario (accessToken va en cookie)
+    return res.json(ApiResponse.success({ user: result.user }));
   } catch (error) {
     next(error);
   }
@@ -67,11 +70,12 @@ export async function login(req: Request, res: Response, next: NextFunction) {
  */
 export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
-    // Limpiar cookie de refresh token (debe usar las mismas opciones que al setearla)
+    // Limpiar ambas cookies (clearCookie no acepta maxAge, lo removemos)
     const cookieOptions = getCookieOptions();
-    // clearCookie no acepta maxAge, lo removemos
-    const { maxAge: _, ...clearOptions } = cookieOptions;
-    res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, clearOptions);
+    const { maxAge: _r, ...clearRefreshOptions } = cookieOptions;
+    const { maxAge: _a, ...clearAccessOptions } = getAccessTokenCookieOptions();
+    res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, clearRefreshOptions);
+    res.clearCookie(ACCESS_TOKEN_COOKIE_NAME, clearAccessOptions);
 
     return res.json(
       ApiResponse.success({
@@ -114,14 +118,11 @@ export async function refreshToken(req: Request, res: Response, next: NextFuncti
       throw new AppError('NO_REFRESH_TOKEN', 'Refresh token no encontrado', 401);
     }
 
-    // Generar nuevo access token
+    // Generar nuevo access token y setearlo como cookie
     const newAccessToken = await authService.refreshAccessToken(refreshToken);
+    res.cookie(ACCESS_TOKEN_COOKIE_NAME, newAccessToken, getAccessTokenCookieOptions());
 
-    return res.json(
-      ApiResponse.success({
-        accessToken: newAccessToken
-      })
-    );
+    return res.json(ApiResponse.success({ message: 'Token renovado' }));
   } catch (error) {
     next(error);
   }
