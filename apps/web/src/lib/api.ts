@@ -23,7 +23,10 @@ export interface FetchOptions extends RequestInit {
   silentErrors?: boolean; // No loggear errores en consola
 }
 
-// Flag de módulo para evitar múltiples refreshes simultáneos
+// Previene múltiples refreshes simultáneos.
+// Limitación conocida: requests concurrentes que reciben 401 mientras
+// isRefreshing === true fallan inmediatamente en lugar de esperar el refresh.
+// Solución completa requiere una promise queue — fuera del alcance del MVP.
 let isRefreshing = false;
 
 /**

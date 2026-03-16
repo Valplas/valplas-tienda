@@ -81,14 +81,3 @@ export async function getCurrentUser(): Promise<User> {
 
   throw new Error(response.error?.message || 'No autenticado');
 }
-
-/**
- * Renovar access token
- */
-export async function refreshAccessToken(): Promise<void> {
-  const response = await post('/auth/refresh');
-
-  if (!response.success) {
-    throw new Error(response.error?.message || 'Error al renovar token');
-  }
-}
