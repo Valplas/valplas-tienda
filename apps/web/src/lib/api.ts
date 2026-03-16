@@ -23,6 +23,9 @@ export interface FetchOptions extends RequestInit {
   silentErrors?: boolean; // No loggear errores en consola
 }
 
+// Flag de módulo para evitar múltiples refreshes simultáneos
+let isRefreshing = false;
+
 /**
  * Cliente HTTP para llamadas a la API
  */
@@ -30,30 +33,48 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<Ap
   const url = `${API_URL}${endpoint}`;
   const { silentErrors, ...fetchOptions } = options || {};
 
-  try {
-    const res = await fetch(url, {
-      ...fetchOptions,
-      headers: {
-        'Content-Type': 'application/json',
-        ...fetchOptions?.headers
-      },
-      credentials: 'include'
-    });
+  const res = await fetch(url, {
+    ...fetchOptions,
+    headers: {
+      'Content-Type': 'application/json',
+      ...fetchOptions?.headers
+    },
+    credentials: 'include'
+  });
 
-    const data = await res.json();
+  if (!res.ok) {
+    // 401: intentar refresh, pero no si ya estamos refreshing o si el endpoint ES refresh
+    if (res.status === 401 && !isRefreshing && !endpoint.includes('/auth/refresh')) {
+      isRefreshing = true;
 
-    if (!res.ok) {
-      if (res.status === 401) {
-        // Placeholder — el refresh automático se implementa en Tarea 4
+      try {
+        const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+
+        isRefreshing = false;
+
+        if (refreshRes.ok) {
+          // Token renovado — reintentar el request original
+          return fetchApi<T>(endpoint, options);
+        }
+      } catch {
+        isRefreshing = false;
       }
-      throw new Error(data.error?.message || 'Error de conexión');
+
+      // Refresh falló — redirigir a login
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
     }
 
-    return data;
-  } catch (error) {
-    if (!silentErrors) console.error('API Error:', error);
-    throw error;
+    const errorData = await res.json().catch(() => ({}));
+    if (!silentErrors) console.error('API Error:', errorData);
+    throw new Error((errorData as ApiResponse<unknown>).error?.message || 'Error de conexión');
   }
+
+  return res.json();
 }
 
 /**
