@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import {
   getAdminOrders,
   getAdminOrderById,
@@ -40,6 +42,9 @@ import { printOrder, printOrders } from '@/lib/generate-order-pdf';
 const PAGE_SIZE = 50;
 
 export default function PedidosPage() {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
@@ -285,6 +290,8 @@ export default function PedidosPage() {
     ],
     [router, setCancelTarget]
   );
+
+  if (authLoading || !user) return null;
 
   return (
     <div className="space-y-6">

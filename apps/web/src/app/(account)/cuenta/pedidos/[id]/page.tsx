@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuthStore } from '@/stores/auth-store';
+import { useRequireAuth } from '@/hooks/use-require-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,7 +32,7 @@ import { toast } from 'sonner';
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, isLoading: authLoading } = useRequireAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,6 +59,8 @@ export default function OrderDetailPage() {
 
     fetchOrder();
   }, [user, params.id, router]);
+
+  if (authLoading || !user) return null;
 
   if (isLoading) {
     return <OrderDetailSkeleton />;

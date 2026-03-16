@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import { getDailySummary } from '@/lib/services/accounting.service';
 import type { DailySummary, ProductDailySale } from '@/lib/services/accounting.service';
 import { Button } from '@/components/ui/button';
@@ -155,6 +157,9 @@ function ProductRows({ product }: ProductRowsProps) {
 }
 
 export default function ContabilidadPage() {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const [date, setDate] = useState<string>(getTodayArgentina);
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -181,6 +186,8 @@ export default function ContabilidadPage() {
     const csv = generateCSV(summary);
     downloadCSV(csv, `resumen-ventas-${date}.csv`);
   };
+
+  if (authLoading || !user) return null;
 
   return (
     <div className="space-y-6">

@@ -45,11 +45,15 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { useAuthStore } from '@/stores/auth-store';
+import { useRequireAuth } from '@/hooks/use-require-auth';
 import { useRouter } from 'next/navigation';
 
 const PAGE_SIZE = 50;
 
 export default function UsuariosPage() {
+  const { user: authUser, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER]
+  });
   const router = useRouter();
   const currentUser = useAuthStore((state) => state.user);
 
@@ -76,15 +80,6 @@ export default function UsuariosPage() {
       isMountedRef.current = false;
     };
   }, []);
-
-  // Check if current user is owner
-  useEffect(() => {
-    if (!currentUser) return;
-    if (currentUser.role !== UserRole.OWNER) {
-      toast.error('Solo el dueño puede gestionar usuarios');
-      router.push('/admin');
-    }
-  }, [currentUser, router]);
 
   const loadUsers = useCallback(
     async (searchTerm: string) => {
@@ -344,9 +339,7 @@ export default function UsuariosPage() {
     [currentUser, handleDelete]
   );
 
-  if (!currentUser || currentUser.role !== UserRole.OWNER) {
-    return null;
-  }
+  if (authLoading || !authUser) return null;
 
   return (
     <div className="space-y-6">

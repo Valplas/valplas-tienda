@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, use } from 'react';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import {
   getAdminOrderById,
   updateOrderStatus,
@@ -43,6 +45,9 @@ export default function PedidoDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const { id } = use(paramsPromise);
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
@@ -93,6 +98,8 @@ export default function PedidoDetailPage({
       setIsUpdating(false);
     }
   };
+
+  if (authLoading || !user) return null;
 
   if (isLoading) {
     return (

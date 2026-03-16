@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useAuthStore } from '@/stores/auth-store';
+import { useRequireAuth } from '@/hooks/use-require-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,7 +35,7 @@ import { Package, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function OrdersListPage() {
-  const { user } = useAuthStore();
+  const { user, isLoading: authLoading } = useRequireAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,6 +72,8 @@ export default function OrdersListPage() {
       setFilteredOrders(orders.filter((order) => order.status === statusFilter));
     }
   }, [statusFilter, orders]);
+
+  if (authLoading || !user) return null;
 
   if (isLoading) {
     return <OrdersListSkeleton />;

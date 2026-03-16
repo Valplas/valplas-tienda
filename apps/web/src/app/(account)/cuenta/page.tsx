@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useAuthStore } from '@/stores/auth-store';
+import { useRequireAuth } from '@/hooks/use-require-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,7 +28,7 @@ import { Package, ShoppingBag, CheckCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
+  const { user, isLoading: authLoading } = useRequireAuth();
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -82,6 +82,8 @@ export default function DashboardPage() {
 
     fetchData();
   }, [user]);
+
+  if (authLoading || !user) return null;
 
   if (isLoading) {
     return <DashboardSkeleton />;

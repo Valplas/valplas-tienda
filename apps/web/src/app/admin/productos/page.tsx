@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import { ColumnDef } from '@tanstack/react-table';
 import { MoreHorizontal, Pencil, Trash2, Plus, Loader2 } from 'lucide-react';
 import { DataTable, createCheckboxColumn } from '@/components/admin/data-table';
@@ -35,6 +37,9 @@ import { toast } from 'sonner';
 const PAGE_SIZE = 50;
 
 export default function AdminProductsPage() {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const [products, setProducts] = React.useState<Product[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
@@ -279,6 +284,8 @@ export default function AdminProductsPage() {
     ],
     []
   );
+
+  if (authLoading || !user) return null;
 
   return (
     <div className="space-y-6">
