@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import { Package, ShoppingCart, AlertTriangle, DollarSign } from 'lucide-react';
 import { StatsCard } from '@/components/admin/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +38,11 @@ const orderStatusLabels: Record<
 };
 
 export default function AdminDashboardPage() {
+  const { user, isLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
+  if (isLoading || !user) return null;
+
   // Calculate stats
   const activeProducts = MOCK_PRODUCTS.filter((p) => p.is_active && !p.deleted_at).length;
   const totalOrders = MOCK_ORDERS.length;

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import { ColumnDef } from '@tanstack/react-table';
 import { Pencil, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { DataTable } from '@/components/admin/data-table';
@@ -41,6 +43,9 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function EnviosPage() {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   // Zones state
   const [zones, setZones] = useState<ShippingZone[]>([]);
   const [zonesLoading, setZonesLoading] = useState(true);
@@ -277,6 +282,8 @@ export default function EnviosPage() {
     ],
     []
   );
+
+  if (authLoading || !user) return null;
 
   return (
     <div className="space-y-8">

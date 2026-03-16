@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import { ProductForm } from '@/components/admin/product-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -22,6 +24,9 @@ function generateSlug(name: string): string {
 }
 
 export default function NewProductPage() {
+  const { user, isLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const router = useRouter();
 
   const handleSubmit = async (data: ProductFormData & { images?: string[] }) => {
@@ -56,6 +61,8 @@ export default function NewProductPage() {
   const handleCancel = () => {
     router.push('/admin/productos');
   };
+
+  if (isLoading || !user) return null;
 
   return (
     <div className="space-y-6 max-w-4xl">

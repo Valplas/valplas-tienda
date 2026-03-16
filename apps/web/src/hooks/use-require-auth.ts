@@ -1,45 +1,37 @@
-/**
- * useRequireAuth Hook
- * Verifica autenticación del lado del cliente y redirige si no está autenticado
- */
-
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
+import { UserRole } from '@/types';
 
 interface UseRequireAuthOptions {
   redirectTo?: string;
-  requireRole?: 'owner' | 'admin' | 'driver' | 'customer';
+  allowedRoles?: UserRole[];
 }
 
+/**
+ * Verifica que el usuario esté autenticado y tenga el rol correcto.
+ * Redirige si no cumple. Usar en páginas protegidas.
+ */
 export function useRequireAuth(options: UseRequireAuthOptions = {}) {
-  const { redirectTo = '/login', requireRole } = options;
+  const { redirectTo = '/login', allowedRoles } = options;
   const router = useRouter();
-  const { isAuthenticated, isLoading, user } = useAuthStore();
+  const pathname = usePathname();
+  const { user, isAuthenticated, isLoading } = useAuthStore();
 
   useEffect(() => {
-    // Esperar a que termine de cargar
-    if (isLoading) return;
+    if (isLoading) return; // Esperar hidratación
 
-    // Si no está autenticado, redirigir a login
     if (!isAuthenticated) {
-      const currentPath = window.location.pathname;
-      router.push(`${redirectTo}?redirect=${encodeURIComponent(currentPath)}`);
+      router.replace(`${redirectTo}?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
 
-    // Si requiere un rol específico, verificar
-    if (requireRole && user?.role !== requireRole) {
-      // Si no tiene el rol requerido, redirigir a cuenta
-      router.push('/cuenta');
+    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+      router.replace('/'); // Sin permisos → home
     }
-  }, [isAuthenticated, isLoading, user, requireRole, redirectTo, router]);
+  }, [isAuthenticated, isLoading, user, router, redirectTo, allowedRoles, pathname]);
 
-  return {
-    isAuthenticated,
-    isLoading,
-    user
-  };
+  return { user, isAuthenticated, isLoading };
 }

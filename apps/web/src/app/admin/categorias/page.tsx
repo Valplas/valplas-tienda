@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import { Category } from '@/types';
 import {
   getCategories,
@@ -20,6 +22,9 @@ import { buildTree, type TreeNode } from '@/lib/utils/tree';
 import { type CategoryFormData } from '@/lib/validations/category';
 
 export default function CategoriasPage() {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const [categories, setCategories] = useState<Category[]>([]);
   const [tree, setTree] = useState<TreeNode<Category>[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -115,6 +120,8 @@ export default function CategoriasPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (authLoading || !user) return null;
 
   return (
     <div className="space-y-6">

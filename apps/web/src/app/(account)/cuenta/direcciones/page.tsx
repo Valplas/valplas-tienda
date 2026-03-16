@@ -8,6 +8,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
+import { useRequireAuth } from '@/hooks/use-require-auth';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,7 +89,7 @@ function mapServiceToFrontendAddress(serviceAddress: ServiceAddress): Address {
 }
 
 export default function AddressesPage() {
-  const { user } = useAuthStore();
+  const { user, isLoading: authLoading } = useRequireAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -157,6 +158,8 @@ export default function AddressesPage() {
     setIsSheetOpen(false);
     setEditingAddress(null);
   };
+
+  if (authLoading || !user) return null;
 
   if (isLoading) {
     return <AddressesSkeleton />;

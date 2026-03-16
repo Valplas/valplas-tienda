@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +66,9 @@ interface ProductSearchResult {
 }
 
 export default function NuevoPedidoPage() {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const router = useRouter();
 
   // User search
@@ -315,6 +320,8 @@ export default function NuevoPedidoPage() {
   }, [selectedUser, selectedAddressId, items, notes, router]);
 
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+
+  if (authLoading || !user) return null;
 
   return (
     <div className="space-y-6 max-w-4xl">

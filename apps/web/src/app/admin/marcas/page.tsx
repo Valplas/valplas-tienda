@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import { Brand } from '@/types';
 import {
   getAdminBrands,
@@ -22,6 +24,9 @@ import { type BrandFormData } from '@/lib/validations/brand';
 const PAGE_SIZE = 50;
 
 export default function MarcasPage() {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -218,6 +223,8 @@ export default function MarcasPage() {
     ],
     []
   );
+
+  if (authLoading || !user) return null;
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import type { PriceList } from '@/types';
 import {
   getPriceLists,
@@ -21,6 +23,9 @@ import type { PriceListFormData } from '@/lib/validations/price-list';
 const PAGE_SIZE = 50;
 
 export default function ListasDePrecioPage() {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const [priceLists, setPriceLists] = useState<PriceList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -202,6 +207,8 @@ export default function ListasDePrecioPage() {
       enableSorting: false
     }
   ];
+
+  if (authLoading || !user) return null;
 
   return (
     <div className="space-y-6">

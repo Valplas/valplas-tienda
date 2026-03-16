@@ -3,6 +3,8 @@
 import * as React from 'react';
 import { use } from 'react';
 import { useRouter } from 'next/navigation';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import { ProductForm } from '@/components/admin/product-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,6 +36,9 @@ interface RawProductShape {
 }
 
 export default function EditProductPage({ params: paramsPromise }: EditProductPageProps) {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const { id } = use(paramsPromise);
   const router = useRouter();
   const [product, setProduct] = React.useState<Product | null>(null);
@@ -94,6 +99,8 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
   const handleCancel = () => {
     router.push('/admin/productos');
   };
+
+  if (authLoading || !user) return null;
 
   if (isLoading) {
     return (

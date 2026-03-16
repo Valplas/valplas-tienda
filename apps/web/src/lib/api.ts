@@ -18,73 +18,67 @@ export interface ApiResponse<T> {
   };
 }
 
-/**
- * Obtener token de acceso del localStorage
- */
-function getAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
-}
-
-/**
- * Guardar token de acceso en localStorage
- */
-export function setAccessToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem('access_token', token);
-}
-
-/**
- * Eliminar token de acceso del localStorage
- */
-export function removeAccessToken(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem('access_token');
-}
-
 // eslint-disable-next-line no-undef
 export interface FetchOptions extends RequestInit {
   silentErrors?: boolean; // No loggear errores en consola
 }
+
+// Previene múltiples refreshes simultáneos.
+// Limitación conocida: requests concurrentes que reciben 401 mientras
+// isRefreshing === true fallan inmediatamente en lugar de esperar el refresh.
+// Solución completa requiere una promise queue — fuera del alcance del MVP.
+let isRefreshing = false;
 
 /**
  * Cliente HTTP para llamadas a la API
  */
 async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<ApiResponse<T>> {
   const url = `${API_URL}${endpoint}`;
-  const token = getAccessToken();
   const { silentErrors, ...fetchOptions } = options || {};
 
-  try {
-    const res = await fetch(url, {
-      ...fetchOptions,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...fetchOptions?.headers
-      },
-      credentials: 'include' // Para cookies de autenticacion (refresh token)
-    });
+  const res = await fetch(url, {
+    ...fetchOptions,
+    headers: {
+      'Content-Type': 'application/json',
+      ...fetchOptions?.headers
+    },
+    credentials: 'include'
+  });
 
-    const data = await res.json();
+  if (!res.ok) {
+    // 401: intentar refresh, pero no si ya estamos refreshing o si el endpoint ES refresh
+    if (res.status === 401 && !isRefreshing && !endpoint.includes('/auth/refresh')) {
+      isRefreshing = true;
 
-    if (!res.ok) {
-      // Si es 401, el token expiró
-      if (res.status === 401) {
-        removeAccessToken();
-        // Podríamos intentar refresh aquí en el futuro
+      try {
+        const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+
+        isRefreshing = false;
+
+        if (refreshRes.ok) {
+          // Token renovado — reintentar el request original
+          return fetchApi<T>(endpoint, options);
+        }
+      } catch {
+        isRefreshing = false;
       }
-      throw new Error(data.error?.message || 'Error de conexión');
+
+      // Refresh falló — redirigir a login
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+        return Promise.reject(new Error('Sesión expirada'));
+      }
     }
 
-    return data;
-  } catch (error) {
-    // Solo loggear si no está silenciado
-    if (!silentErrors) {
-      console.error('API Error:', error);
-    }
-    throw error;
+    const errorData = await res.json().catch(() => ({}));
+    if (!silentErrors) console.error('API Error:', errorData);
+    throw new Error((errorData as ApiResponse<unknown>).error?.message || 'Error de conexión');
   }
+
+  return res.json();
 }
 
 /**

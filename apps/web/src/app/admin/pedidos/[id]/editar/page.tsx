@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { UserRole } from '@/types';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,6 +58,9 @@ export default function EditarPedidoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { user, isLoading: authLoading } = useRequireAuth({
+    allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
+  });
   const { id } = use(paramsPromise);
   const router = useRouter();
 
@@ -330,6 +335,8 @@ export default function EditarPedidoPage({
   }, [id, selectedAddressId, items, router]);
 
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+
+  if (authLoading || !user) return null;
 
   if (isLoadingOrder) {
     return (

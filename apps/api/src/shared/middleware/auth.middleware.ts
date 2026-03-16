@@ -6,7 +6,7 @@ import type { AuthenticatedUser } from '../../modules/auth/auth.types.js';
 
 /**
  * Middleware de autenticación
- * Verifica JWT en header Authorization
+ * Lee el accessToken de cookie HttpOnly primero, con fallback a header Authorization (Bearer)
  */
 export async function authMiddleware(
   req: Request,
@@ -14,15 +14,17 @@ export async function authMiddleware(
   next: NextFunction
 ): Promise<void> {
   try {
-    // Obtener token del header Authorization (Bearer token)
-    const authHeader = req.headers.authorization;
+    // Leer token de cookie primero (browsers), luego Authorization header (Postman/tests)
+    const token =
+      req.cookies?.['accessToken'] ||
+      (req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.split(' ')[1]
+        : undefined);
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       res.status(401).json(ApiResponse.error('UNAUTHORIZED', 'No autenticado'));
       return;
     }
-
-    const token = authHeader.split(' ')[1];
 
     // Verificar y decodificar token usando el servicio de auth
     const payload = verifyAccessToken(token);
