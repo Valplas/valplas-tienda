@@ -66,6 +66,7 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<Ap
       // Refresh falló — redirigir a login
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
+        return Promise.reject(new Error('Sesión expirada'));
       }
     }
 
