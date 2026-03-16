@@ -1,6 +1,6 @@
 // apps/web/src/lib/services/auth.service.ts
 
-import { post, get, setAccessToken, removeAccessToken } from '../api';
+import { post, get } from '../api';
 
 export interface RegisterData {
   email: string;
@@ -31,8 +31,7 @@ export interface User {
 
 export interface AuthResponse {
   user: User;
-  accessToken: string;
-  // refreshToken se envía como cookie HttpOnly, no en el body
+  // accessToken ya no viene en el body — es cookie HttpOnly
 }
 
 /**
@@ -42,7 +41,6 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   const response = await post<AuthResponse>('/auth/register', data);
 
   if (response.success && response.data) {
-    setAccessToken(response.data.accessToken);
     return response.data;
   }
 
@@ -56,7 +54,6 @@ export async function login(data: LoginData): Promise<AuthResponse> {
   const response = await post<AuthResponse>('/auth/login', data);
 
   if (response.success && response.data) {
-    setAccessToken(response.data.accessToken);
     return response.data;
   }
 
@@ -67,11 +64,8 @@ export async function login(data: LoginData): Promise<AuthResponse> {
  * Logout de usuario
  */
 export async function logout(): Promise<void> {
-  try {
-    await post('/auth/logout');
-  } finally {
-    removeAccessToken();
-  }
+  await post('/auth/logout');
+  // el backend clearCookie — no hay nada que limpiar acá
 }
 
 /**
@@ -91,13 +85,10 @@ export async function getCurrentUser(): Promise<User> {
 /**
  * Renovar access token
  */
-export async function refreshAccessToken(): Promise<{ accessToken: string }> {
-  const response = await post<{ accessToken: string }>('/auth/refresh');
+export async function refreshAccessToken(): Promise<void> {
+  const response = await post('/auth/refresh');
 
-  if (response.success && response.data) {
-    setAccessToken(response.data.accessToken);
-    return response.data;
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Error al renovar token');
   }
-
-  throw new Error(response.error?.message || 'Error al renovar token');
 }

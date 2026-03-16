@@ -18,30 +18,6 @@ export interface ApiResponse<T> {
   };
 }
 
-/**
- * Obtener token de acceso del localStorage
- */
-function getAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('access_token');
-}
-
-/**
- * Guardar token de acceso en localStorage
- */
-export function setAccessToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem('access_token', token);
-}
-
-/**
- * Eliminar token de acceso del localStorage
- */
-export function removeAccessToken(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem('access_token');
-}
-
 // eslint-disable-next-line no-undef
 export interface FetchOptions extends RequestInit {
   silentErrors?: boolean; // No loggear errores en consola
@@ -52,7 +28,6 @@ export interface FetchOptions extends RequestInit {
  */
 async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<ApiResponse<T>> {
   const url = `${API_URL}${endpoint}`;
-  const token = getAccessToken();
   const { silentErrors, ...fetchOptions } = options || {};
 
   try {
@@ -60,29 +35,23 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<Ap
       ...fetchOptions,
       headers: {
         'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
         ...fetchOptions?.headers
       },
-      credentials: 'include' // Para cookies de autenticacion (refresh token)
+      credentials: 'include'
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      // Si es 401, el token expiró
       if (res.status === 401) {
-        removeAccessToken();
-        // Podríamos intentar refresh aquí en el futuro
+        // Placeholder — el refresh automático se implementa en Tarea 4
       }
       throw new Error(data.error?.message || 'Error de conexión');
     }
 
     return data;
   } catch (error) {
-    // Solo loggear si no está silenciado
-    if (!silentErrors) {
-      console.error('API Error:', error);
-    }
+    if (!silentErrors) console.error('API Error:', error);
     throw error;
   }
 }
