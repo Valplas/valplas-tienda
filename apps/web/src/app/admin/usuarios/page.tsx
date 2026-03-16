@@ -46,7 +46,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRequireAuth } from '@/hooks/use-require-auth';
-import { useRouter } from 'next/navigation';
 
 const PAGE_SIZE = 50;
 
@@ -54,7 +53,6 @@ export default function UsuariosPage() {
   const { user: authUser, isLoading: authLoading } = useRequireAuth({
     allowedRoles: [UserRole.OWNER]
   });
-  const router = useRouter();
   const currentUser = useAuthStore((state) => state.user);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
