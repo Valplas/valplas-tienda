@@ -29,14 +29,15 @@ export async function saveRefreshToken(
  */
 export async function findValidToken(tokenHash: string): Promise<RefreshTokenRow | null> {
   const result = await query<RefreshTokenRow>(
-    `SELECT * FROM refresh_tokens
+    `SELECT id, user_id, token_hash, expires_at, revoked_at, created_at
+     FROM refresh_tokens
      WHERE token_hash = $1
        AND revoked_at IS NULL
        AND expires_at > NOW()
      LIMIT 1`,
     [tokenHash]
   );
-  return result.rows[0] || null;
+  return result.rows[0] ?? null;
 }
 
 /**
@@ -71,8 +72,7 @@ export async function deleteExpiredAndRevoked(): Promise<number> {
   const result = await query(
     `DELETE FROM refresh_tokens
      WHERE expires_at < NOW()
-        OR (revoked_at IS NOT NULL AND revoked_at < NOW() - INTERVAL '30 days')`,
-    []
+        OR (revoked_at IS NOT NULL AND revoked_at < NOW() - INTERVAL '30 days')`
   );
   return result.rowCount ?? 0;
 }
