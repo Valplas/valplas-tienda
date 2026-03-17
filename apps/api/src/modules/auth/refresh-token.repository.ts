@@ -72,7 +72,7 @@ export async function deleteExpiredAndRevoked(): Promise<number> {
   const result = await query(
     `DELETE FROM refresh_tokens
      WHERE expires_at < NOW()
-        OR (revoked_at IS NOT NULL AND revoked_at < NOW() - INTERVAL '30 days')`
+        OR (revoked_at IS NOT NULL AND revoked_at < NOW() - INTERVAL '20 days')`
   );
   return result.rowCount ?? 0;
 }
