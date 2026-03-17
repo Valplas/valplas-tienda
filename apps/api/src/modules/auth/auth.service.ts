@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
+import ms, { type StringValue } from 'ms';
+import * as refreshTokenRepository from './refresh-token.repository.js';
 import { env } from '../../env.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import * as authRepository from './auth.repository.js';
@@ -12,6 +14,10 @@ import type {
   RefreshTokenPayload
 } from './auth.types.js';
 const BCRYPT_ROUNDS = 12;
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 /**
  * Registrar nuevo usuario
@@ -49,6 +55,11 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   // Generar tokens
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user.id);
+
+  // Guardar refresh token en DB
+  const tokenHash = hashToken(refreshToken);
+  const expiresAt = new Date(Date.now() + ms(env.JWT_REFRESH_EXPIRES_IN as StringValue));
+  await refreshTokenRepository.saveRefreshToken(user.id, tokenHash, expiresAt);
 
   // Remover password_hash del usuario (la DB retorna password_hash en snake_case)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,6 +104,11 @@ export async function login(data: LoginData): Promise<AuthResponse> {
   // Generar tokens
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user.id);
+
+  // Guardar refresh token en DB
+  const tokenHash = hashToken(refreshToken);
+  const expiresAt = new Date(Date.now() + ms(env.JWT_REFRESH_EXPIRES_IN as StringValue));
+  await refreshTokenRepository.saveRefreshToken(user.id, tokenHash, expiresAt);
 
   // Remover password_hash del usuario
   const { password_hash: _, ...userWithoutPassword } = userWithPassword;
@@ -189,6 +205,19 @@ export function verifyAccessToken(token: string): JwtPayload {
       throw new AppError('TOKEN_EXPIRED', 'Token expirado', 401);
     }
     throw new AppError('INVALID_TOKEN', 'Token inválido', 401);
+  }
+}
+
+/**
+ * Revocar un refresh token (logout)
+ * Falla silenciosamente si el token no existe — la cookie se limpia de todas formas
+ */
+export async function revokeRefreshToken(refreshToken: string): Promise<void> {
+  try {
+    const tokenHash = hashToken(refreshToken);
+    await refreshTokenRepository.revokeToken(tokenHash);
+  } catch {
+    // Ignorar errores — la cookie ya se limpia en el controller
   }
 }
 
