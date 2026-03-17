@@ -160,7 +160,7 @@ export async function refreshAccessToken(
     throw new AppError('INVALID_TOKEN', 'Token inválido o expirado', 401);
   }
 
-  const user = await authRepository.findUserById(payload.userId);
+  const user = await authRepository.findUserById(tokenRecord.user_id);
 
   if (!user || !user.is_active) {
     throw new AppError('INVALID_TOKEN', 'Token inválido', 401);
