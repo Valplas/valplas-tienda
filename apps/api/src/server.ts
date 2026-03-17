@@ -137,13 +137,15 @@ app.use((req, res) => {
   });
 });
 
+// Programar jobs en background
+scheduleTokenCleanup();
+console.log('🕒 Job programado: limpieza de tokens a las 3:00 AM ART (06:00 UTC)');
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
   console.log(`📍 Ambiente: ${env.NODE_ENV}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-  scheduleTokenCleanup();
-  console.log(`🕒 Job programado: limpieza de tokens a las 3:00 AM ART (06:00 UTC)`);
 });
 
 export default app;
