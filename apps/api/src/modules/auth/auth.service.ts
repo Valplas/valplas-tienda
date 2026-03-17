@@ -140,28 +140,45 @@ export async function getCurrentUser(userId: string) {
 }
 
 /**
- * Renovar access token usando refresh token
+ * Renovar access token usando refresh token (con rotación de token)
  */
-export async function refreshAccessToken(refreshToken: string): Promise<string> {
+export async function refreshAccessToken(
+  refreshToken: string
+): Promise<{ accessToken: string; newRefreshToken: string }> {
+  let payload: RefreshTokenPayload;
+
   try {
-    // Verificar refresh token
-    const payload = jwt.verify(refreshToken, env.JWT_SECRET) as RefreshTokenPayload;
-
-    // Buscar usuario
-    const user = await authRepository.findUserById(payload.userId);
-
-    if (!user || !user.is_active) {
-      throw new AppError('INVALID_TOKEN', 'Token inválido', 401);
-    }
-
-    // Generar nuevo access token
-    return generateAccessToken(user);
-  } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      throw new AppError('INVALID_TOKEN', 'Token inválido o expirado', 401);
-    }
-    throw error;
+    payload = jwt.verify(refreshToken, env.JWT_SECRET) as RefreshTokenPayload;
+  } catch {
+    throw new AppError('INVALID_TOKEN', 'Token inválido o expirado', 401);
   }
+
+  const tokenHash = hashToken(refreshToken);
+  const tokenRecord = await refreshTokenRepository.findValidToken(tokenHash);
+
+  if (!tokenRecord) {
+    throw new AppError('INVALID_TOKEN', 'Token inválido o expirado', 401);
+  }
+
+  const user = await authRepository.findUserById(payload.userId);
+
+  if (!user || !user.is_active) {
+    throw new AppError('INVALID_TOKEN', 'Token inválido', 401);
+  }
+
+  // Revocar token viejo (rotación)
+  await refreshTokenRepository.revokeToken(tokenHash);
+
+  // Generar nuevos tokens
+  const accessToken = generateAccessToken(user);
+  const newRefreshToken = generateRefreshToken(user.id);
+
+  // Guardar nuevo refresh token en DB
+  const newTokenHash = hashToken(newRefreshToken);
+  const expiresAt = new Date(Date.now() + ms(env.JWT_REFRESH_EXPIRES_IN as StringValue));
+  await refreshTokenRepository.saveRefreshToken(user.id, newTokenHash, expiresAt);
+
+  return { accessToken, newRefreshToken };
 }
 
 /**

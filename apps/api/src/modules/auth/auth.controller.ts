@@ -118,9 +118,11 @@ export async function refreshToken(req: Request, res: Response, next: NextFuncti
       throw new AppError('NO_REFRESH_TOKEN', 'Refresh token no encontrado', 401);
     }
 
-    // Generar nuevo access token y setearlo como cookie
-    const newAccessToken = await authService.refreshAccessToken(refreshToken);
+    // Rotar tokens: revocar el viejo y emitir nuevos
+    const { accessToken: newAccessToken, newRefreshToken } =
+      await authService.refreshAccessToken(refreshToken);
     res.cookie(ACCESS_TOKEN_COOKIE_NAME, newAccessToken, getAccessTokenCookieOptions());
+    res.cookie(REFRESH_TOKEN_COOKIE_NAME, newRefreshToken, getCookieOptions());
 
     return res.json(ApiResponse.success({ message: 'Token renovado' }));
   } catch (error) {
