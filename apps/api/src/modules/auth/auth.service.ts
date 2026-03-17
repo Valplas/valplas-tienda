@@ -184,7 +184,11 @@ export async function refreshAccessToken(
 /**
  * Generar access token (JWT)
  */
-function generateAccessToken(user: { id: string; email: string | null; role: string }): string {
+export function generateAccessToken(user: {
+  id: string;
+  email: string | null;
+  role: string;
+}): string {
   const payload: JwtPayload = {
     userId: user.id,
     email: user.email,
@@ -200,7 +204,7 @@ function generateAccessToken(user: { id: string; email: string | null; role: str
 /**
  * Generar refresh token
  */
-function generateRefreshToken(userId: string): string {
+export function generateRefreshToken(userId: string): string {
   const payload: RefreshTokenPayload = {
     userId,
     sessionId: randomUUID()

@@ -120,3 +120,46 @@ export async function updateLastLogin(userId: string): Promise<void> {
     [userId]
   );
 }
+
+/**
+ * Buscar usuario por Google ID
+ */
+export async function findUserByGoogleId(googleId: string): Promise<User | null> {
+  const result = await query<User>(
+    `SELECT id, email, username, phone, first_name, last_name, role, is_active, created_at, updated_at
+     FROM users
+     WHERE google_id = $1
+       AND deleted_at IS NULL
+     LIMIT 1`,
+    [googleId]
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Vincular Google ID a usuario existente
+ */
+export async function linkGoogleId(userId: string, googleId: string): Promise<void> {
+  await query(`UPDATE users SET google_id = $1, updated_at = NOW() WHERE id = $2`, [
+    googleId,
+    userId
+  ]);
+}
+
+/**
+ * Crear usuario via Google OAuth (sin password ni username)
+ */
+export async function createOAuthUser(data: {
+  email: string;
+  firstName: string;
+  lastName: string;
+  googleId: string;
+}): Promise<User> {
+  const result = await query<User>(
+    `INSERT INTO users (email, first_name, last_name, google_id, role, is_active)
+     VALUES ($1, $2, $3, $4, 'customer', true)
+     RETURNING id, email, username, phone, first_name, last_name, role, is_active, created_at, updated_at`,
+    [data.email, data.firstName, data.lastName, data.googleId]
+  );
+  return result.rows[0];
+}
