@@ -70,6 +70,12 @@ export async function login(req: Request, res: Response, next: NextFunction) {
  */
 export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
+    // Revocar refresh token en DB (falla silenciosamente si no hay token)
+    const refreshTokenValue = req.cookies[REFRESH_TOKEN_COOKIE_NAME];
+    if (refreshTokenValue) {
+      await authService.revokeRefreshToken(refreshTokenValue);
+    }
+
     // Limpiar ambas cookies (clearCookie no acepta maxAge, lo removemos)
     const cookieOptions = getCookieOptions();
     const { maxAge: _r, ...clearRefreshOptions } = cookieOptions;
