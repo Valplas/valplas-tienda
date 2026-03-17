@@ -5,7 +5,7 @@ import { AppError } from '../../shared/middleware/error.middleware.js';
 
 const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
 const ACCESS_TOKEN_COOKIE_NAME = 'accessToken';
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días en milisegundos
+const COOKIE_MAX_AGE = 30 * 60 * 1000; // 30 minutos en milisegundos
 const ACCESS_TOKEN_MAX_AGE = 15 * 60 * 1000; // 15 min en ms
 
 // Cookie options para refresh token
