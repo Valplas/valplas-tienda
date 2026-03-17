@@ -94,6 +94,7 @@ import addressRoutes from './modules/addresses/address.routes.js';
 import orderRoutes from './modules/orders/order.routes.js';
 import userRoutes from './modules/users/user.routes.js';
 import accountingRoutes from './modules/accounting/accounting.routes.js';
+import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.js';
 
 // Montar rutas
 app.use('/api/auth', authRoutes);
@@ -141,6 +142,8 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
   console.log(`📍 Ambiente: ${env.NODE_ENV}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  scheduleTokenCleanup();
+  console.log(`🕒 Job programado: limpieza de tokens a las 3:00 AM ART (06:00 UTC)`);
 });
 
 export default app;
