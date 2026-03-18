@@ -5,7 +5,7 @@ import { ProductGrid } from '@/components/product';
 import { getCatalogProducts } from '@/lib/services/catalog.service';
 import { getCategories } from '@/services';
 import { Card, CardContent } from '@/components/ui/card';
-import type { ProductPublic } from '@/types';
+import type { Category, ProductPublic } from '@/types';
 
 export default async function Home() {
   let featuredProducts: ProductPublic[] = [];
@@ -20,9 +20,9 @@ export default async function Home() {
 
     featuredProducts = productsRes.success && productsRes.data ? productsRes.data : [];
     // Filter root categories (parent_id is null)
-     
+
     categories = Array.isArray(categoriesRes)
-      ? categoriesRes.filter((cat: any) => cat.parent_id === null)
+      ? categoriesRes.filter((cat: Category) => cat.parent_id === null)
       : [];
   } catch (error) {
     console.error('Error loading home page data:', error);

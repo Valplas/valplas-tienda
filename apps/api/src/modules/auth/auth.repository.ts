@@ -140,7 +140,7 @@ export async function findUserByGoogleId(googleId: string): Promise<User | null>
  * Vincular Google ID a usuario existente
  */
 export async function linkGoogleId(userId: string, googleId: string): Promise<void> {
-  await query(`UPDATE users SET google_id = $1, updated_at = NOW() WHERE id = $2`, [
+  await query('UPDATE users SET google_id = $1, updated_at = NOW() WHERE id = $2', [
     googleId,
     userId
   ]);
