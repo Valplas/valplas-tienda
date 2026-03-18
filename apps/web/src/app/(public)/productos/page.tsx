@@ -42,47 +42,49 @@ function ProductsContent() {
     if (brandParam) setBrandId(brandParam);
   }, [searchParams, setCategoryId, setBrandId]);
 
-  const fetchProducts = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const filters: CatalogFilters = {
-        search: search || undefined,
-        category_id: categoryId || undefined,
-        brand_id: brandId || undefined,
-        page: currentPage,
-        limit: ITEMS_PER_PAGE
-      };
+  const fetchWithFilters = useCallback(
+    async (page: number) => {
+      setIsLoading(true);
+      try {
+        const filters: CatalogFilters = {
+          search: search || undefined,
+          category_id: categoryId || undefined,
+          brand_id: brandId || undefined,
+          page,
+          limit: ITEMS_PER_PAGE
+        };
 
-      const response = await getCatalogProducts(filters);
+        const response = await getCatalogProducts(filters);
 
-      if (response.success && response.data) {
-        setProducts(response.data);
-        setTotal(response.pagination?.total ?? 0);
-        setTotalPages(response.pagination?.totalPages ?? 1);
-      } else {
+        if (response.success && response.data) {
+          setProducts(response.data);
+          setTotal(response.pagination?.total ?? 0);
+          setTotalPages(response.pagination?.totalPages ?? 1);
+        } else {
+          setProducts([]);
+          setTotal(0);
+          setTotalPages(1);
+        }
+      } catch {
         setProducts([]);
         setTotal(0);
         setTotalPages(1);
+      } finally {
+        setIsLoading(false);
       }
-    } catch {
-      setProducts([]);
-      setTotal(0);
-      setTotalPages(1);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [search, categoryId, brandId, currentPage]);
+    },
+    [search, categoryId, brandId]
+  );
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
+  // When filters change: reset to page 1 and fetch immediately — atomic, no double fetch
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, categoryId, brandId]);
+    fetchWithFilters(1);
+  }, [fetchWithFilters]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+    fetchWithFilters(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -97,19 +99,17 @@ function ProductsContent() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="lg:hidden">
-                  <SlidersHorizontal className="mr-2 h-4 w-4" />
-                  Filtros
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-full overflow-y-auto sm:max-w-md">
-                <ProductFilters />
-              </SheetContent>
-            </Sheet>
-          </div>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="lg:hidden">
+                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                Filtros
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-full overflow-y-auto sm:max-w-md">
+              <ProductFilters />
+            </SheetContent>
+          </Sheet>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
