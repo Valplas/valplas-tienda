@@ -22,22 +22,18 @@ export async function listProducts(req: Request, res: Response, next: NextFuncti
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (category_id && !UUID_REGEX.test(category_id)) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          error: { code: 'INVALID_PARAM', message: 'category_id must be a valid UUID' }
-        });
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_PARAM', message: 'category_id must be a valid UUID' }
+      });
       return;
     }
 
     if (brand_id && !UUID_REGEX.test(brand_id)) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          error: { code: 'INVALID_PARAM', message: 'brand_id must be a valid UUID' }
-        });
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_PARAM', message: 'brand_id must be a valid UUID' }
+      });
       return;
     }
 
