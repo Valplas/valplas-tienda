@@ -145,10 +145,8 @@ export async function getCurrentUser(userId: string) {
 export async function refreshAccessToken(
   refreshToken: string
 ): Promise<{ accessToken: string; newRefreshToken: string }> {
-  let payload: RefreshTokenPayload;
-
   try {
-    payload = jwt.verify(refreshToken, env.JWT_SECRET) as RefreshTokenPayload;
+    jwt.verify(refreshToken, env.JWT_SECRET);
   } catch {
     throw new AppError('INVALID_TOKEN', 'Token inválido o expirado', 401);
   }
