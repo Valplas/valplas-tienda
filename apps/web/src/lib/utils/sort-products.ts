@@ -2,29 +2,32 @@
  * Product Sorting Utilities
  */
 
-import { Product } from '@/types';
+import { ProductPublic } from '@/types';
 import { SortOption } from '@/types/filter.types';
+
+/**
+ * Obtiene el precio de referencia para ordenar (primer tier o base_price)
+ */
+function getRefPrice(product: ProductPublic): number {
+  return product.tiers.length > 0 ? product.tiers[0].unit_price : product.base_price;
+}
 
 /**
  * Ordena productos según la opción seleccionada
  */
-export function sortProducts(products: Product[], sortBy: SortOption): Product[] {
+export function sortProducts(products: ProductPublic[], sortBy: SortOption): ProductPublic[] {
   const sorted = [...products];
 
   switch (sortBy) {
     case 'featured':
-      // Featured primero, luego por precio
-      return sorted.sort((a, b) => {
-        if (a.is_featured && !b.is_featured) return -1;
-        if (!a.is_featured && b.is_featured) return 1;
-        return a.final_price - b.final_price;
-      });
+      // Sin campo is_featured en ProductPublic — ordenar por precio
+      return sorted.sort((a, b) => getRefPrice(a) - getRefPrice(b));
 
     case 'price_asc':
-      return sorted.sort((a, b) => a.final_price - b.final_price);
+      return sorted.sort((a, b) => getRefPrice(a) - getRefPrice(b));
 
     case 'price_desc':
-      return sorted.sort((a, b) => b.final_price - a.final_price);
+      return sorted.sort((a, b) => getRefPrice(b) - getRefPrice(a));
 
     case 'name_asc':
       return sorted.sort((a, b) => a.name.localeCompare(b.name, 'es-AR'));
@@ -33,9 +36,8 @@ export function sortProducts(products: Product[], sortBy: SortOption): Product[]
       return sorted.sort((a, b) => b.name.localeCompare(a.name, 'es-AR'));
 
     case 'newest':
-      return sorted.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+      // Sin campo created_at en ProductPublic — mantener orden original
+      return sorted;
 
     default:
       return sorted;

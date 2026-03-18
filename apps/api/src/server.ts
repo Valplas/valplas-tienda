@@ -3,11 +3,13 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import passport from 'passport';
 import swaggerUi from 'swagger-ui-express';
 import { errorHandler } from './shared/middleware/error.middleware.js';
 import { apiRateLimiter } from './shared/middleware/rate-limit.middleware.js';
 import { env, validateEnv } from './env.js';
 import { swaggerSpec } from './config/swagger.js';
+import './modules/auth/oauth.controller.js';
 
 // Validar variables de entorno al inicio
 validateEnv();
@@ -59,6 +61,7 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(passport.initialize());
 
 // Rate limiting
 app.use('/api', apiRateLimiter);
@@ -94,6 +97,8 @@ import addressRoutes from './modules/addresses/address.routes.js';
 import orderRoutes from './modules/orders/order.routes.js';
 import userRoutes from './modules/users/user.routes.js';
 import accountingRoutes from './modules/accounting/accounting.routes.js';
+import catalogRoutes from './modules/catalog/catalog.routes.js';
+import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.js';
 
 // Montar rutas
 app.use('/api/auth', authRoutes);
@@ -107,6 +112,7 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/accounting', accountingRoutes);
+app.use('/api/catalog', catalogRoutes);
 
 // Swagger documentation
 app.use(
@@ -135,6 +141,10 @@ app.use((req, res) => {
     }
   });
 });
+
+// Programar jobs en background
+scheduleTokenCleanup();
+console.log('🕒 Job programado: limpieza de tokens a las 3:00 AM ART (06:00 UTC)');
 
 // Iniciar servidor
 app.listen(PORT, () => {

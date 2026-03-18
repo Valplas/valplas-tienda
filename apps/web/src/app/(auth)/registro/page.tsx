@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/auth-store';
 
 import { FormField } from '@/components/ui/form-field';
 import { LoadingButton } from '@/components/ui/loading-button';
+import { GoogleAuthButton } from '@/components/auth/google-auth-button';
 
 export default function RegistroPage() {
   const router = useRouter();
@@ -173,6 +174,8 @@ export default function RegistroPage() {
               <span className="bg-card px-2 text-muted-foreground">o</span>
             </div>
           </div>
+
+          <GoogleAuthButton label="Registrarse con Google" />
 
           {/* Footer Links */}
           <div className="text-center text-sm">

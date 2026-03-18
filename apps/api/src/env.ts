@@ -47,7 +47,15 @@ export const env = {
   // Autenticación
   JWT_SECRET: requireEnv('JWT_SECRET'),
   JWT_EXPIRES_IN: getEnv('JWT_EXPIRES_IN', '15m'),
-  JWT_REFRESH_EXPIRES_IN: getEnv('JWT_REFRESH_EXPIRES_IN', '7d')
+  JWT_REFRESH_EXPIRES_IN: getEnv('JWT_REFRESH_EXPIRES_IN', '30m'),
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID: getEnv('GOOGLE_CLIENT_ID', ''),
+  GOOGLE_CLIENT_SECRET: getEnv('GOOGLE_CLIENT_SECRET', ''),
+  GOOGLE_CALLBACK_URL: getEnv(
+    'GOOGLE_CALLBACK_URL',
+    'http://localhost:3001/api/auth/google/callback'
+  )
 } as const;
 
 /**

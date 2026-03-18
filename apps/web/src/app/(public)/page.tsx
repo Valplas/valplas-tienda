@@ -1,25 +1,29 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProductGrid } from '@/components/product';
-import { getProducts, getCategories } from '@/services';
+import { getCatalogProducts } from '@/lib/services/catalog.service';
+import { getCategories } from '@/services';
 import { Card, CardContent } from '@/components/ui/card';
+import type { Category, ProductPublic } from '@/types';
 
 export default async function Home() {
-  // Fetch featured products and categories
-  let featuredProducts: any[] = [];
+  let featuredProducts: ProductPublic[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let categories: any[] = [];
 
   try {
     const [productsRes, categoriesRes] = await Promise.all([
-      getProducts({ featured: true, limit: 8 }),
+      getCatalogProducts({ limit: 8 }),
       getCategories()
     ]);
 
     featuredProducts = productsRes.success && productsRes.data ? productsRes.data : [];
     // Filter root categories (parent_id is null)
-    categories = categoriesRes.filter((cat: any) => cat.parent_id === null);
+
+    categories = Array.isArray(categoriesRes)
+      ? categoriesRes.filter((cat: Category) => cat.parent_id === null)
+      : [];
   } catch (error) {
     console.error('Error loading home page data:', error);
   }

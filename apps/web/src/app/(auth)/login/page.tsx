@@ -15,6 +15,7 @@ import { FormField } from '@/components/ui/form-field';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { GoogleAuthButton } from '@/components/auth/google-auth-button';
 
 function LoginForm() {
   const router = useRouter();
@@ -128,6 +129,8 @@ function LoginForm() {
               <span className="bg-card px-2 text-muted-foreground">o</span>
             </div>
           </div>
+
+          <GoogleAuthButton label="Iniciar sesión con Google" />
 
           {/* Footer Links */}
           <div className="space-y-4 text-center text-sm">

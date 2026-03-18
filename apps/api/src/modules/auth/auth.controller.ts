@@ -5,7 +5,7 @@ import { AppError } from '../../shared/middleware/error.middleware.js';
 
 const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
 const ACCESS_TOKEN_COOKIE_NAME = 'accessToken';
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días en milisegundos
+const COOKIE_MAX_AGE = 30 * 60 * 1000; // 30 minutos en milisegundos
 const ACCESS_TOKEN_MAX_AGE = 15 * 60 * 1000; // 15 min en ms
 
 // Cookie options para refresh token
@@ -70,6 +70,12 @@ export async function login(req: Request, res: Response, next: NextFunction) {
  */
 export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
+    // Revocar refresh token en DB (falla silenciosamente si no hay token)
+    const refreshTokenValue = req.cookies[REFRESH_TOKEN_COOKIE_NAME];
+    if (refreshTokenValue) {
+      await authService.revokeRefreshToken(refreshTokenValue);
+    }
+
     // Limpiar ambas cookies (clearCookie no acepta maxAge, lo removemos)
     const cookieOptions = getCookieOptions();
     const { maxAge: _r, ...clearRefreshOptions } = cookieOptions;
@@ -93,7 +99,7 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
  */
 export async function getCurrentUser(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) {
+    if (!req.user || !req.user.userId) {
       throw new AppError('UNAUTHORIZED', 'No autenticado', 401);
     }
 
@@ -118,9 +124,11 @@ export async function refreshToken(req: Request, res: Response, next: NextFuncti
       throw new AppError('NO_REFRESH_TOKEN', 'Refresh token no encontrado', 401);
     }
 
-    // Generar nuevo access token y setearlo como cookie
-    const newAccessToken = await authService.refreshAccessToken(refreshToken);
+    // Rotar tokens: revocar el viejo y emitir nuevos
+    const { accessToken: newAccessToken, newRefreshToken } =
+      await authService.refreshAccessToken(refreshToken);
     res.cookie(ACCESS_TOKEN_COOKIE_NAME, newAccessToken, getAccessTokenCookieOptions());
+    res.cookie(REFRESH_TOKEN_COOKIE_NAME, newRefreshToken, getCookieOptions());
 
     return res.json(ApiResponse.success({ message: 'Token renovado' }));
   } catch (error) {

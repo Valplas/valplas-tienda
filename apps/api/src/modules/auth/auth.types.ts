@@ -64,12 +64,14 @@ export interface AuthenticatedRequest extends Request {
   user: AuthenticatedUser;
 }
 
-// Extender el tipo Request de Express
+// Extender Express.User para que sea compatible con AuthenticatedUser
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
-    interface Request {
-      user?: AuthenticatedUser;
+    interface User {
+      userId?: string;
+      email?: string | null;
+      role?: UserRole;
     }
   }
 }

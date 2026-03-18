@@ -12,3 +12,4 @@ export * from './shipping.service';
 export * from './orders.service';
 export * from './addresses.service';
 export * from './users.service';
+export * from './catalog.service';

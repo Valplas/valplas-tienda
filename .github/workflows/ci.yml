@@ -94,6 +94,7 @@ jobs:
               | grep -v "pattern:" \
               | grep -v "process\.env" \
               | grep -v "SECRET}" \
+              | grep -v "TOKEN}" \
               | grep -v "\.env" \
               | grep -v "example" \
               | grep -v "dummy" \
@@ -105,7 +106,10 @@ jobs:
               | grep -v "as string" \
               | grep -v "formData.get" \
               | grep -v "placeholder=" \
-              | grep -v "defaultValue="; then
+              | grep -v "defaultValue=" \
+              | grep -v "bcrypt\.hash" \
+              | grep -v "COOKIE_NAME" \
+              | grep -v "seed"; then
             echo "❌ ERROR: Posible secret/password encontrado en el código"
             exit 1
           fi

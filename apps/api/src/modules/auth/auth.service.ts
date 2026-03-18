@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
+import ms, { type StringValue } from 'ms';
+import * as refreshTokenRepository from './refresh-token.repository.js';
 import { env } from '../../env.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import * as authRepository from './auth.repository.js';
@@ -12,6 +14,10 @@ import type {
   RefreshTokenPayload
 } from './auth.types.js';
 const BCRYPT_ROUNDS = 12;
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 /**
  * Registrar nuevo usuario
@@ -49,6 +55,11 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   // Generar tokens
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user.id);
+
+  // Guardar refresh token en DB
+  const tokenHash = hashToken(refreshToken);
+  const expiresAt = new Date(Date.now() + ms(env.JWT_REFRESH_EXPIRES_IN as StringValue));
+  await refreshTokenRepository.saveRefreshToken(user.id, tokenHash, expiresAt);
 
   // Remover password_hash del usuario (la DB retorna password_hash en snake_case)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,6 +105,11 @@ export async function login(data: LoginData): Promise<AuthResponse> {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user.id);
 
+  // Guardar refresh token en DB
+  const tokenHash = hashToken(refreshToken);
+  const expiresAt = new Date(Date.now() + ms(env.JWT_REFRESH_EXPIRES_IN as StringValue));
+  await refreshTokenRepository.saveRefreshToken(user.id, tokenHash, expiresAt);
+
   // Remover password_hash del usuario
   const { password_hash: _, ...userWithoutPassword } = userWithPassword;
 
@@ -124,34 +140,53 @@ export async function getCurrentUser(userId: string) {
 }
 
 /**
- * Renovar access token usando refresh token
+ * Renovar access token usando refresh token (con rotación de token)
  */
-export async function refreshAccessToken(refreshToken: string): Promise<string> {
+export async function refreshAccessToken(
+  refreshToken: string
+): Promise<{ accessToken: string; newRefreshToken: string }> {
   try {
-    // Verificar refresh token
-    const payload = jwt.verify(refreshToken, env.JWT_SECRET) as RefreshTokenPayload;
-
-    // Buscar usuario
-    const user = await authRepository.findUserById(payload.userId);
-
-    if (!user || !user.is_active) {
-      throw new AppError('INVALID_TOKEN', 'Token inválido', 401);
-    }
-
-    // Generar nuevo access token
-    return generateAccessToken(user);
-  } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      throw new AppError('INVALID_TOKEN', 'Token inválido o expirado', 401);
-    }
-    throw error;
+    jwt.verify(refreshToken, env.JWT_SECRET);
+  } catch {
+    throw new AppError('INVALID_TOKEN', 'Token inválido o expirado', 401);
   }
+
+  const tokenHash = hashToken(refreshToken);
+  const tokenRecord = await refreshTokenRepository.findValidToken(tokenHash);
+
+  if (!tokenRecord) {
+    throw new AppError('INVALID_TOKEN', 'Token inválido o expirado', 401);
+  }
+
+  const user = await authRepository.findUserById(tokenRecord.user_id);
+
+  if (!user || !user.is_active) {
+    throw new AppError('INVALID_TOKEN', 'Token inválido', 401);
+  }
+
+  // Revocar token viejo (rotación)
+  await refreshTokenRepository.revokeToken(tokenHash);
+
+  // Generar nuevos tokens
+  const accessToken = generateAccessToken(user);
+  const newRefreshToken = generateRefreshToken(user.id);
+
+  // Guardar nuevo refresh token en DB
+  const newTokenHash = hashToken(newRefreshToken);
+  const expiresAt = new Date(Date.now() + ms(env.JWT_REFRESH_EXPIRES_IN as StringValue));
+  await refreshTokenRepository.saveRefreshToken(user.id, newTokenHash, expiresAt);
+
+  return { accessToken, newRefreshToken };
 }
 
 /**
  * Generar access token (JWT)
  */
-function generateAccessToken(user: { id: string; email: string | null; role: string }): string {
+export function generateAccessToken(user: {
+  id: string;
+  email: string | null;
+  role: string;
+}): string {
   const payload: JwtPayload = {
     userId: user.id,
     email: user.email,
@@ -167,7 +202,7 @@ function generateAccessToken(user: { id: string; email: string | null; role: str
 /**
  * Generar refresh token
  */
-function generateRefreshToken(userId: string): string {
+export function generateRefreshToken(userId: string): string {
   const payload: RefreshTokenPayload = {
     userId,
     sessionId: randomUUID()
@@ -189,6 +224,19 @@ export function verifyAccessToken(token: string): JwtPayload {
       throw new AppError('TOKEN_EXPIRED', 'Token expirado', 401);
     }
     throw new AppError('INVALID_TOKEN', 'Token inválido', 401);
+  }
+}
+
+/**
+ * Revocar un refresh token (logout)
+ * Falla silenciosamente si el token no existe — la cookie se limpia de todas formas
+ */
+export async function revokeRefreshToken(refreshToken: string): Promise<void> {
+  try {
+    const tokenHash = hashToken(refreshToken);
+    await refreshTokenRepository.revokeToken(tokenHash);
+  } catch {
+    // Ignorar errores — la cookie ya se limpia en el controller
   }
 }
 
