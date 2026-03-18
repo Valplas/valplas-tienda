@@ -4,12 +4,12 @@
  * Mobile: 1 col, Tablet: 2 cols, Desktop: 3 cols, Large: 4 cols
  */
 
-import { Product } from '@/types';
+import { ProductPublic } from '@/types';
 import { ProductCard } from './product-card';
 import { cn } from '@/lib/utils';
 
 interface ProductGridProps {
-  products: Product[];
+  products: ProductPublic[];
   className?: string;
 }
 

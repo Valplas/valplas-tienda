@@ -1,30 +1,67 @@
-/**
- * Product Card Component
- * Card for grid display with image, name, price, stock badge, and add to cart
- */
-
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Product } from '@/types';
+import { Minus, Plus, ShoppingCart } from 'lucide-react';
+import { toast } from 'sonner';
+import type { ProductPublic } from '@/types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { StockBadge } from './stock-badge';
-import { AddToCartButton } from './add-to-cart-button';
 import { formatPrice } from '@/lib/formatters';
+import { useCartStore } from '@/stores/cart-store';
 import { cn } from '@/lib/utils';
 
 interface ProductCardProps {
-  product: Product;
+  product: ProductPublic;
   className?: string;
 }
 
 export function ProductCard({ product, className }: ProductCardProps) {
+  const [selectedTierIndex, setSelectedTierIndex] = useState(0);
+  const [counter, setCounter] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const addItem = useCartStore((state) => state.addItem);
+
   const isOutOfStock = product.available_stock === 0;
+  const hasTiers = product.tiers.length > 0;
+  const hasMultipleTiers = product.tiers.length > 1;
+
+  const selectedTier = hasTiers ? product.tiers[selectedTierIndex] : null;
+  const unitPrice = hasTiers ? product.tiers[0].unit_price : product.base_price;
+  const bulkTier = hasMultipleTiers ? product.tiers[product.tiers.length - 1] : null;
+
+  const handleTierSelect = (index: number) => {
+    setSelectedTierIndex(index);
+    setCounter(1);
+  };
+
+  const handleDecrement = () => setCounter((c) => Math.max(1, c - 1));
+  const handleIncrement = () => setCounter((c) => c + 1);
+
+  const handleAddToCart = async () => {
+    const presentation = selectedTier?.min_quantity ?? 1;
+    const totalQuantity = presentation * counter;
+
+    setIsLoading(true);
+    try {
+      await addItem(product.id, totalQuantity);
+      toast.success('Producto agregado', {
+        description: `${product.name} (x${totalQuantity}) se agregó al carrito`
+      });
+    } catch (error) {
+      toast.error('Error al agregar', {
+        description: error instanceof Error ? error.message : 'Intenta nuevamente'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <Card className={cn('group overflow-hidden transition-shadow hover:shadow-lg', className)}>
-      {/* Image */}
+    <Card className={cn('flex flex-col overflow-hidden', className)}>
+      {/* Imagen */}
       <Link href={`/productos/${product.slug}`} className="block">
         <div className="relative aspect-square overflow-hidden bg-muted">
           {product.image_url ? (
@@ -32,7 +69,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
               src={product.image_url}
               alt={product.name}
               fill
-              className="object-cover transition-transform group-hover:scale-105"
+              className="object-cover transition-transform hover:scale-105"
               sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
           ) : (
@@ -52,54 +89,93 @@ export function ProductCard({ product, className }: ProductCardProps) {
               </svg>
             </div>
           )}
-          {product.is_featured && (
-            <div className="absolute left-2 top-2 rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground">
-              Destacado
-            </div>
-          )}
         </div>
       </Link>
 
-      {/* Content */}
-      <CardContent className="p-4">
-        <Link href={`/productos/${product.slug}`} className="block space-y-2">
-          {/* Brand */}
-          {product.brand && <p className="text-xs text-muted-foreground">{product.brand.name}</p>}
-
-          {/* Name */}
-          <h3 className="line-clamp-2 text-sm font-semibold leading-tight transition-colors group-hover:text-primary">
+      <CardContent className="flex flex-1 flex-col gap-2 p-3">
+        {/* Nombre */}
+        <Link href={`/productos/${product.slug}`}>
+          <h3 className="line-clamp-2 text-sm font-semibold leading-tight hover:text-primary">
             {product.name}
           </h3>
-
-          {/* Price */}
-          <div className="flex items-baseline gap-2">
-            <p className="text-lg font-bold">{formatPrice(product.final_price)}</p>
-            {product.final_price < product.base_price && (
-              <p className="text-xs text-muted-foreground line-through">
-                {formatPrice(product.base_price)}
-              </p>
-            )}
-          </div>
-
-          {/* Unit */}
-          <p className="text-xs text-muted-foreground">{product.unit}</p>
         </Link>
 
-        {/* Stock Badge */}
-        <div className="mt-3">
+        {/* Stock + SKU */}
+        <div className="flex items-center gap-2">
           <StockBadge stock={product.available_stock} />
+          <span className="text-xs text-muted-foreground">SKU {product.sku}</span>
         </div>
+
+        {/* Precios */}
+        <div className="space-y-0.5">
+          {bulkTier && (
+            <div>
+              <p className="text-xs text-muted-foreground">Precio unitario por bulto cerrado:</p>
+              <p className="text-base font-bold">{formatPrice(bulkTier.unit_price / 100)}</p>
+            </div>
+          )}
+          <div>
+            <p className="text-xs text-muted-foreground">Precio unitario:</p>
+            <p className={cn('font-semibold', bulkTier ? 'text-sm' : 'text-base font-bold')}>
+              {formatPrice(unitPrice / 100)}
+            </p>
+          </div>
+        </div>
+
+        {/* Selector de presentación */}
+        {hasMultipleTiers && (
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Presentación
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {product.tiers.map((tier, index) => (
+                <button
+                  key={tier.min_quantity}
+                  onClick={() => handleTierSelect(index)}
+                  className={cn(
+                    'min-w-[2.5rem] rounded border px-2 py-1 text-sm font-medium transition-colors',
+                    selectedTierIndex === index
+                      ? 'border-destructive bg-destructive/5 text-destructive'
+                      : 'border-muted-foreground/30 hover:border-muted-foreground'
+                  )}
+                >
+                  {tier.min_quantity}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
 
-      {/* Footer */}
-      <CardFooter className="p-4 pt-0">
-        <AddToCartButton
-          productId={product.id}
-          productName={product.name}
-          disabled={isOutOfStock}
-          className="w-full"
+      {/* Footer: contador + carrito */}
+      <CardFooter className="gap-2 p-3 pt-0">
+        <div className="flex items-center gap-1 rounded border">
+          <button
+            onClick={handleDecrement}
+            disabled={counter <= 1 || isOutOfStock}
+            className="px-2 py-1 text-sm disabled:opacity-40"
+          >
+            <Minus className="h-3 w-3" />
+          </button>
+          <span className="min-w-[1.5rem] text-center text-sm">{counter}</span>
+          <button
+            onClick={handleIncrement}
+            disabled={isOutOfStock}
+            className="px-2 py-1 text-sm disabled:opacity-40"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+        </div>
+
+        <Button
+          onClick={handleAddToCart}
+          disabled={isOutOfStock || isLoading}
           size="sm"
-        />
+          className="flex-1"
+        >
+          <ShoppingCart className="h-4 w-4" />
+        </Button>
       </CardFooter>
     </Card>
   );

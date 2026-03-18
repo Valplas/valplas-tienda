@@ -8,7 +8,7 @@
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
-import { Product, ProductFilters as ProductFiltersType } from '@/types';
+import { ProductPublic, ProductFilters as ProductFiltersType } from '@/types';
 import { ProductGrid, ProductFilters, ProductSort } from '@/components/product';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -28,8 +28,8 @@ import { useSearchParams } from 'next/navigation';
 const ITEMS_PER_PAGE = 20;
 
 function ProductsContent() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [sortedProducts, setSortedProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductPublic[]>([]);
+  const [sortedProducts, setSortedProducts] = useState<ProductPublic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
