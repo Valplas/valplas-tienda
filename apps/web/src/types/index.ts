@@ -280,6 +280,36 @@ export interface PriceList {
 }
 
 // ============================================================================
+// CATALOG — Public product types with price tiers
+// ============================================================================
+
+export interface PriceTier {
+  min_quantity: number;
+  unit_price: number; // en centavos
+}
+
+export interface ProductPublic {
+  id: string;
+  sku: string;
+  name: string;
+  slug: string;
+  image_url: string | null;
+  available_stock: number;
+  base_price: number; // fallback si no hay tiers
+  category: { id: string; name: string } | null;
+  brand: { id: string; name: string } | null;
+  tiers: PriceTier[]; // ordenados por min_quantity ASC
+}
+
+export interface CatalogFilters {
+  search?: string;
+  category_id?: string;
+  brand_id?: string;
+  page?: number;
+  limit?: number;
+}
+
+// ============================================================================
 // FRONTEND-SPECIFIC TYPES
 // ============================================================================
 
