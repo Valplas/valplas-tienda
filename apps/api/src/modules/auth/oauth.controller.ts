@@ -56,6 +56,10 @@ passport.use(
           }
         }
 
+        if (!user.is_active) {
+          return done(null, false);
+        }
+
         done(null, user);
       } catch (error) {
         done(error as Error);
