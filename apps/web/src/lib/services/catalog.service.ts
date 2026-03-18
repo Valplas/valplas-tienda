@@ -12,7 +12,7 @@ export async function getCatalogProducts(
 
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
+      if (value !== undefined && value !== null && value !== '') {
         params.append(key, String(value));
       }
     });

@@ -38,7 +38,11 @@ export function ProductCard({ product, className }: ProductCardProps) {
   };
 
   const handleDecrement = () => setCounter((c) => Math.max(1, c - 1));
-  const handleIncrement = () => setCounter((c) => c + 1);
+  const handleIncrement = () => {
+    const presentation = selectedTier?.min_quantity ?? 1;
+    const maxCounter = Math.floor(product.available_stock / presentation);
+    setCounter((c) => Math.min(c + 1, maxCounter));
+  };
 
   const handleAddToCart = async () => {
     const presentation = selectedTier?.min_quantity ?? 1;

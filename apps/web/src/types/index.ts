@@ -296,6 +296,8 @@ export interface ProductPublic {
   image_url: string | null;
   available_stock: number;
   base_price: number; // fallback si no hay tiers
+  category_id: string;
+  brand_id: string | null;
   category: { id: string; name: string } | null;
   brand: { id: string; name: string } | null;
   tiers: PriceTier[]; // ordenados por min_quantity ASC
