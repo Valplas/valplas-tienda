@@ -42,26 +42,26 @@ export async function findPublicProducts(
     'p.is_active = true',
     '(p.stock - p.reserved_stock) > 0'
   ];
-  const params: unknown[] = [];
+  const filterParams: unknown[] = [];
   let paramIndex = 1;
 
   if (search) {
     conditions.push(
       `(unaccent(p.name) ILIKE unaccent($${paramIndex}) OR p.sku ILIKE $${paramIndex})`
     );
-    params.push(`%${search}%`);
+    filterParams.push(`%${search}%`);
     paramIndex++;
   }
 
   if (category_id) {
     conditions.push(`p.category_id = $${paramIndex}`);
-    params.push(category_id);
+    filterParams.push(category_id);
     paramIndex++;
   }
 
   if (brand_id) {
     conditions.push(`p.brand_id = $${paramIndex}`);
-    params.push(brand_id);
+    filterParams.push(brand_id);
     paramIndex++;
   }
 
@@ -93,15 +93,13 @@ export async function findPublicProducts(
     ORDER BY p.name ASC
     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
   `;
-  params.push(limit, offset);
+  const paginationParams = [...filterParams, limit, offset];
 
   const countQuery = `
     SELECT COUNT(*) AS total
     FROM products p
-    LEFT JOIN brands b ON b.id = p.brand_id
     WHERE ${where}
   `;
-  const countParams = params.slice(0, paramIndex - 1);
 
   const [productsResult, countResult] = await Promise.all([
     query<{
@@ -116,8 +114,8 @@ export async function findPublicProducts(
       category_name: string | null;
       brand_name: string | null;
       image_url: string | null;
-    }>(productsQuery, params),
-    query<{ total: string }>(countQuery, countParams)
+    }>(productsQuery, paginationParams),
+    query<{ total: string }>(countQuery, filterParams)
   ]);
 
   const total = parseInt(countResult.rows[0]?.total ?? '0', 10);
