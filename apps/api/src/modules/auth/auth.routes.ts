@@ -37,4 +37,18 @@ router.get('/me', authMiddleware, authController.getCurrentUser);
  */
 router.post('/refresh', authController.refreshToken);
 
+import * as oauthController from './oauth.controller.js';
+
+/**
+ * GET /api/auth/google
+ * Redirigir a Google OAuth
+ */
+router.get('/google', oauthController.googleAuth);
+
+/**
+ * GET /api/auth/google/callback
+ * Callback de Google OAuth
+ */
+router.get('/google/callback', oauthController.googleCallback);
+
 export default router;

@@ -99,7 +99,7 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
  */
 export async function getCurrentUser(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.user) {
+    if (!req.user || !req.user.userId) {
       throw new AppError('UNAUTHORIZED', 'No autenticado', 401);
     }
 
