@@ -21,6 +21,7 @@ export interface ApiResponse<T> {
 // eslint-disable-next-line no-undef
 export interface FetchOptions extends RequestInit {
   silentErrors?: boolean; // No loggear errores en consola
+  skipAuthRedirect?: boolean; // No redirigir en caso de 401 (ej: initialize al cargar la app)
 }
 
 // Previene múltiples refreshes simultáneos.
@@ -34,7 +35,7 @@ let isRefreshing = false;
  */
 async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<ApiResponse<T>> {
   const url = `${API_URL}${endpoint}`;
-  const { silentErrors, ...fetchOptions } = options || {};
+  const { silentErrors, skipAuthRedirect, ...fetchOptions } = options || {};
 
   const res = await fetch(url, {
     ...fetchOptions,
@@ -66,9 +67,9 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<Ap
         isRefreshing = false;
       }
 
-      // Refresh falló — redirigir a login
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+      // Refresh falló — redirigir a la tienda (salvo que el caller lo omita)
+      if (!skipAuthRedirect && typeof window !== 'undefined' && window.location.pathname !== '/') {
+        window.location.href = '/';
         return Promise.reject(new Error('Sesión expirada'));
       }
     }

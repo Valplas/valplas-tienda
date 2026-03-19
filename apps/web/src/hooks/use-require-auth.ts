@@ -15,7 +15,7 @@ interface UseRequireAuthOptions {
  * Redirige si no cumple. Usar en páginas protegidas.
  */
 export function useRequireAuth(options: UseRequireAuthOptions = {}) {
-  const { redirectTo = '/login', allowedRoles } = options;
+  const { redirectTo = '/', allowedRoles } = options;
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, isLoading } = useAuthStore();

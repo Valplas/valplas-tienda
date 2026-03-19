@@ -72,8 +72,8 @@ export async function logout(): Promise<void> {
  * Obtener usuario actual
  */
 export async function getCurrentUser(): Promise<User> {
-  // Silenciar errores porque el 401 es esperado cuando no hay sesión
-  const response = await get<User>('/auth/me', { silentErrors: true });
+  // Silenciar errores y omitir redirect: el 401 es esperado cuando no hay sesión
+  const response = await get<User>('/auth/me', { silentErrors: true, skipAuthRedirect: true });
 
   if (response.success && response.data) {
     return response.data;

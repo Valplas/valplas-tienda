@@ -83,7 +83,7 @@ export async function findPublicProducts(
         SELECT pi.url
         FROM product_images pi
         WHERE pi.product_id = p.id
-        ORDER BY pi.position ASC
+        ORDER BY pi.display_order ASC
         LIMIT 1
       ) AS image_url
     FROM products p
