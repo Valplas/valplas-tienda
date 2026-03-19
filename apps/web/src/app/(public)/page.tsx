@@ -29,17 +29,15 @@ export default async function Home() {
   }
 
   return (
-    <main className="container mx-auto px-4 py-8 space-y-12">
+    <main className="container mx-auto px-4 py-4 space-y-6">
       {/* Hero Section */}
-      <section className="text-center space-y-4 py-12">
-        <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl md:text-6xl">
-          Valplas
-        </h1>
-        <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+      <section className="text-center space-y-2 py-4">
+        <h1 className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">Valplas</h1>
+        <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
           Distribuidora de Artículos Plásticos, Productos de Limpieza y Electrodomésticos
         </p>
-        <div className="flex justify-center gap-4 pt-4">
-          <Button asChild size="lg">
+        <div className="flex justify-center gap-4 pt-1">
+          <Button asChild size="sm">
             <Link href="/productos">
               Ver Catálogo
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -54,17 +52,16 @@ export default async function Home() {
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold tracking-tight">Categorías</h2>
           </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
+          <div className="flex gap-3 overflow-x-auto pb-1">
             {categories.map((category) => (
-              <Link key={category.id} href={`/productos?category_id=${category.id}`}>
+              <Link
+                key={category.id}
+                href={`/productos?category_id=${category.id}`}
+                className="shrink-0"
+              >
                 <Card className="overflow-hidden transition-shadow hover:shadow-lg">
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold">{category.name}</h3>
-                    {category.description && (
-                      <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                        {category.description}
-                      </p>
-                    )}
+                  <CardContent className="px-5 py-3">
+                    <h3 className="text-sm font-semibold whitespace-nowrap">{category.name}</h3>
                   </CardContent>
                 </Card>
               </Link>
