@@ -115,13 +115,13 @@ export function ProductCard({ product, className }: ProductCardProps) {
           {bulkTier && (
             <div>
               <p className="text-xs text-muted-foreground">Precio unitario por bulto cerrado:</p>
-              <p className="text-base font-bold">{formatPrice(bulkTier.unit_price / 100)}</p>
+              <p className="text-base font-bold">{formatPrice(bulkTier.unit_price)}</p>
             </div>
           )}
           <div>
             <p className="text-xs text-muted-foreground">Precio unitario:</p>
             <p className={cn('font-semibold', bulkTier ? 'text-sm' : 'text-base font-bold')}>
-              {formatPrice(unitPrice / 100)}
+              {formatPrice(unitPrice)}
             </p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
                   key={tier.min_quantity}
                   onClick={() => handleTierSelect(index)}
                   className={cn(
-                    'min-w-[2.5rem] rounded border px-2 py-1 text-sm font-medium transition-colors',
+                    'min-w-10 rounded border px-2 py-1 text-sm font-medium transition-colors',
                     selectedTierIndex === index
                       ? 'border-destructive bg-destructive/5 text-destructive'
                       : 'border-muted-foreground/30 hover:border-muted-foreground'
@@ -162,7 +162,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
           >
             <Minus className="h-3 w-3" />
           </button>
-          <span className="min-w-[1.5rem] text-center text-sm">{counter}</span>
+          <span className="min-w-6 text-center text-sm">{counter}</span>
           <button
             onClick={handleIncrement}
             disabled={isOutOfStock}
