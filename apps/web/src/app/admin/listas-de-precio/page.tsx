@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
-import { Edit, Plus, Loader2 } from 'lucide-react';
+import { Edit, Plus, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PriceListFormData } from '@/lib/validations/price-list';
 
@@ -200,9 +200,19 @@ export default function ListasDePrecioPage() {
       id: 'actions',
       header: 'Acciones',
       cell: ({ row }) => (
-        <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}>
-          <Edit className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:text-destructive"
+            onClick={() => handleDelete([row.original])}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       ),
       enableSorting: false
     }

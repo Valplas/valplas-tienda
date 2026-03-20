@@ -65,6 +65,12 @@ interface ProductSearchResult {
   available_stock: number;
 }
 
+interface UserAddressRow {
+  user: AdminUser;
+  address: Address | null;
+  allAddresses: Address[];
+}
+
 export default function NuevoPedidoPage() {
   const { user, isLoading: authLoading } = useRequireAuth({
     allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
@@ -73,14 +79,13 @@ export default function NuevoPedidoPage() {
 
   // User search
   const [userSearch, setUserSearch] = useState('');
-  const [userResults, setUserResults] = useState<AdminUser[]>([]);
+  const [userResults, setUserResults] = useState<UserAddressRow[]>([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   // Address
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
-  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
 
   // Products
   const [productSearch, setProductSearch] = useState('');
@@ -110,7 +115,7 @@ export default function NuevoPedidoPage() {
     });
   }, []);
 
-  // Search users with debounce (min 3 chars)
+  // Search users with debounce (min 3 chars) — one row per address
   const searchUsers = useCallback(async (search: string) => {
     if (search.trim().length < 3) {
       setUserResults([]);
@@ -119,7 +124,19 @@ export default function NuevoPedidoPage() {
     setIsSearchingUsers(true);
     try {
       const { users } = await getAdminUsers({ search, limit: 20 });
-      setUserResults(users);
+      const addressLists = await Promise.all(users.map((u) => getAdminUserAddresses(u.id)));
+      const rows: UserAddressRow[] = [];
+      users.forEach((u, i) => {
+        const activeAddrs = addressLists[i].filter((a) => a.is_active);
+        if (activeAddrs.length === 0) {
+          rows.push({ user: u, address: null, allAddresses: [] });
+        } else {
+          activeAddrs.forEach((addr) =>
+            rows.push({ user: u, address: addr, allAddresses: activeAddrs })
+          );
+        }
+      });
+      setUserResults(rows);
     } finally {
       setIsSearchingUsers(false);
     }
@@ -130,21 +147,18 @@ export default function NuevoPedidoPage() {
     return () => clearTimeout(timer);
   }, [userSearch, searchUsers]);
 
-  // Select user → load addresses
-  const handleSelectUser = useCallback(async (user: AdminUser) => {
-    setSelectedUser(user);
+  // Select user+address row (addresses already fetched during search)
+  const handleSelectUserAddress = useCallback((row: UserAddressRow) => {
+    setSelectedUser(row.user);
     setUserResults([]);
     setUserSearch('');
-    setSelectedAddressId('');
-    setIsLoadingAddresses(true);
-    try {
-      const addrs = await getAdminUserAddresses(user.id);
-      setAddresses(addrs.filter((a) => a.is_active));
-      if (addrs.filter((a) => a.is_active).length === 1) {
-        setSelectedAddressId(addrs[0].id);
-      }
-    } finally {
-      setIsLoadingAddresses(false);
+    setAddresses(row.allAddresses);
+    if (row.address) {
+      setSelectedAddressId(row.address.id);
+    } else if (row.allAddresses.length === 1) {
+      setSelectedAddressId(row.allAddresses[0].id);
+    } else {
+      setSelectedAddressId('');
     }
   }, []);
 
@@ -387,18 +401,28 @@ export default function NuevoPedidoPage() {
               </div>
               {userResults.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {userResults.map((user) => (
+                  {userResults.map((row, idx) => (
                     <button
-                      key={user.id}
+                      key={`${row.user.id}-${row.address?.id ?? idx}`}
                       className="w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b last:border-0"
-                      onClick={() => handleSelectUser(user)}
+                      onClick={() => handleSelectUserAddress(row)}
                     >
                       <div className="font-medium">
-                        {user.first_name} {user.last_name}
+                        {row.user.first_name} {row.user.last_name}
                       </div>
-                      <div className="text-sm text-muted-foreground">{user.email}</div>
-                      {user.phone && (
-                        <div className="text-xs text-muted-foreground">{user.phone}</div>
+                      <div className="text-sm text-muted-foreground">{row.user.email}</div>
+                      {row.address ? (
+                        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          {row.address.street} {row.address.street_number}
+                          {row.address.floor ? `, Piso ${row.address.floor}` : ''}
+                          {row.address.apartment ? ` ${row.address.apartment}` : ''} —{' '}
+                          {row.address.city}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground italic mt-0.5">
+                          Sin dirección registrada
+                        </div>
                       )}
                     </button>
                   ))}
@@ -419,12 +443,7 @@ export default function NuevoPedidoPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoadingAddresses ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Cargando direcciones...
-              </div>
-            ) : addresses.length === 0 ? (
+            {addresses.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Este usuario no tiene direcciones registradas.
               </p>
