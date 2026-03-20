@@ -367,10 +367,8 @@ export default function NuevoPedidoPage() {
                 <div className="font-medium">
                   {selectedUser.first_name} {selectedUser.last_name}
                 </div>
-                <div className="text-sm text-muted-foreground">{selectedUser.email}</div>
-                {selectedUser.phone && (
-                  <div className="text-sm text-muted-foreground">{selectedUser.phone}</div>
-                )}
+
+                <div className="text-sm text-muted-foreground">{selectedUser.phone}</div>
               </div>
               <Button
                 variant="outline"
@@ -410,7 +408,9 @@ export default function NuevoPedidoPage() {
                       <div className="font-medium">
                         {row.user.first_name} {row.user.last_name}
                       </div>
-                      <div className="text-sm text-muted-foreground">{row.user.email}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {row.user.phone ?? row.user.email}
+                      </div>
                       {row.address ? (
                         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                           <MapPin className="h-3 w-3 flex-shrink-0" />
