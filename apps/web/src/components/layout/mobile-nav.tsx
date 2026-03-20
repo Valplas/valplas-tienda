@@ -93,16 +93,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                 <p className="text-xs text-muted-foreground">{user.email}</p>
               </div>
 
-              <Button
-                variant="ghost"
-                className="justify-start"
-                onClick={() => handleNavigation('/cuenta')}
-              >
-                <User className="mr-2 h-5 w-5" />
-                Mi Cuenta
-              </Button>
-
-              {isAdmin && (
+              {isAdmin ? (
                 <Button
                   variant="ghost"
                   className="justify-start"
@@ -110,6 +101,15 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                 >
                   <LayoutDashboard className="mr-2 h-5 w-5" />
                   Panel Admin
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="justify-start"
+                  onClick={() => handleNavigation('/cuenta')}
+                >
+                  <User className="mr-2 h-5 w-5" />
+                  Mi Cuenta
                 </Button>
               )}
 

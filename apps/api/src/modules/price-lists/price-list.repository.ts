@@ -30,7 +30,7 @@ export async function findPriceLists(filters: PriceListFilters = {}) {
 
   const [listResult, countResult] = await Promise.all([
     query<PriceList>(
-      `SELECT * FROM price_lists WHERE ${where} ORDER BY name ASC LIMIT $${i} OFFSET $${i + 1}`,
+      `SELECT * FROM price_lists WHERE ${where} ORDER BY margin ASC LIMIT $${i} OFFSET $${i + 1}`,
       [...params, limit, offset]
     ),
     query<{ count: string }>(`SELECT COUNT(*) as count FROM price_lists WHERE ${where}`, params)

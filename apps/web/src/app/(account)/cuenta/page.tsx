@@ -22,15 +22,25 @@ import {
 } from '@/components/ui/table';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
 import { getUserOrders } from '@/services';
-import { Order, OrderStatus } from '@/types';
+import { Order, OrderStatus, UserRole } from '@/types';
 import { formatDate, formatPrice } from '@/lib/formatters';
 import { Package, ShoppingBag, CheckCircle, Clock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user, isLoading: authLoading } = useRequireAuth();
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Admins y owners no tienen panel cliente — redirigir al panel de administración
+  useEffect(() => {
+    if (!user) return;
+    if (user.role === UserRole.ADMIN || user.role === UserRole.OWNER) {
+      router.replace('/admin');
+    }
+  }, [user, router]);
 
   // Stats
   const [stats, setStats] = useState({
