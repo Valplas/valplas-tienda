@@ -73,10 +73,14 @@ export async function logout(): Promise<void> {
  */
 export async function getCurrentUser(): Promise<User> {
   // Silenciar errores y omitir redirect: el 401 es esperado cuando no hay sesión
-  const response = await get<User>('/auth/me', { silentErrors: true, skipAuthRedirect: true });
+  // El endpoint devuelve { user: User } envuelto, igual que /auth/login
+  const response = await get<{ user: User }>('/auth/me', {
+    silentErrors: true,
+    skipAuthRedirect: true
+  });
 
   if (response.success && response.data) {
-    return response.data;
+    return response.data.user;
   }
 
   throw new Error(response.error?.message || 'No autenticado');

@@ -79,17 +79,9 @@ export function UserMenu() {
         {/* Admin Links */}
         {isAdmin && (
           <>
-            <DropdownMenuItem onClick={() => router.push('/cuenta')}>
-              <User className="mr-2 h-4 w-4" />
-              <span>Mi Cuenta</span>
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push('/admin')}>
               <LayoutDashboard className="mr-2 h-4 w-4" />
               <span>Panel Admin</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/cuenta/configuracion')}>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Configuración</span>
             </DropdownMenuItem>
           </>
         )}
