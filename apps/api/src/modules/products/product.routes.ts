@@ -7,6 +7,7 @@ import {
   createProductSchema,
   updateProductSchema
 } from './product.validator.js';
+import priceTierRouter, { productTierRouter } from './price-tiers/price-tier.routes.js';
 
 const router = Router();
 
@@ -22,6 +23,17 @@ router.get('/', validate(productFiltersSchema), productController.listProducts);
  * NOTA: Esta ruta debe ir antes de /:id para evitar conflictos
  */
 router.get('/slug/:slug', productController.getProductBySlug);
+
+/**
+ * /api/products/price-tiers/bulk-* — bulk assignment operations
+ * Must be mounted before /:id to avoid "price-tiers" being treated as an ID
+ */
+router.use('/price-tiers', priceTierRouter);
+
+/**
+ * /api/products/:id/price-tiers — per-product tier management
+ */
+router.use('/:id/price-tiers', productTierRouter);
 
 /**
  * GET /api/products/:id

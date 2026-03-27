@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { categorySchema, type CategoryFormData } from '@/lib/validations/category';
 import { Category } from '@/types';
@@ -39,8 +39,9 @@ export function CategoryForm({
     register,
     handleSubmit,
     formState: { errors },
-    watch,
-    setValue
+    control,
+    setValue,
+    watch
   } = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
     defaultValues: category
@@ -64,8 +65,8 @@ export function CategoryForm({
         }
   });
 
-  const name = watch('name');
-  const slug = watch('slug');
+  const name = useWatch({ control, name: 'name' });
+  const slug = useWatch({ control, name: 'slug' });
 
   // Auto-generate slug from name
   useEffect(() => {

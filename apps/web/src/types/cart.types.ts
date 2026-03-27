@@ -12,7 +12,7 @@ export interface CartState extends Omit<Cart, 'shipping_cost' | 'total'> {
 }
 
 export interface CartActions {
-  addItem: (productId: string, quantity?: number) => Promise<void>;
+  addItem: (productId: string, quantity?: number, priceListId?: string) => Promise<void>;
   updateQuantity: (productId: string, quantity: number) => Promise<void>;
   removeItem: (productId: string) => Promise<void>;
   clearCart: () => Promise<void>;

@@ -12,6 +12,7 @@ import { ProductGallery } from './product-gallery';
 import { StockBadge } from './stock-badge';
 import { QuantitySelector } from './quantity-selector';
 import { AddToCartButton } from './add-to-cart-button';
+import { PriceTierSelector } from './price-tier-selector';
 import { formatPrice } from '@/lib/formatters';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -31,6 +32,7 @@ interface ProductDetailProps {
 
 export function ProductDetail({ product, className }: ProductDetailProps) {
   const [quantity, setQuantity] = useState(1);
+  const hasTiers = product.tiers && product.tiers.length > 0;
   const isOutOfStock = product.available_stock === 0;
   const maxQuantity = Math.min(product.available_stock, 999);
 
@@ -88,18 +90,14 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
             <p className="mt-2 text-sm text-muted-foreground">SKU: {product.sku}</p>
           </div>
 
-          {/* Price */}
-          <div className="space-y-1">
-            <div className="flex items-baseline gap-3">
-              <p className="text-3xl font-bold">{formatPrice(product.final_price)}</p>
-              {product.final_price < product.base_price && (
-                <p className="text-lg text-muted-foreground line-through">
-                  {formatPrice(product.base_price)}
-                </p>
-              )}
+          {/* Price (shown only when no tiers) */}
+          {!hasTiers && (
+            <div className="space-y-1">
+              <div className="flex items-baseline gap-3">
+                <p className="text-3xl font-bold">{formatPrice(product.base_price)}</p>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">Precio por {product.unit}</p>
-          </div>
+          )}
 
           {/* Stock */}
           <div>
@@ -116,28 +114,42 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
 
           <Separator />
 
-          {/* Quantity & Add to Cart */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Cantidad</label>
-              <QuantitySelector value={quantity} min={1} max={maxQuantity} onChange={setQuantity} />
-            </div>
-
-            <AddToCartButton
+          {/* Tier selector or simple add-to-cart */}
+          {hasTiers ? (
+            <PriceTierSelector
               productId={product.id}
               productName={product.name}
-              quantity={quantity}
-              disabled={isOutOfStock}
-              className="w-full"
-              size="lg"
+              tiers={product.tiers!}
+              availableStock={product.available_stock}
             />
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Cantidad</label>
+                <QuantitySelector
+                  value={quantity}
+                  min={1}
+                  max={maxQuantity}
+                  onChange={setQuantity}
+                />
+              </div>
 
-            {isOutOfStock && (
-              <p className="text-center text-sm text-muted-foreground">
-                Producto sin stock disponible
-              </p>
-            )}
-          </div>
+              <AddToCartButton
+                productId={product.id}
+                productName={product.name}
+                quantity={quantity}
+                disabled={isOutOfStock}
+                className="w-full"
+                size="lg"
+              />
+
+              {isOutOfStock && (
+                <p className="text-center text-sm text-muted-foreground">
+                  Producto sin stock disponible
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

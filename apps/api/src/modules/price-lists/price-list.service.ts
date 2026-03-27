@@ -72,8 +72,8 @@ export async function calculatePrice(
   const costPrice =
     result.rows[0].cost_price > 0 ? result.rows[0].cost_price : result.rows[0].base_price;
   const margin = Number(priceList.margin);
-  // Formula from CRM: unit_price = cost_price * (1 + margin / 100), rounded to 2 decimals
-  const unitPrice = Math.round(costPrice * (1 + margin / 100) * 100) / 100;
+  // Formula from CRM: unit_price = cost_price * (1 + margin / 100), truncated to 2 decimals
+  const unitPrice = Math.trunc(costPrice * (1 + margin / 100) * 100) / 100;
 
   return { costPrice, margin, unitPrice };
 }

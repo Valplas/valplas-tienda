@@ -20,9 +20,7 @@ function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
   return {
     items: items.map((item) => ({
       product_id: item.productId,
-      quantity: item.quantity,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      product: item.product as any // Type assertion: API devuelve partial Product
+      quantity: item.quantity
     })),
     subtotal: serviceCart?.subtotal || 0,
     updated_at: new Date().toISOString()
@@ -39,12 +37,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
   itemCount: 0,
 
   // Actions
-  addItem: async (productId, quantity = 1) => {
+  addItem: async (productId, quantity = 1, priceListId?: string) => {
     const { setLoading } = get();
     setLoading(true);
 
     try {
-      const serviceCart = await addToCart(productId, quantity);
+      const serviceCart = await addToCart(productId, quantity, priceListId);
       const cart = mapServiceCartToFrontendCart(serviceCart);
 
       set({

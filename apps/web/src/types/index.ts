@@ -139,6 +139,7 @@ export interface Product {
   // Relations
   category?: Category;
   brand?: Brand;
+  tiers?: PriceTier[]; // populated on product detail page
 }
 
 export interface ProductFilters {
@@ -284,8 +285,11 @@ export interface PriceList {
 // ============================================================================
 
 export interface PriceTier {
-  min_quantity: number;
-  unit_price: number; // en centavos
+  id: string;
+  priceListId: string;
+  priceListName: string;
+  minQuantity: number; // bundle size: 1=unit, 10=box, 50=pallet
+  unitPrice: number; // price per individual unit (NUMERIC decimal, e.g. 1500.50)
 }
 
 export interface ProductPublic {

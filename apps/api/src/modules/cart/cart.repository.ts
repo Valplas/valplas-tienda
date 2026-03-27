@@ -1,5 +1,53 @@
 import { query } from '../../infrastructure/database/client.js';
 
+export interface TierInfo {
+  minQuantity: number;
+  unitPrice: number;
+}
+
+/**
+ * Obtener info de tiers para múltiples ítems del carrito en un solo query.
+ * Retorna un Map<"productId:priceListId", TierInfo>
+ */
+export async function getTiersForCartItems(
+  items: Array<{ productId: string; priceListId: string }>
+): Promise<Map<string, TierInfo>> {
+  if (items.length === 0) return new Map();
+
+  const productIds = items.map((i) => i.productId);
+  const priceListIds = items.map((i) => i.priceListId);
+
+  const result = await query<{
+    product_id: string;
+    price_list_id: string;
+    min_quantity: number;
+    unit_price: number;
+  }>(
+    `SELECT ppt.product_id, ppt.price_list_id, ppt.min_quantity,
+      TRUNC(
+        (CASE WHEN p.cost_price > 0 THEN p.cost_price ELSE p.base_price END)
+        * (1 + pl.margin / 100) * 100
+      ) / 100 AS unit_price
+     FROM product_price_tiers ppt
+     JOIN products p ON ppt.product_id = p.id AND p.deleted_at IS NULL
+     JOIN price_lists pl ON ppt.price_list_id = pl.id AND pl.is_active = true AND pl.deleted_at IS NULL
+     WHERE ppt.is_active = true
+       AND (ppt.product_id, ppt.price_list_id) IN (
+         SELECT * FROM unnest($1::uuid[], $2::uuid[])
+       )`,
+    [productIds, priceListIds]
+  );
+
+  const map = new Map<string, TierInfo>();
+  for (const row of result.rows) {
+    map.set(`${row.product_id}:${row.price_list_id}`, {
+      minQuantity: row.min_quantity,
+      unitPrice: Number(row.unit_price)
+    });
+  }
+  return map;
+}
+
 /**
  * Obtener stock disponible de un producto
  */

@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { brandSchema, type BrandFormData } from '@/lib/validations/brand';
 import { Brand } from '@/types';
@@ -24,8 +24,9 @@ export function BrandForm({ brand, onSubmit, onCancel, isLoading }: BrandFormPro
     register,
     handleSubmit,
     formState: { errors },
-    watch,
-    setValue
+    control,
+    setValue,
+    watch
   } = useForm<BrandFormData>({
     resolver: zodResolver(brandSchema),
     defaultValues: brand
@@ -45,8 +46,8 @@ export function BrandForm({ brand, onSubmit, onCancel, isLoading }: BrandFormPro
         }
   });
 
-  const name = watch('name');
-  const slug = watch('slug');
+  const name = useWatch({ control, name: 'name' });
+  const slug = useWatch({ control, name: 'slug' });
 
   // Auto-generate slug from name
   useEffect(() => {

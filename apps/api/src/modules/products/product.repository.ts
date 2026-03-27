@@ -21,6 +21,7 @@ export async function findProducts(
     maxPrice,
     inStock,
     featured,
+    requireActiveTier,
     page = 1,
     limit = 24,
     sort = 'newest'
@@ -28,6 +29,12 @@ export async function findProducts(
 
   const offset = (page - 1) * limit;
   const conditions: string[] = ['p.deleted_at IS NULL', 'p.is_active = true'];
+
+  if (requireActiveTier) {
+    conditions.push(
+      'EXISTS (SELECT 1 FROM product_price_tiers ppt WHERE ppt.product_id = p.id AND ppt.is_active = true)'
+    );
+  }
   const params: unknown[] = [];
   let paramIndex = 1;
 

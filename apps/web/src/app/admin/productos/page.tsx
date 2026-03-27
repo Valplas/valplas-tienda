@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRequireAuth } from '@/hooks/use-require-auth';
 import { UserRole } from '@/types';
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, Pencil, Trash2, Plus, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Plus, Loader2, Tags } from 'lucide-react';
 import { DataTable, createCheckboxColumn } from '@/components/admin/data-table';
 import { Button } from '@/components/ui/button';
 import {
@@ -297,12 +297,20 @@ export default function AdminProductsPage() {
             Administrá el catálogo de productos de tu tienda
           </p>
         </div>
-        <Button asChild>
-          <Link href="/admin/productos/nuevo">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Producto
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/productos/asignar-precios">
+              <Tags className="mr-2 h-4 w-4" />
+              Asignar precios en bulk
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/productos/nuevo">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Producto
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Sort selector */}

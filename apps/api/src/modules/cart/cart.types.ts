@@ -1,6 +1,7 @@
 export interface CartItem {
   productId: string;
-  quantity: number;
+  quantity: number; // number of bundles (or units if no tier)
+  priceListId?: string;
 }
 
 export interface CartItemWithProduct extends CartItem {
@@ -10,7 +11,10 @@ export interface CartItemWithProduct extends CartItem {
   basePrice: number;
   imageUrl: string | null;
   availableStock: number;
-  subtotal: number;
+  minQuantity: number; // bundle size (1 if no tier)
+  unitPrice: number; // price per individual unit
+  pricePerBundle: number; // unitPrice × minQuantity
+  subtotal: number; // pricePerBundle × quantity (bundles)
 }
 
 export interface Cart {
@@ -26,7 +30,8 @@ export interface CartSummary {
 
 export interface AddToCartData {
   productId: string;
-  quantity: number;
+  quantity: number; // number of bundles
+  priceListId?: string;
 }
 
 export interface UpdateCartItemData {

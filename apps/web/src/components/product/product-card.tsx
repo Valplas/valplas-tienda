@@ -29,7 +29,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const hasMultipleTiers = product.tiers.length > 1;
 
   const selectedTier = hasTiers ? product.tiers[selectedTierIndex] : null;
-  const unitPrice = hasTiers ? product.tiers[0].unit_price : product.base_price;
+  const unitPrice = hasTiers ? product.tiers[0].unitPrice : product.base_price;
   const bulkTier = hasMultipleTiers ? product.tiers[product.tiers.length - 1] : null;
 
   const handleTierSelect = (index: number) => {
@@ -39,13 +39,13 @@ export function ProductCard({ product, className }: ProductCardProps) {
 
   const handleDecrement = () => setCounter((c) => Math.max(1, c - 1));
   const handleIncrement = () => {
-    const presentation = selectedTier?.min_quantity ?? 1;
+    const presentation = selectedTier?.minQuantity ?? 1;
     const maxCounter = Math.floor(product.available_stock / presentation);
     setCounter((c) => Math.min(c + 1, maxCounter));
   };
 
   const handleAddToCart = async () => {
-    const presentation = selectedTier?.min_quantity ?? 1;
+    const presentation = selectedTier?.minQuantity ?? 1;
     const totalQuantity = presentation * counter;
 
     setIsLoading(true);
@@ -115,7 +115,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
           {bulkTier && (
             <div>
               <p className="text-xs text-muted-foreground">Precio unitario por bulto cerrado:</p>
-              <p className="text-base font-bold">{formatPrice(bulkTier.unit_price)}</p>
+              <p className="text-base font-bold">{formatPrice(bulkTier.unitPrice)}</p>
             </div>
           )}
           <div>
@@ -135,7 +135,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
             <div className="flex flex-wrap gap-1.5">
               {product.tiers.map((tier, index) => (
                 <button
-                  key={tier.min_quantity}
+                  key={tier.minQuantity}
                   onClick={() => handleTierSelect(index)}
                   className={cn(
                     'min-w-10 rounded border px-2 py-1 text-sm font-medium transition-colors',
@@ -144,7 +144,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
                       : 'border-muted-foreground/30 hover:border-muted-foreground'
                   )}
                 >
-                  {tier.min_quantity}
+                  {tier.minQuantity}
                 </button>
               ))}
             </div>
