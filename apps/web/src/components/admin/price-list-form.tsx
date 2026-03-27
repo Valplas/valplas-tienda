@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { priceListSchema, type PriceListFormData } from '@/lib/validations/price-list';
 import type { PriceList } from '@/types';
@@ -23,7 +23,7 @@ export function PriceListForm({ priceList, onSubmit, onCancel, isLoading }: Pric
     register,
     handleSubmit,
     formState: { errors },
-    watch,
+    control,
     setValue
   } = useForm<PriceListFormData>({
     resolver: zodResolver(priceListSchema),
@@ -36,6 +36,8 @@ export function PriceListForm({ priceList, onSubmit, onCancel, isLoading }: Pric
         }
       : { name: '', margin: 0, discount: 0, is_active: true }
   });
+
+  const isActive = useWatch({ control, name: 'is_active' });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -109,7 +111,7 @@ export function PriceListForm({ priceList, onSubmit, onCancel, isLoading }: Pric
       <div className="flex items-center space-x-2">
         <Checkbox
           id="is_active"
-          checked={watch('is_active')}
+          checked={isActive}
           onCheckedChange={(checked) => setValue('is_active', !!checked)}
           disabled={isLoading}
         />

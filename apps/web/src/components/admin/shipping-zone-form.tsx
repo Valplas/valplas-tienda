@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { shippingZoneSchema, type ShippingZoneFormData } from '@/lib/validations/shipping';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ export function ShippingZoneForm({ zone, onSubmit, onCancel, isLoading }: Shippi
     register,
     handleSubmit,
     formState: { errors },
-    watch,
+    control,
     setValue
   } = useForm<ShippingZoneFormData>({
     resolver: zodResolver(shippingZoneSchema),
@@ -41,7 +41,7 @@ export function ShippingZoneForm({ zone, onSubmit, onCancel, isLoading }: Shippi
         }
   });
 
-  const isActive = watch('is_active');
+  const isActive = useWatch({ control, name: 'is_active' });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

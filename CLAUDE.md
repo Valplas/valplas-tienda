@@ -476,7 +476,7 @@ Eventos a loggear en `audit_logs`:
 
 ## Notas para Claude
 
-0. **🔄 Context7 OBLIGATORIO:** Antes de iniciar cualquier tarea de desarrollo, usar Context7 (`mcp__plugin_context7_context7__resolve-library-id` + `mcp__plugin_context7_context7__query-docs`) para consultar la documentación actualizada de las librerías involucradas (Next.js, Express, Zod, shadcn/ui, etc.)
+0. **🔄 Context7 OBLIGATORIO:** Al iniciar o reanudar una sesión, y antes de cualquier tarea de desarrollo, usar Context7 (`mcp__plugin_context7_context7__resolve-library-id` + `mcp__plugin_context7_context7__query-docs`) para consultar la documentación actualizada de las librerías involucradas (Next.js, Express, Zod, shadcn/ui, etc.). Esto aplica también al retomar una conversación existente (`SessionStart` con evento `resume`) para asegurar que el contexto de APIs esté actualizado antes de continuar.
 1. **Mobile-first:** 80% del tráfico esperado es mobile
 2. **Español Argentina:** UI en español, "vos" si es conversacional
 3. **Moneda:** ARS, formato `$1.234,56`

@@ -63,6 +63,7 @@ export function DataTable<TData>({
   getRowId,
   getRowName
 }: DataTableProps<TData>) {
+  'use no memo';
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
 /**
  * Middleware - Route Protection
@@ -12,7 +11,7 @@ import type { NextRequest } from 'next/server';
  * - Las páginas protegidas verifican auth en useEffect y redirigen si no está autenticado
  * - El middleware solo maneja redirects de usuarios YA autenticados desde /login
  */
-export function middleware(_request: NextRequest) {
+export function middleware() {
   // Por ahora, no verificamos autenticación en el middleware
   // porque no podemos acceder a localStorage desde aquí
   // La verificación se hace en el cliente con useEffect

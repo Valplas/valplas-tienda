@@ -416,7 +416,7 @@ export default function NuevoPedidoPage() {
                       </div>
                       {row.address ? (
                         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <MapPin className="h-3 w-3 shrink-0" />
                           {row.address.street} {row.address.street_number}
                           {row.address.floor ? `, Piso ${row.address.floor}` : ''}
                           {row.address.apartment ? ` ${row.address.apartment}` : ''} —{' '}
@@ -540,7 +540,7 @@ export default function NuevoPedidoPage() {
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar" />
                         </SelectTrigger>
-                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-h-48 overflow-y-auto">
+                        <SelectContent className="w-(--radix-select-trigger-width) max-h-48 overflow-y-auto">
                           {priceLists.map((pl) => (
                             <SelectItem key={pl.id} value={pl.id}>
                               {pl.name}

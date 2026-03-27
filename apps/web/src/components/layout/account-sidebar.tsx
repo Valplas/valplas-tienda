@@ -80,7 +80,7 @@ export function AccountSidebar({ className }: AccountSidebarProps) {
                   isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
                 )}
               >
-                <Icon className="h-5 w-5 flex-shrink-0" />
+                <Icon className="h-5 w-5 shrink-0" />
                 <span>{item.title}</span>
               </Link>
             );

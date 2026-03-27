@@ -131,7 +131,7 @@ export function SearchBar() {
                     }}
                   >
                     {/* Product Image */}
-                    <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded border bg-muted">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded border bg-muted">
                       {product.image_url ? (
                         <Image
                           src={product.image_url}

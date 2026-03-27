@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   createUserSchema,
@@ -50,7 +50,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
     register,
     handleSubmit,
     formState: { errors },
-    watch,
+    control,
     setValue
   } = useForm<CreateUserFormData | UpdateUserFormData>({
     resolver: zodResolver(isEditing ? updateUserSchema : createUserSchema),
@@ -77,8 +77,8 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
         }
   });
 
-  const selectedRole = watch('role');
-  const isActive = watch('is_active');
+  const selectedRole = useWatch({ control, name: 'role' });
+  const isActive = useWatch({ control, name: 'is_active' });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

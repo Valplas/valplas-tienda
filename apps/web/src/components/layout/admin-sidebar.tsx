@@ -127,7 +127,7 @@ export function AdminSidebar({ className }: AdminSidebarProps) {
                 )}
                 title={collapsed ? item.title : undefined}
               >
-                <Icon className="h-5 w-5 flex-shrink-0" />
+                <Icon className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>{item.title}</span>}
               </Link>
             );

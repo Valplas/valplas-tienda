@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { carrierSchema, type CarrierFormData } from '@/lib/validations/shipping';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
     register,
     handleSubmit,
     formState: { errors },
-    watch,
+    control,
     setValue
   } = useForm<CarrierFormData>({
     resolver: zodResolver(carrierSchema),
@@ -40,7 +40,7 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
         }
   });
 
-  const isActive = watch('is_active');
+  const isActive = useWatch({ control, name: 'is_active' });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

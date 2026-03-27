@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRequireAuth } from '@/hooks/use-require-auth';
 import { UserRole } from '@/types';
@@ -182,10 +183,11 @@ export default function AdminProductsPage() {
         cell: ({ row }) => (
           <div className="relative w-12 h-12 rounded overflow-hidden bg-muted">
             {row.original.image_url ? (
-              <img
+              <Image
                 src={row.original.image_url}
                 alt={row.original.name}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
