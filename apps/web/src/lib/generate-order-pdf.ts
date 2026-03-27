@@ -6,8 +6,9 @@ import { formatCurrency } from './utils';
 
 // A4: 210 × 297 mm, margins: left=14, right=196
 const LEFT_COL = 14;
-const RIGHT_COL = 85;
+const RIGHT_COL = 125; // where right block starts
 const PAGE_WIDTH = 196;
+const LABEL_W = 28; // width of left-column labels ("Dirección: " is the widest)
 
 function getClientName(order: Order): string {
   const user = order.user;
@@ -32,24 +33,19 @@ function getAddress(order: Order): string {
 function addOrderPage(doc: jsPDF, order: Order) {
   const user = order.user;
   const LINE_H = 5; // mm per text line at 12pt
-  const ROW_GAP = 3; // mm between header rows
+  const ROW_GAP = 3; // mm between rows
 
   doc.setFontSize(12);
 
-  // Pre-wrap text that may overflow
-  const nameMaxW = RIGHT_COL - LEFT_COL - 22; // left col minus label width (~49mm)
-  const nameLines = doc.splitTextToSize(getClientName(order), nameMaxW);
+  // Pre-wrap: left block values can be up to RIGHT_COL minus label width
+  const leftValueMaxW = RIGHT_COL - LEFT_COL - LABEL_W - 4;
+  const nameLines = doc.splitTextToSize(getClientName(order), leftValueMaxW);
+  const addrLines = doc.splitTextToSize(getAddress(order), leftValueMaxW);
 
-  const addrMaxW = PAGE_WIDTH - RIGHT_COL - 28; // right col minus label width (~83mm)
-  const addrLines = doc.splitTextToSize(getAddress(order), addrMaxW);
-
-  // Dynamic row Y positions — each row is as tall as its tallest content
-  const row1H = nameLines.length * LINE_H;
-  const row2H = Math.max(addrLines.length, 1) * LINE_H;
-
+  // Left block rows (stacked): Cliente → Dirección → Celular
   const row1Y = 32;
-  const row2Y = row1Y + row1H + ROW_GAP;
-  const row3Y = row2Y + row2H + ROW_GAP;
+  const row2Y = row1Y + nameLines.length * LINE_H + ROW_GAP;
+  const row3Y = row2Y + addrLines.length * LINE_H + ROW_GAP;
   const tableStartY = row3Y + (user?.phone ? LINE_H + ROW_GAP : 0);
 
   // ── Title ──────────────────────────────────────────────────────────────────
@@ -57,38 +53,42 @@ function addOrderPage(doc: jsPDF, order: Order) {
   doc.setFontSize(22);
   doc.text(`Orden #${order.order_number}`, LEFT_COL, 20);
 
-  // ── 2-column header ────────────────────────────────────────────────────────
   doc.setFontSize(12);
 
-  // Row 1: Cliente / Fecha
+  // ── Left block ─────────────────────────────────────────────────────────────
+  // Cliente
   doc.setFont('helvetica', 'bold');
   doc.text('Cliente:', LEFT_COL, row1Y);
   doc.setFont('helvetica', 'normal');
-  doc.text(nameLines, LEFT_COL + 22, row1Y);
+  doc.text(nameLines, LEFT_COL + LABEL_W, row1Y);
 
+  // Dirección
   doc.setFont('helvetica', 'bold');
-  doc.text('Fecha:', RIGHT_COL, row1Y);
+  doc.text('Dirección:', LEFT_COL, row2Y);
   doc.setFont('helvetica', 'normal');
-  doc.text(dayjs(order.created_at).format('DD/MM/YYYY'), RIGHT_COL + 20, row1Y);
+  doc.text(addrLines, LEFT_COL + LABEL_W, row2Y);
 
-  // Row 2: Total / Dirección
-  doc.setFont('helvetica', 'bold');
-  doc.text('Total:', LEFT_COL, row2Y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(formatCurrency(order.total), LEFT_COL + 22, row2Y);
-
-  doc.setFont('helvetica', 'bold');
-  doc.text('Dirección:', RIGHT_COL, row2Y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(addrLines, RIGHT_COL + 28, row2Y);
-
-  // Row 3: Celular (optional)
+  // Celular
   if (user?.phone) {
     doc.setFont('helvetica', 'bold');
     doc.text('Celular:', LEFT_COL, row3Y);
     doc.setFont('helvetica', 'normal');
-    doc.text(user.phone, LEFT_COL + 22, row3Y);
+    doc.text(user.phone, LEFT_COL + LABEL_W, row3Y);
   }
+
+  // ── Right block (Fecha + Total, top-right) ─────────────────────────────────
+  const rightValueX = PAGE_WIDTH; // right-align values to page edge
+  doc.setFont('helvetica', 'bold');
+  doc.text('Fecha:', RIGHT_COL, row1Y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(dayjs(order.created_at).format('DD/MM/YYYY'), rightValueX, row1Y, { align: 'right' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total:', RIGHT_COL, row1Y + LINE_H + ROW_GAP);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatCurrency(order.total), rightValueX, row1Y + LINE_H + ROW_GAP, {
+    align: 'right'
+  });
 
   // ── Divider ────────────────────────────────────────────────────────────────
   doc.setDrawColor(200, 200, 200);
