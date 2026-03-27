@@ -147,10 +147,20 @@ scheduleTokenCleanup();
 console.log('🕒 Job programado: limpieza de tokens a las 3:00 AM ART (06:00 UTC)');
 
 // Iniciar servidor
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
   console.log(`📍 Ambiente: ${env.NODE_ENV}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
 });
+
+const shutdown = () => {
+  server.close(() => {
+    console.log('\n🛑 Servidor cerrado correctamente');
+    process.exit(0);
+  });
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 export default app;
