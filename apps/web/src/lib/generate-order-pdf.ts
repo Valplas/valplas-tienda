@@ -6,9 +6,8 @@ import { formatCurrency } from './utils';
 
 // A4: 210 × 297 mm, margins: left=14, right=196
 const LEFT_COL = 14;
-const RIGHT_COL = 125; // where right block starts
 const PAGE_WIDTH = 196;
-const LABEL_W = 28; // width of left-column labels ("Dirección: " is the widest)
+const LABEL_W = 28; // width of labels ("Dirección: " is the widest)
 
 function getClientName(order: Order): string {
   const user = order.user;
@@ -37,58 +36,56 @@ function addOrderPage(doc: jsPDF, order: Order) {
 
   doc.setFontSize(12);
 
-  // Pre-wrap: left block values can be up to RIGHT_COL minus label width
-  const leftValueMaxW = RIGHT_COL - LEFT_COL - LABEL_W - 4;
-  const nameLines = doc.splitTextToSize(getClientName(order), leftValueMaxW);
-  const addrLines = doc.splitTextToSize(getAddress(order), leftValueMaxW);
+  // Values span full width minus label
+  const valueMaxW = PAGE_WIDTH - LEFT_COL - LABEL_W;
+  const nameLines = doc.splitTextToSize(getClientName(order), valueMaxW);
+  const addrLines = doc.splitTextToSize(getAddress(order), valueMaxW);
 
-  // Left block rows (stacked): Cliente → Dirección → Celular
+  // Layout:
+  //   Title                               Fecha: xx/xx/xxxx   ← title row (y=20)
+  //   Cliente:   name...                                       ← row1 (y=32)
+  //   Dirección: address...                                    ← row2
+  //   Celular:   phone         Total: $ xx.xxx,xx              ← row3
   const row1Y = 32;
   const row2Y = row1Y + nameLines.length * LINE_H + ROW_GAP;
   const row3Y = row2Y + addrLines.length * LINE_H + ROW_GAP;
-  const tableStartY = row3Y + (user?.phone ? LINE_H + ROW_GAP : 0);
+  const tableStartY = row3Y + LINE_H + ROW_GAP;
 
-  // ── Title ──────────────────────────────────────────────────────────────────
+  // ── Title line: Orden # (left) + Fecha (right) ─────────────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
+  doc.setFontSize(16);
   doc.text(`Orden #${order.order_number}`, LEFT_COL, 20);
 
   doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Fecha:', PAGE_WIDTH - 45, 20);
+  doc.setFont('helvetica', 'normal');
+  doc.text(dayjs(order.created_at).format('DD/MM/YYYY'), PAGE_WIDTH, 20, { align: 'right' });
 
-  // ── Left block ─────────────────────────────────────────────────────────────
-  // Cliente
+  doc.setFontSize(12);
+
+  // ── Cliente ────────────────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
   doc.text('Cliente:', LEFT_COL, row1Y);
   doc.setFont('helvetica', 'normal');
   doc.text(nameLines, LEFT_COL + LABEL_W, row1Y);
 
-  // Dirección
+  // ── Dirección ──────────────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
   doc.text('Dirección:', LEFT_COL, row2Y);
   doc.setFont('helvetica', 'normal');
   doc.text(addrLines, LEFT_COL + LABEL_W, row2Y);
 
-  // Celular
-  if (user?.phone) {
-    doc.setFont('helvetica', 'bold');
-    doc.text('Celular:', LEFT_COL, row3Y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(user.phone, LEFT_COL + LABEL_W, row3Y);
-  }
-
-  // ── Right block (Fecha + Total, top-right) ─────────────────────────────────
-  const rightValueX = PAGE_WIDTH; // right-align values to page edge
+  // ── Celular (left) + Total (right) on same line ────────────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.text('Fecha:', RIGHT_COL, row1Y);
+  doc.text('Celular:', LEFT_COL, row3Y);
   doc.setFont('helvetica', 'normal');
-  doc.text(dayjs(order.created_at).format('DD/MM/YYYY'), rightValueX, row1Y, { align: 'right' });
+  doc.text(user?.phone ?? '—', LEFT_COL + LABEL_W, row3Y);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Total:', RIGHT_COL, row1Y + LINE_H + ROW_GAP);
+  doc.text('Total:', PAGE_WIDTH - 45, row3Y);
   doc.setFont('helvetica', 'normal');
-  doc.text(formatCurrency(order.total), rightValueX, row1Y + LINE_H + ROW_GAP, {
-    align: 'right'
-  });
+  doc.text(formatCurrency(order.total), PAGE_WIDTH, row3Y, { align: 'right' });
 
   // ── Divider ────────────────────────────────────────────────────────────────
   doc.setDrawColor(200, 200, 200);
