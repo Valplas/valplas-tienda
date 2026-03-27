@@ -19,6 +19,22 @@ export interface AdminUser {
   deleted_at: string | null;
 }
 
+export interface AdminUserWithAddresses extends AdminUser {
+  addresses: {
+    id: string;
+    alias: string;
+    street: string;
+    street_number: string;
+    floor: string | null;
+    apartment: string | null;
+    city: string;
+    province: string;
+    postcode: string;
+    is_default: boolean;
+    is_active: boolean;
+  }[];
+}
+
 export interface GetAdminUsersParams {
   page?: number;
   limit?: number;
@@ -26,9 +42,12 @@ export interface GetAdminUsersParams {
   role?: string;
   is_active?: boolean;
   sort?: 'first_name' | 'created_at';
+  includeAddresses?: boolean;
 }
 
-export async function getAdminUsers(params?: GetAdminUsersParams) {
+export async function getAdminUsers(
+  params?: GetAdminUsersParams
+): Promise<{ users: (AdminUser | AdminUserWithAddresses)[]; total: number; totalPages: number }> {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
   if (params?.limit) query.set('limit', String(params.limit));
@@ -36,6 +55,7 @@ export async function getAdminUsers(params?: GetAdminUsersParams) {
   if (params?.role) query.set('role', params.role);
   if (params?.is_active !== undefined) query.set('is_active', String(params.is_active));
   if (params?.sort) query.set('sort', params.sort);
+  if (params?.includeAddresses) query.set('include_addresses', 'true');
 
   const qs = query.toString();
   const res = await get<AdminUser[]>(`/users${qs ? `?${qs}` : ''}`);

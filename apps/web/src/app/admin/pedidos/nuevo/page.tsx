@@ -38,13 +38,11 @@ import {
   Pencil
 } from 'lucide-react';
 import { getAdminUsers } from '@/lib/services/users.service';
-import { getAdminUserAddresses } from '@/lib/services/addresses.service';
 import { getAdminProducts } from '@/lib/services/products.service';
 import { getPriceLists, calculatePrice } from '@/lib/services/price-lists.service';
 import { adminCreateOrder } from '@/lib/services/orders.service';
 import { formatCurrency } from '@/lib/utils';
-import type { AdminUser } from '@/lib/services/users.service';
-import type { Address } from '@/lib/services/addresses.service';
+import type { AdminUser, AdminUserWithAddresses } from '@/lib/services/users.service';
 import type { PriceList } from '@/types';
 
 interface OrderItem {
@@ -65,10 +63,12 @@ interface ProductSearchResult {
   available_stock: number;
 }
 
+type EmbeddedAddress = AdminUserWithAddresses['addresses'][number];
+
 interface UserAddressRow {
-  user: AdminUser;
-  address: Address | null;
-  allAddresses: Address[];
+  user: AdminUserWithAddresses;
+  address: EmbeddedAddress | null;
+  allAddresses: EmbeddedAddress[];
 }
 
 export default function NuevoPedidoPage() {
@@ -84,7 +84,7 @@ export default function NuevoPedidoPage() {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   // Address
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addresses, setAddresses] = useState<EmbeddedAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
 
   // Products
@@ -115,7 +115,7 @@ export default function NuevoPedidoPage() {
     });
   }, []);
 
-  // Search users with debounce (min 3 chars) — one row per address
+  // Search users with debounce (min 3 chars) — addresses included via JOIN, no N+1
   const searchUsers = useCallback(async (search: string) => {
     if (search.trim().length < 3) {
       setUserResults([]);
@@ -123,16 +123,19 @@ export default function NuevoPedidoPage() {
     }
     setIsSearchingUsers(true);
     try {
-      const { users } = await getAdminUsers({ search, limit: 20 });
-      const addressLists = await Promise.all(users.map((u) => getAdminUserAddresses(u.id)));
+      const { users: rawUsers } = await getAdminUsers({
+        search,
+        limit: 20,
+        includeAddresses: true
+      });
+      const users = rawUsers as AdminUserWithAddresses[];
       const rows: UserAddressRow[] = [];
-      users.forEach((u, i) => {
-        const activeAddrs = addressLists[i].filter((a) => a.is_active);
-        if (activeAddrs.length === 0) {
+      users.forEach((u) => {
+        if (u.addresses.length === 0) {
           rows.push({ user: u, address: null, allAddresses: [] });
         } else {
-          activeAddrs.forEach((addr) =>
-            rows.push({ user: u, address: addr, allAddresses: activeAddrs })
+          u.addresses.forEach((addr) =>
+            rows.push({ user: u, address: addr, allAddresses: u.addresses })
           );
         }
       });

@@ -4,6 +4,7 @@ import { query } from '../../infrastructure/database/client.js';
 import type {
   User,
   UserWithStats,
+  UserWithAddresses,
   CreateUserInput,
   UpdateUserInput,
   UserFilters,
@@ -14,7 +15,9 @@ import type {
 /**
  * Find users with filters and pagination
  */
-export async function findUsers(filters: UserFilters): Promise<{ users: User[]; total: number }> {
+export async function findUsers(
+  filters: UserFilters
+): Promise<{ users: User[] | UserWithAddresses[]; total: number }> {
   const {
     role,
     is_active,
@@ -22,7 +25,8 @@ export async function findUsers(filters: UserFilters): Promise<{ users: User[]; 
     search,
     page = 1,
     limit = 20,
-    sort = 'first_name'
+    sort = 'first_name',
+    includeAddresses = false
   } = filters;
 
   const offset = (page - 1) * limit;
@@ -79,18 +83,64 @@ export async function findUsers(filters: UserFilters): Promise<{ users: User[]; 
   const total = parseInt(countResult.rows[0].count, 10);
 
   // Get users
-  const usersResult = await query<User>(
-    `SELECT id, email, username, phone, first_name, last_name, role,
-            is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
-     FROM users
-     WHERE ${whereClause}
-     ORDER BY ${sort === 'first_name' ? 'first_name ASC, last_name ASC' : 'created_at DESC'}
-     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-    [...params, limit, offset]
-  );
+  let usersRows: User[] | UserWithAddresses[];
+
+  if (includeAddresses) {
+    const orderBy =
+      sort === 'first_name' ? 'u.first_name ASC, u.last_name ASC' : 'u.created_at DESC';
+    const result = await query<UserWithAddresses>(
+      `WITH paged_users AS (
+         SELECT id FROM users
+         WHERE ${whereClause}
+         ORDER BY ${sort === 'first_name' ? 'first_name ASC, last_name ASC' : 'created_at DESC'}
+         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+       )
+       SELECT
+         u.id, u.email, u.username, u.phone, u.first_name, u.last_name, u.role,
+         u.is_active, u.email_verified, u.phone_verified, u.created_at, u.updated_at, u.deleted_at,
+         COALESCE(
+           json_agg(
+             json_build_object(
+               'id', a.id,
+               'alias', a.alias,
+               'street', a.street,
+               'street_number', a.street_number,
+               'floor', a.floor,
+               'apartment', a.apartment,
+               'city', a.city,
+               'province', a.province,
+               'postcode', a.postcode,
+               'is_default', a.is_default,
+               'is_active', a.is_active
+             ) ORDER BY a.is_default DESC, a.created_at ASC
+           ) FILTER (WHERE a.id IS NOT NULL),
+           '[]'
+         ) AS addresses
+       FROM users u
+       JOIN paged_users pu ON u.id = pu.id
+       LEFT JOIN user_addresses a
+         ON a.user_id = u.id AND a.deleted_at IS NULL AND a.is_active = true
+       GROUP BY u.id, u.email, u.username, u.phone, u.first_name, u.last_name, u.role,
+                u.is_active, u.email_verified, u.phone_verified, u.created_at, u.updated_at, u.deleted_at
+       ORDER BY ${orderBy}`,
+      [...params, limit, offset]
+    );
+    usersRows = result.rows;
+  } else {
+    const result = await query<User>(
+      `SELECT id, email, username, phone, first_name, last_name, role,
+              is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
+       FROM users
+       WHERE ${whereClause}
+       ORDER BY ${sort === 'first_name' ? 'first_name ASC, last_name ASC' : 'created_at DESC'}
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
+    );
+    usersRows = result.rows;
+  }
 
   return {
-    users: usersResult.rows,
+    users: usersRows,
     total
   };
 }
