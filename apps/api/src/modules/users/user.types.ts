@@ -24,6 +24,24 @@ export interface UserWithStats extends User {
   last_order_date: Date | null;
 }
 
+export interface EmbeddedAddress {
+  id: string;
+  alias: string;
+  street: string;
+  street_number: string;
+  floor: string | null;
+  apartment: string | null;
+  city: string;
+  province: string;
+  postcode: string;
+  is_default: boolean;
+  is_active: boolean;
+}
+
+export interface UserWithAddresses extends User {
+  addresses: EmbeddedAddress[];
+}
+
 export interface CreateUserInput {
   email?: string;
   username?: string;
@@ -59,6 +77,7 @@ export interface UserFilters {
   page?: number;
   limit?: number;
   sort?: 'first_name' | 'created_at';
+  includeAddresses?: boolean;
 }
 
 export interface UserStats {
