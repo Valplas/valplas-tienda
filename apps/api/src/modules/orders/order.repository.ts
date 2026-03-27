@@ -51,7 +51,8 @@ export async function findOrders(
     order_number,
     search,
     page = 1,
-    limit = 20
+    limit = 20,
+    includeItems = false
   } = filters;
 
   const offset = (page - 1) * limit;
@@ -109,22 +110,58 @@ export async function findOrders(
 
   const total = parseInt(countResult.rows[0].count, 10);
 
-  // Get orders with user info
-  const ordersResult = await query<Order>(
-    `SELECT o.*,
-            CASE WHEN u.id IS NOT NULL THEN
-              json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
-            END as user
-     FROM orders o
-     LEFT JOIN users u ON o.user_id = u.id
-     WHERE ${whereClause}
-     ORDER BY o.created_at DESC
-     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-    [...params, limit, offset]
-  );
+  // Get orders with user info (and optionally embedded items)
+  let ordersRows: Order[];
+
+  if (includeItems) {
+    const result = await query<Order>(
+      `SELECT o.*,
+              CASE WHEN u.id IS NOT NULL THEN
+                json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
+              END as user,
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'id', oi.id,
+                    'product_id', oi.product_id,
+                    'product_name', p.name,
+                    'product_sku', p.sku,
+                    'quantity', oi.quantity,
+                    'unit_price', oi.unit_price,
+                    'subtotal', oi.subtotal
+                  ) ORDER BY oi.created_at
+                ) FILTER (WHERE oi.id IS NOT NULL),
+                '[]'
+              ) as items
+       FROM orders o
+       LEFT JOIN users u ON o.user_id = u.id
+       LEFT JOIN order_items oi ON oi.order_id = o.id
+       LEFT JOIN products p ON p.id = oi.product_id
+       WHERE ${whereClause}
+       GROUP BY o.id, u.id, u.first_name, u.last_name, u.email, u.phone
+       ORDER BY o.created_at DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
+    );
+    ordersRows = result.rows;
+  } else {
+    const result = await query<Order>(
+      `SELECT o.*,
+              CASE WHEN u.id IS NOT NULL THEN
+                json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
+              END as user
+       FROM orders o
+       LEFT JOIN users u ON o.user_id = u.id
+       WHERE ${whereClause}
+       ORDER BY o.created_at DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
+    );
+    ordersRows = result.rows;
+  }
 
   return {
-    orders: ordersResult.rows,
+    orders: ordersRows,
     total
   };
 }
