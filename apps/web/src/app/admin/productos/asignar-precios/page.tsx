@@ -330,8 +330,8 @@ export default function BulkPriceAssignmentPage() {
                       {preview.conflicts.map((c, i) => (
                         <li key={i}>
                           <span className="font-medium text-foreground">{c.productName}</span> →{' '}
-                          bulto x{c.minQuantity}: "{c.existingPriceListName}" → "
-                          {c.newPriceListName}"
+                          bulto x{c.minQuantity}: &ldquo;{c.existingPriceListName}&rdquo; → &ldquo;
+                          {c.newPriceListName}&rdquo;
                         </li>
                       ))}
                     </ul>
