@@ -134,6 +134,7 @@ export interface OrderFilters {
   search?: string;
   page?: number;
   limit?: number;
+  includeItems?: boolean;
 }
 
 export interface OrderSummary {

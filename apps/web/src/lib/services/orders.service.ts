@@ -147,6 +147,7 @@ export async function getAdminOrders(params?: {
   from_date?: string;
   to_date?: string;
   search?: string;
+  include_items?: boolean;
 }) {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
@@ -155,6 +156,7 @@ export async function getAdminOrders(params?: {
   if (params?.from_date) query.set('from_date', params.from_date);
   if (params?.to_date) query.set('to_date', params.to_date);
   if (params?.search) query.set('search', params.search);
+  if (params?.include_items) query.set('include_items', 'true');
 
   const qs = query.toString();
   const res = await get<Order[]>(`/orders/admin/all${qs ? `?${qs}` : ''}`);

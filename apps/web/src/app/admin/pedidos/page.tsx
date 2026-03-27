@@ -148,29 +148,28 @@ export default function PedidosPage() {
     }
   }, [cancelTarget, search, loadOrders]);
 
-  const handlePrintToday = useCallback(async () => {
+  const handlePrint = useCallback(async () => {
     setIsPrintingToday(true);
+    const date = dateFilter || dayjs().format('YYYY-MM-DD');
     try {
-      const today = dayjs().format('YYYY-MM-DD');
-      const { orders: todayOrders } = await getAdminOrders({
+      const { orders: targetOrders } = await getAdminOrders({
         page: 1,
         limit: 500,
-        from_date: today,
-        to_date: `${today}T23:59:59`
+        from_date: date,
+        to_date: `${date}T23:59:59`,
+        include_items: true
       });
-      if (todayOrders.length === 0) {
-        toast.info('No hay pedidos para hoy');
+      if (targetOrders.length === 0) {
+        toast.info(`No hay pedidos para ${dateFilter ? 'esa fecha' : 'hoy'}`);
         return;
       }
-      // Fetch full details (with items) in parallel
-      const fullOrders = await Promise.all(todayOrders.map((o) => getAdminOrderById(o.id)));
-      printOrders(fullOrders);
+      printOrders(targetOrders);
     } catch {
-      toast.error('Error al obtener pedidos de hoy');
+      toast.error('Error al obtener pedidos');
     } finally {
       setIsPrintingToday(false);
     }
-  }, []);
+  }, [dateFilter]);
 
   // IntersectionObserver for infinite scroll
   useEffect(() => {
@@ -302,13 +301,13 @@ export default function PedidosPage() {
           <p className="text-muted-foreground">Gestión de pedidos de clientes</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handlePrintToday} disabled={isPrintingToday}>
+          <Button variant="outline" onClick={handlePrint} disabled={isPrintingToday}>
             {isPrintingToday ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <Printer className="h-4 w-4 mr-2" />
             )}
-            Imprimir de hoy
+            {dateFilter ? `Imprimir ${dayjs(dateFilter).format('DD/MM')}` : 'Imprimir hoy'}
           </Button>
           <Button onClick={() => router.push('/admin/pedidos/nuevo')}>
             <Plus className="h-4 w-4 mr-2" />
