@@ -488,6 +488,12 @@ Eventos a loggear en `audit_logs`:
 9. **Auditoría:** Loggear todo cambio importante
 10. **🔒 SEGURIDAD CRÍTICA:** NUNCA commitear API keys, tokens, secrets o passwords. Verificar siempre antes de commit
 11. **🚫 MIGRACIONES:** NUNCA editar una migración existente. Crear nueva migración para cambios
+12. **🚫 N+1 QUERIES:** NUNCA usar `Promise.all(items.map(item => fetchSomething(item.id)))` para cargar datos relacionados. Supabase tiene límite de conexiones simultáneas y este patrón lo revienta en producción. Siempre resolver con:
+    - `LEFT JOIN` + `json_agg` en el backend si los datos se necesitan embebidos
+    - `WHERE id = ANY($1)` con un array de IDs si se prefiere query separada
+    - Un parámetro `includeRelated` en el endpoint existente
+    - Excepción permitida: `Promise.all` de recursos **independientes** (ej: `Promise.all([getProducts(), getCategories()])`)
+13. **🛑 GRACEFUL SHUTDOWN:** Todo servidor Express debe capturar `SIGINT` y `SIGTERM` para cerrar el servidor HTTP antes de salir. Sin esto el puerto queda ocupado al detener con Ctrl+C.
 
 ## Agentes/Roles Sugeridos
 
