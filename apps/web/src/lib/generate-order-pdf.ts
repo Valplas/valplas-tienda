@@ -31,6 +31,26 @@ function getAddress(order: Order): string {
 
 function addOrderPage(doc: jsPDF, order: Order) {
   const user = order.user;
+  const LINE_H = 5; // mm per text line at 12pt
+  const ROW_GAP = 3; // mm between header rows
+
+  doc.setFontSize(12);
+
+  // Pre-wrap text that may overflow
+  const nameMaxW = RIGHT_COL - LEFT_COL - 22; // left col minus label width (~49mm)
+  const nameLines = doc.splitTextToSize(getClientName(order), nameMaxW);
+
+  const addrMaxW = PAGE_WIDTH - RIGHT_COL - 28; // right col minus label width (~83mm)
+  const addrLines = doc.splitTextToSize(getAddress(order), addrMaxW);
+
+  // Dynamic row Y positions — each row is as tall as its tallest content
+  const row1H = nameLines.length * LINE_H;
+  const row2H = Math.max(addrLines.length, 1) * LINE_H;
+
+  const row1Y = 32;
+  const row2Y = row1Y + row1H + ROW_GAP;
+  const row3Y = row2Y + row2H + ROW_GAP;
+  const tableStartY = row3Y + (user?.phone ? LINE_H + ROW_GAP : 0);
 
   // ── Title ──────────────────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');
@@ -38,41 +58,39 @@ function addOrderPage(doc: jsPDF, order: Order) {
   doc.text(`Orden #${order.order_number}`, LEFT_COL, 20);
 
   // ── 2-column header ────────────────────────────────────────────────────────
-  // Left: Cliente, Total, Celular
   doc.setFontSize(12);
+
+  // Row 1: Cliente / Fecha
   doc.setFont('helvetica', 'bold');
-  doc.text('Cliente:', LEFT_COL, 32);
+  doc.text('Cliente:', LEFT_COL, row1Y);
   doc.setFont('helvetica', 'normal');
-  doc.text(getClientName(order), LEFT_COL + 22, 32);
+  doc.text(nameLines, LEFT_COL + 22, row1Y);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('Total:', LEFT_COL, 40);
+  doc.text('Fecha:', RIGHT_COL, row1Y);
   doc.setFont('helvetica', 'normal');
-  doc.text(formatCurrency(order.total), LEFT_COL + 22, 40);
+  doc.text(dayjs(order.created_at).format('DD/MM/YYYY'), RIGHT_COL + 20, row1Y);
 
+  // Row 2: Total / Dirección
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total:', LEFT_COL, row2Y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatCurrency(order.total), LEFT_COL + 22, row2Y);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Dirección:', RIGHT_COL, row2Y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(addrLines, RIGHT_COL + 28, row2Y);
+
+  // Row 3: Celular (optional)
   if (user?.phone) {
     doc.setFont('helvetica', 'bold');
-    doc.text('Celular:', LEFT_COL, 48);
+    doc.text('Celular:', LEFT_COL, row3Y);
     doc.setFont('helvetica', 'normal');
-    doc.text(user.phone, LEFT_COL + 22, 48);
+    doc.text(user.phone, LEFT_COL + 22, row3Y);
   }
 
-  // Right: Fecha, Dirección
-  doc.setFont('helvetica', 'bold');
-  doc.text('Fecha:', RIGHT_COL, 32);
-  doc.setFont('helvetica', 'normal');
-  doc.text(dayjs(order.created_at).format('DD/MM/YYYY'), RIGHT_COL + 20, 32);
-
-  doc.setFont('helvetica', 'bold');
-  doc.text('Dirección:', RIGHT_COL, 40);
-  doc.setFont('helvetica', 'normal');
-  // Wrap long addresses within right column width (~86mm)
-  const address = getAddress(order);
-  const addressLines = doc.splitTextToSize(address, PAGE_WIDTH - RIGHT_COL - LEFT_COL);
-  doc.text(addressLines, RIGHT_COL + 28, 40);
-
   // ── Divider ────────────────────────────────────────────────────────────────
-  const tableStartY = user?.phone ? 58 : 52;
   doc.setDrawColor(200, 200, 200);
   doc.line(LEFT_COL, tableStartY - 3, PAGE_WIDTH, tableStartY - 3);
 
