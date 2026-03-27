@@ -99,6 +99,18 @@ export interface UpdateProductInput {
   is_active?: boolean;
 }
 
+export interface ProductPriceTier {
+  id: string;
+  productId: string;
+  priceListId: string;
+  priceListName: string;
+  minQuantity: number; // bundle size: 1=unit, 10=box, 50=pallet
+  unitPrice: number; // price per individual unit (NUMERIC decimal)
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PriceList {
   id: string;
   name: string;

@@ -11,6 +11,7 @@ export interface ProductFilters {
   maxPrice?: number;
   inStock?: boolean;
   featured?: boolean;
+  requireActiveTier?: boolean;
   page?: number;
   limit?: number;
   sort?:

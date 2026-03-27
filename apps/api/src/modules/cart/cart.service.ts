@@ -53,7 +53,7 @@ export function clearCartCookie(res: Response): void {
 }
 
 /**
- * Obtener carrito con detalles de productos
+ * Obtener carrito con detalles de productos y tiers de precio
  */
 export async function getCartWithDetails(cart: Cart): Promise<CartSummary> {
   if (cart.items.length === 0) {
@@ -65,51 +65,61 @@ export async function getCartWithDetails(cart: Cart): Promise<CartSummary> {
     };
   }
 
-  // Obtener productos
   const productIds = cart.items.map((item) => item.productId);
   const products = await cartRepository.getProductsForCart(productIds);
-
-  // Crear mapa de productos para búsqueda rápida
   const productsMap = new Map(products.map((p) => [p.id, p]));
 
-  // Combinar items con detalles de productos
+  // Batch-fetch tier info for items that have a priceListId
+  const tierItems = cart.items.filter(
+    (item): item is typeof item & { priceListId: string } => !!item.priceListId
+  );
+  const tiersMap = await cartRepository.getTiersForCartItems(tierItems);
+
   const itemsWithProduct: CartItemWithProduct[] = [];
   let subtotal = 0;
   let itemCount = 0;
 
   for (const item of cart.items) {
     const product = productsMap.get(item.productId);
+    if (!product) continue;
 
-    // Si el producto no existe o no está activo, omitir
-    if (!product) {
-      continue;
-    }
+    const tierKey = item.priceListId ? `${item.productId}:${item.priceListId}` : null;
+    const tier = tierKey ? tiersMap.get(tierKey) : null;
 
-    // Ajustar cantidad si excede stock disponible
-    const quantity = Math.min(item.quantity, product.availableStock);
+    const minQuantity = tier ? tier.minQuantity : 1;
+    const unitPrice = tier ? tier.unitPrice : product.basePrice;
+    const pricePerBundle = Math.trunc(unitPrice * minQuantity * 100) / 100;
 
-    // Si no hay stock, omitir
-    if (quantity === 0) {
-      continue;
-    }
+    // quantity = bundles; cap bundles so total units don't exceed available stock
+    const maxBundles =
+      minQuantity > 0 ? Math.floor(product.availableStock / minQuantity) : product.availableStock;
+    const quantity = Math.min(item.quantity, maxBundles);
 
-    const itemSubtotal = product.basePrice * quantity;
+    if (quantity === 0) continue;
+
+    const itemSubtotal = Math.trunc(pricePerBundle * quantity * 100) / 100;
 
     itemsWithProduct.push({
       productId: product.id,
       quantity,
+      priceListId: item.priceListId,
       name: product.name,
       slug: product.slug,
       sku: product.sku,
       basePrice: product.basePrice,
       imageUrl: product.imageUrl,
       availableStock: product.availableStock,
+      minQuantity,
+      unitPrice,
+      pricePerBundle,
       subtotal: itemSubtotal
     });
 
     subtotal += itemSubtotal;
     itemCount += quantity;
   }
+
+  subtotal = Math.trunc(subtotal * 100) / 100;
 
   return {
     items: itemsWithProduct,
@@ -126,40 +136,57 @@ export async function addToCart(
   cart: Cart,
   data: AddToCartData
 ): Promise<{ cart: Cart; added: boolean; message?: string }> {
-  // Verificar que el producto existe y obtener stock
   const product = await cartRepository.getProductForCart(data.productId);
 
   if (!product) {
     throw new AppError('PRODUCT_NOT_FOUND', 'Producto no encontrado', 404);
   }
 
-  // Verificar stock disponible
-  const existingItem = cart.items.find((item) => item.productId === data.productId);
-  const currentQuantity = existingItem ? existingItem.quantity : 0;
-  const newQuantity = currentQuantity + data.quantity;
+  // Resolve tier info if priceListId provided
+  let minQuantity = 1;
+  if (data.priceListId) {
+    const tiersMap = await cartRepository.getTiersForCartItems([
+      { productId: data.productId, priceListId: data.priceListId }
+    ]);
+    const tier = tiersMap.get(`${data.productId}:${data.priceListId}`);
+    if (!tier) {
+      throw new AppError(
+        'TIER_NOT_FOUND',
+        'No existe un tier activo para este producto con la lista de precios indicada',
+        400
+      );
+    }
+    minQuantity = tier.minQuantity;
+  }
 
-  if (newQuantity > product.availableStock) {
+  // Stock check: total units after adding = (existing bundles + new bundles) × minQuantity
+  const existingItem = cart.items.find((item) => item.productId === data.productId);
+  const currentBundles = existingItem ? existingItem.quantity : 0;
+  const newBundles = currentBundles + data.quantity;
+  const requiredUnits = newBundles * minQuantity;
+
+  if (requiredUnits > product.availableStock) {
+    const maxBundles = Math.floor(product.availableStock / minQuantity);
     throw new AppError(
       'INSUFFICIENT_STOCK',
-      `Stock insuficiente. Disponible: ${product.availableStock}`,
+      `Stock insuficiente. Máximo de bultos disponibles: ${maxBundles}`,
       400
     );
   }
 
-  // Agregar o actualizar item
+  // Add or update item (replace if priceListId changed)
   if (existingItem) {
-    existingItem.quantity = newQuantity;
+    existingItem.quantity = newBundles;
+    existingItem.priceListId = data.priceListId;
   } else {
     cart.items.push({
       productId: data.productId,
-      quantity: data.quantity
+      quantity: data.quantity,
+      priceListId: data.priceListId
     });
   }
 
-  return {
-    cart,
-    added: true
-  };
+  return { cart, added: true };
 }
 
 /**
@@ -176,24 +203,32 @@ export async function updateCartItem(
     throw new AppError('ITEM_NOT_FOUND', 'Producto no encontrado en el carrito', 404);
   }
 
-  // Verificar stock disponible
+  const item = cart.items[itemIndex];
   const availableStock = await cartRepository.getAvailableStock(productId);
 
-  if (data.quantity > availableStock) {
+  // Resolve minQuantity if item has a tier
+  let minQuantity = 1;
+  if (item.priceListId) {
+    const tiersMap = await cartRepository.getTiersForCartItems([
+      { productId, priceListId: item.priceListId }
+    ]);
+    const tier = tiersMap.get(`${productId}:${item.priceListId}`);
+    if (tier) minQuantity = tier.minQuantity;
+  }
+
+  const requiredUnits = data.quantity * minQuantity;
+  if (requiredUnits > availableStock) {
+    const maxBundles = Math.floor(availableStock / minQuantity);
     throw new AppError(
       'INSUFFICIENT_STOCK',
-      `Stock insuficiente. Disponible: ${availableStock}`,
+      `Stock insuficiente. Máximo de bultos disponibles: ${maxBundles}`,
       400
     );
   }
 
-  // Actualizar cantidad
   cart.items[itemIndex].quantity = data.quantity;
 
-  return {
-    cart,
-    updated: true
-  };
+  return { cart, updated: true };
 }
 
 /**
@@ -208,10 +243,7 @@ export function removeFromCart(cart: Cart, productId: string): { cart: Cart; rem
 
   cart.items.splice(itemIndex, 1);
 
-  return {
-    cart,
-    removed: true
-  };
+  return { cart, removed: true };
 }
 
 /**
@@ -226,7 +258,5 @@ export function clearCart(): Cart {
  * (En MVP, simplemente mantener el carrito actual en cookie)
  */
 export async function syncCart(guestCart: Cart, _userId: string): Promise<Cart> {
-  // En MVP sin Redis/DB, simplemente retornar el carrito guest
-  // En iteraciones futuras, aquí se haría merge con carrito persistido en DB/Redis
   return guestCart;
 }

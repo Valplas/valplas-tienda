@@ -340,7 +340,9 @@ interface EnrichedAdminOrderItem {
   product_id: string;
   product_name: string;
   product_sku: string;
-  quantity: number;
+  quantity: number; // bundles
+  bundle_size_snapshot: number;
+  real_quantity: number; // quantity × bundle_size_snapshot
   unit_price: number;
   price_list_id: string;
   cost_price_snapshot: number;
@@ -397,18 +399,21 @@ export async function createAdminOrder(
     const order = orderResult.rows[0];
 
     for (const item of data.items) {
+      const itemSubtotal = Math.trunc(item.unit_price * item.real_quantity * 100) / 100;
       await client.query(
         `INSERT INTO order_items
-           (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           order.id,
           item.product_id,
           item.product_name,
           item.product_sku,
           item.quantity,
+          item.bundle_size_snapshot,
+          item.real_quantity,
           item.unit_price,
-          item.unit_price * item.quantity,
+          itemSubtotal,
           item.price_list_id ?? null,
           item.cost_price_snapshot ?? null
         ]
@@ -568,20 +573,20 @@ export async function updateAdminOrder(
     const order = orderResult.rows[0];
     if (!order || order.status !== 'processing') return null;
 
-    // Load current items to calculate stock deltas
-    const currentItemsResult = await client.query<{ product_id: string; quantity: number }>(
-      'SELECT product_id, quantity FROM order_items WHERE order_id = $1',
+    // Load current items to calculate stock deltas (use real_quantity for actual units)
+    const currentItemsResult = await client.query<{ product_id: string; real_quantity: number }>(
+      'SELECT product_id, real_quantity FROM order_items WHERE order_id = $1',
       [orderId]
     );
 
-    // Build old and new quantity maps (product_id → total qty)
+    // Build old and new quantity maps (product_id → total real units)
     const oldMap = new Map<string, number>();
     for (const item of currentItemsResult.rows) {
-      oldMap.set(item.product_id, (oldMap.get(item.product_id) ?? 0) + item.quantity);
+      oldMap.set(item.product_id, (oldMap.get(item.product_id) ?? 0) + item.real_quantity);
     }
     const newMap = new Map<string, number>();
     for (const item of data.items) {
-      newMap.set(item.product_id, (newMap.get(item.product_id) ?? 0) + item.quantity);
+      newMap.set(item.product_id, (newMap.get(item.product_id) ?? 0) + item.real_quantity);
     }
 
     // Apply stock deltas for every product involved
@@ -622,28 +627,32 @@ export async function updateAdminOrder(
     await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
 
     for (const item of data.items) {
+      const itemSubtotal = Math.trunc(item.unit_price * item.real_quantity * 100) / 100;
       await client.query(
         `INSERT INTO order_items
-           (order_id, product_id, product_name, product_sku, quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           orderId,
           item.product_id,
           item.product_name,
           item.product_sku,
           item.quantity,
+          item.bundle_size_snapshot,
+          item.real_quantity,
           item.unit_price,
-          Math.round(item.unit_price * item.quantity * 100) / 100,
+          itemSubtotal,
           item.price_list_id ?? null,
           item.cost_price_snapshot ?? null
         ]
       );
     }
 
-    // Recalculate totals
+    // Recalculate totals using real_quantity
     const subtotal =
-      Math.round(data.items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0) * 100) /
-      100;
+      Math.trunc(
+        data.items.reduce((sum, item) => sum + item.unit_price * item.real_quantity, 0) * 100
+      ) / 100;
 
     // Update the order record
     const updatedResult = await client.query<Order>(

@@ -5,6 +5,7 @@ import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
 import { findProductById } from '../products/product.repository.js';
 import { calculatePrice } from '../price-lists/price-list.service.js';
+import { getTierByProductAndPriceList } from '../products/price-tiers/price-tier.service.js';
 import { VALID_STATUS_TRANSITIONS } from './order.types.js';
 import type {
   Order,
@@ -294,27 +295,34 @@ export async function createAdminOrder(
     }
 
     const availableStock = product.stock - product.reserved_stock;
-    if (availableStock < item.quantity) {
+
+    const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
+    const bundleSizeSnapshot = tier.minQuantity;
+    const realQuantity = item.quantity * bundleSizeSnapshot;
+
+    if (availableStock < realQuantity) {
       throw new Error(
-        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, solicitado: ${item.quantity}`
+        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, requerido: ${realQuantity}`
       );
     }
 
     const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
 
-    subtotal += Math.round(unitPrice * item.quantity * 100) / 100;
+    subtotal += Math.trunc(unitPrice * realQuantity * 100) / 100;
     validatedItems.push({
       product_id: item.product_id,
       product_name: product.name,
       product_sku: product.sku,
       quantity: item.quantity,
+      bundle_size_snapshot: bundleSizeSnapshot,
+      real_quantity: realQuantity,
       unit_price: unitPrice,
       price_list_id: item.price_list_id,
       cost_price_snapshot: costPrice
     });
   }
 
-  subtotal = Math.round(subtotal * 100) / 100;
+  subtotal = Math.trunc(subtotal * 100) / 100;
 
   const order = await orderRepository.createAdminOrder(adminId, {
     ...data,
@@ -364,12 +372,17 @@ export async function updateAdminOrder(
     if (!product || !product.is_active) {
       throw new Error(`Producto ${item.product_id} no encontrado o inactivo`);
     }
+    const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
+    const bundleSizeSnapshot = tier.minQuantity;
+    const realQuantity = item.quantity * bundleSizeSnapshot;
     const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
     enrichedItems.push({
       product_id: item.product_id,
       product_name: product.name,
       product_sku: product.sku,
       quantity: item.quantity,
+      bundle_size_snapshot: bundleSizeSnapshot,
+      real_quantity: realQuantity,
       unit_price: unitPrice,
       price_list_id: item.price_list_id,
       cost_price_snapshot: costPrice

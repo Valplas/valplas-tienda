@@ -9,7 +9,7 @@ import { SortOption } from '@/types/filter.types';
  * Obtiene el precio de referencia para ordenar (primer tier o base_price)
  */
 function getRefPrice(product: ProductPublic): number {
-  return product.tiers.length > 0 ? product.tiers[0].unit_price : product.base_price;
+  return product.tiers.length > 0 ? product.tiers[0].unitPrice : product.base_price;
 }
 
 /**

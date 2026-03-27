@@ -18,6 +18,7 @@ import {
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Button } from '@/components/ui/button';
 import { ImageUpload } from '@/components/admin/image-upload';
+import { PriceTiersSection } from '@/components/admin/price-tiers-section';
 import { cn } from '@/lib/utils';
 import { getCategories, getBrands } from '@/services';
 
@@ -324,6 +325,12 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             </Label>
           </div>
         </div>
+      </div>
+
+      {/* Price Tiers */}
+      <div className="space-y-3">
+        <h3 className="text-base font-semibold">Tiers de precio</h3>
+        <PriceTiersSection productId={product?.id} costPrice={product?.cost_price} />
       </div>
 
       {/* Actions */}

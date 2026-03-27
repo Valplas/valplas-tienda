@@ -4,15 +4,18 @@ import { get, post, put, del } from '../api';
 
 export interface CartItem {
   productId: string;
-  quantity: number;
-  product?: {
-    id: string;
-    name: string;
-    slug: string;
-    base_price: number;
-    image_url: string | null;
-    stock: number;
-  };
+  quantity: number; // number of bundles
+  priceListId?: string;
+  name?: string;
+  slug?: string;
+  sku?: string;
+  basePrice?: number;
+  imageUrl?: string | null;
+  availableStock?: number;
+  minQuantity?: number; // bundle size (1 if no tier)
+  unitPrice?: number; // price per individual unit
+  pricePerBundle?: number; // unitPrice × minQuantity
+  subtotal?: number;
 }
 
 export interface Cart {
@@ -25,7 +28,6 @@ export interface Cart {
  * Obtener carrito actual
  */
 export async function getCart(): Promise<Cart> {
-  // Silenciar errores porque el 401 es esperado cuando no hay sesión
   const response = await get<Cart>('/cart', { silentErrors: true });
 
   if (response.success && response.data) {
@@ -38,8 +40,12 @@ export async function getCart(): Promise<Cart> {
 /**
  * Agregar producto al carrito
  */
-export async function addToCart(productId: string, quantity: number): Promise<Cart> {
-  const response = await post<Cart>('/cart/items', { productId, quantity });
+export async function addToCart(
+  productId: string,
+  quantity: number,
+  priceListId?: string
+): Promise<Cart> {
+  const response = await post<Cart>('/cart/items', { productId, quantity, priceListId });
 
   if (response.success && response.data) {
     return response.data;

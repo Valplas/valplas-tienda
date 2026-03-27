@@ -11,3 +11,4 @@ export * from './product-sort';
 export * from './quantity-selector';
 export * from './add-to-cart-button';
 export * from './stock-badge';
+export * from './price-tier-selector';
