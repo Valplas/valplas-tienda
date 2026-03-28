@@ -6,9 +6,9 @@ export const brandSchema = z.object({
     .string()
     .min(1, 'Slug requerido')
     .regex(/^[a-z0-9-]+$/, 'Solo minúsculas, números y guiones'),
-  logo_url: z.string().url('URL inválida').optional().or(z.literal('')),
+  logoUrl: z.string().url('URL inválida').optional().or(z.literal('')),
   description: z.string().optional().or(z.literal('')),
-  is_active: z.boolean()
+  isActive: z.boolean()
 });
 
 export type BrandFormData = z.infer<typeof brandSchema>;

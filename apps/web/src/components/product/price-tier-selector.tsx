@@ -75,10 +75,13 @@ export function PriceTierSelector({
 
             return (
               <div
-                key={tier.priceListId}
+                key={tier.priceListId ?? tier.minQuantity}
                 className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 hover:bg-muted/50 has-[input:checked]:border-primary has-[input:checked]:bg-primary/5"
               >
-                <RadioGroupItem value={tier.priceListId} id={`tier-${tier.priceListId}`} />
+                <RadioGroupItem
+                  value={tier.priceListId ?? ''}
+                  id={`tier-${tier.priceListId ?? ''}`}
+                />
                 <Label
                   htmlFor={`tier-${tier.priceListId}`}
                   className="flex flex-1 cursor-pointer items-center justify-between"

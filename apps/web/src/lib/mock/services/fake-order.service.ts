@@ -43,7 +43,7 @@ function generateOrderNumber(): string {
   const day = String(now.getDate()).padStart(2, '0');
 
   const orders = initOrders();
-  const todayOrders = orders.filter((o) => o.order_number.includes(`${year}${month}${day}`));
+  const todayOrders = orders.filter((o) => o.orderNumber.includes(`${year}${month}${day}`));
   const nextNumber = String(todayOrders.length + 1).padStart(4, '0');
 
   return `VLP-${year}${month}${day}-${nextNumber}`;
@@ -78,12 +78,12 @@ function paginate<T>(items: T[], params: PaginationParams): PaginatedResponse<T>
  * Crear pedido
  */
 export async function fake_createOrder(orderData: {
-  user_id: string;
-  items: Array<{ product_id: string; quantity: number }>;
-  shipping_address: Address;
-  shipping_carrier: string;
-  shipping_cost: number;
-  payment_method: string;
+  userId: string;
+  items: Array<{ productId: string; quantity: number }>;
+  shippingAddress: Address;
+  shippingCarrier: string;
+  shippingCost: number;
+  paymentMethod: string;
 }): Promise<ApiResponse<Order>> {
   return fakeFetch(async () => {
     const orders = initOrders();
@@ -93,13 +93,13 @@ export async function fake_createOrder(orderData: {
     let subtotal = 0;
 
     for (const item of orderData.items) {
-      const productResponse = await fake_getProductById(item.product_id);
+      const productResponse = await fake_getProductById(item.productId);
       if (!productResponse.success || !productResponse.data) {
         return {
           success: false,
           error: {
             code: 'PRODUCT_NOT_FOUND',
-            message: `Producto ${item.product_id} no encontrado`
+            message: `Producto ${item.productId} no encontrado`
           }
         };
       }
@@ -107,52 +107,52 @@ export async function fake_createOrder(orderData: {
       const product = productResponse.data;
 
       // Verificar stock disponible
-      if (item.quantity > product.available_stock) {
+      if (item.quantity > product.availableStock) {
         return {
           success: false,
           error: {
             code: 'INSUFFICIENT_STOCK',
             message: `Stock insuficiente para ${product.name}`,
             details: {
-              product_id: product.id,
-              available: product.available_stock,
+              productId: product.id,
+              available: product.availableStock,
               requested: item.quantity
             }
           }
         };
       }
 
-      const itemSubtotal = product.final_price * item.quantity;
+      const itemSubtotal = product.finalPrice * item.quantity;
       subtotal += itemSubtotal;
 
       orderItems.push({
-        product_id: product.id,
-        product_name: product.name,
-        product_sku: product.sku,
+        productId: product.id,
+        productName: product.name,
+        productSku: product.sku,
         quantity: item.quantity,
-        unit_price: product.final_price,
+        unitPrice: product.finalPrice,
         subtotal: itemSubtotal
       });
     }
 
-    const total = subtotal + orderData.shipping_cost;
+    const total = subtotal + orderData.shippingCost;
 
     // Crear orden
     const newOrder: Order = {
       id: `order-${Date.now()}`,
-      order_number: generateOrderNumber(),
-      user_id: orderData.user_id,
+      orderNumber: generateOrderNumber(),
+      userId: orderData.userId,
       status: OrderStatus.PENDING,
       items: orderItems,
       subtotal,
-      shipping_cost: orderData.shipping_cost,
+      shippingCost: orderData.shippingCost,
       total,
-      shipping_address: orderData.shipping_address,
-      shipping_carrier: orderData.shipping_carrier,
-      payment_method: orderData.payment_method,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      user: MOCK_USERS.find((u) => u.id === orderData.user_id)
+      shippingAddress: orderData.shippingAddress,
+      shippingCarrier: orderData.shippingCarrier,
+      paymentMethod: orderData.paymentMethod,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      user: MOCK_USERS.find((u) => u.id === orderData.userId)
     };
 
     orders.push(newOrder);
@@ -175,8 +175,8 @@ export async function fake_getUserOrders(
   return fakeFetch(() => {
     const orders = initOrders();
     const userOrders = orders
-      .filter((o) => o.user_id === userId)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); // Más recientes primero
+      .filter((o) => o.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); // Más recientes primero
 
     const paginated = paginate(userOrders, pagination);
 
@@ -204,7 +204,7 @@ export async function fake_getAllOrders(
     }
 
     // Ordenar por fecha (más recientes primero)
-    orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const paginated = paginate(orders, pagination);
 
@@ -247,7 +247,7 @@ export async function fake_getOrderById(id: string): Promise<ApiResponse<Order>>
 export async function fake_getOrderByNumber(orderNumber: string): Promise<ApiResponse<Order>> {
   return fakeFetch(() => {
     const orders = initOrders();
-    const order = orders.find((o) => o.order_number === orderNumber);
+    const order = orders.find((o) => o.orderNumber === orderNumber);
 
     if (!order) {
       return {
@@ -292,19 +292,19 @@ export async function fake_updateOrderStatus(
     const updatedOrder: Order = {
       ...orders[index],
       status,
-      updated_at: now
+      updatedAt: now
     };
 
     // Actualizar timestamps según estado
-    if (status === OrderStatus.SHIPPED && !updatedOrder.shipped_at) {
-      updatedOrder.shipped_at = now;
+    if (status === OrderStatus.SHIPPED && !updatedOrder.shippedAt) {
+      updatedOrder.shippedAt = now;
       if (trackingNumber) {
-        updatedOrder.tracking_number = trackingNumber;
+        updatedOrder.trackingNumber = trackingNumber;
       }
-    } else if (status === OrderStatus.DELIVERED && !updatedOrder.delivered_at) {
-      updatedOrder.delivered_at = now;
-    } else if (status === OrderStatus.CANCELLED && !updatedOrder.cancelled_at) {
-      updatedOrder.cancelled_at = now;
+    } else if (status === OrderStatus.DELIVERED && !updatedOrder.deliveredAt) {
+      updatedOrder.deliveredAt = now;
+    } else if (status === OrderStatus.CANCELLED && !updatedOrder.cancelledAt) {
+      updatedOrder.cancelledAt = now;
     }
 
     orders[index] = updatedOrder;
@@ -348,9 +348,9 @@ export async function fake_approvePayment(
     const updatedOrder: Order = {
       ...orders[index],
       status: OrderStatus.PROCESSING,
-      payment_id: paymentId,
-      payment_status: 'approved',
-      updated_at: new Date().toISOString()
+      paymentId,
+      paymentStatus: 'approved',
+      updatedAt: new Date().toISOString()
     };
 
     orders[index] = updatedOrder;

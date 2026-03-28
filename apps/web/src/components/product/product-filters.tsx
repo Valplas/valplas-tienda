@@ -32,10 +32,10 @@ interface ProductFiltersProps {
 export function ProductFilters({ className }: ProductFiltersProps) {
   // Filter store
   const search = useFilterStore((state) => state.search);
-  const categoryId = useFilterStore((state) => state.category_id);
-  const brandId = useFilterStore((state) => state.brand_id);
-  const minPrice = useFilterStore((state) => state.min_price);
-  const maxPrice = useFilterStore((state) => state.max_price);
+  const categoryId = useFilterStore((state) => state.categoryId);
+  const brandId = useFilterStore((state) => state.brandId);
+  const minPrice = useFilterStore((state) => state.minPrice);
+  const maxPrice = useFilterStore((state) => state.maxPrice);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);

@@ -33,16 +33,16 @@ export function BrandForm({ brand, onSubmit, onCancel, isLoading }: BrandFormPro
       ? {
           name: brand.name,
           slug: brand.slug,
-          logo_url: brand.logo_url ?? '',
+          logoUrl: brand.logoUrl ?? '',
           description: brand.description ?? '',
-          is_active: brand.is_active
+          isActive: brand.isActive
         }
       : {
           name: '',
           slug: '',
-          logo_url: '',
+          logoUrl: '',
           description: '',
-          is_active: true
+          isActive: true
         }
   });
 
@@ -85,15 +85,15 @@ export function BrandForm({ brand, onSubmit, onCancel, isLoading }: BrandFormPro
 
       {/* Logo URL */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="logo_url">URL del Logo</Label>
+        <Label htmlFor="logoUrl">URL del Logo</Label>
         <Input
-          id="logo_url"
-          {...register('logo_url')}
+          id="logoUrl"
+          {...register('logoUrl')}
           placeholder="https://ejemplo.com/logo.png"
           disabled={isLoading}
         />
-        {errors.logo_url && (
-          <p className="text-sm text-red-500 absolute bottom-0">{errors.logo_url.message}</p>
+        {errors.logoUrl && (
+          <p className="text-sm text-red-500 absolute bottom-0">{errors.logoUrl.message}</p>
         )}
       </div>
 
@@ -115,12 +115,12 @@ export function BrandForm({ brand, onSubmit, onCancel, isLoading }: BrandFormPro
       {/* Is Active */}
       <div className="flex items-center space-x-2">
         <Checkbox
-          id="is_active"
-          checked={watch('is_active')}
-          onCheckedChange={(checked) => setValue('is_active', !!checked)}
+          id="isActive"
+          checked={watch('isActive')}
+          onCheckedChange={(checked) => setValue('isActive', !!checked)}
           disabled={isLoading}
         />
-        <Label htmlFor="is_active" className="cursor-pointer">
+        <Label htmlFor="isActive" className="cursor-pointer">
           Marca activa
         </Label>
       </div>

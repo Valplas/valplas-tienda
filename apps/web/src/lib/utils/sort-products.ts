@@ -6,10 +6,10 @@ import { ProductPublic } from '@/types';
 import { SortOption } from '@/types/filter.types';
 
 /**
- * Obtiene el precio de referencia para ordenar (primer tier o base_price)
+ * Obtiene el precio de referencia para ordenar (primer tier o basePrice)
  */
 function getRefPrice(product: ProductPublic): number {
-  return product.tiers.length > 0 ? product.tiers[0].unitPrice : product.base_price;
+  return product.tiers.length > 0 ? product.tiers[0].unitPrice : product.basePrice;
 }
 
 /**
@@ -20,7 +20,7 @@ export function sortProducts(products: ProductPublic[], sortBy: SortOption): Pro
 
   switch (sortBy) {
     case 'featured':
-      // Sin campo is_featured en ProductPublic — ordenar por precio
+      // Sin campo isFeatured en ProductPublic — ordenar por precio
       return sorted.sort((a, b) => getRefPrice(a) - getRefPrice(b));
 
     case 'price_asc':
@@ -36,7 +36,7 @@ export function sortProducts(products: ProductPublic[], sortBy: SortOption): Pro
       return sorted.sort((a, b) => b.name.localeCompare(a.name, 'es-AR'));
 
     case 'newest':
-      // Sin campo created_at en ProductPublic — mantener orden original
+      // Sin campo createdAt en ProductPublic — mantener orden original
       return sorted;
 
     default:

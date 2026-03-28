@@ -51,7 +51,7 @@ export function CartItem({ item }: CartItemProps) {
     }
   };
 
-  const itemSubtotal = product.final_price * item.quantity;
+  const itemSubtotal = product.finalPrice * item.quantity;
 
   return (
     <div className="flex gap-4 py-4 border-b last:border-0">
@@ -61,7 +61,7 @@ export function CartItem({ item }: CartItemProps) {
         className="relative w-20 h-20 shrink-0 rounded-md overflow-hidden bg-muted"
       >
         <Image
-          src={product.image_url}
+          src={product.imageUrl}
           alt={product.name}
           fill
           className="object-cover"
@@ -81,10 +81,10 @@ export function CartItem({ item }: CartItemProps) {
         <p className="text-sm text-muted-foreground mt-1">{product.unit}</p>
 
         <div className="flex items-center gap-2 mt-2">
-          <span className="text-sm font-semibold">{formatPrice(product.final_price)}</span>
-          {product.base_price > product.final_price && (
+          <span className="text-sm font-semibold">{formatPrice(product.finalPrice)}</span>
+          {product.basePrice > product.finalPrice && (
             <span className="text-xs text-muted-foreground line-through">
-              {formatPrice(product.base_price)}
+              {formatPrice(product.basePrice)}
             </span>
           )}
         </div>
@@ -93,7 +93,7 @@ export function CartItem({ item }: CartItemProps) {
         <div className="mt-3 flex items-center justify-between md:hidden">
           <QuantitySelector
             value={item.quantity}
-            max={product.available_stock}
+            max={product.availableStock}
             onChange={handleQuantityChange}
             className="scale-90 origin-left"
           />
@@ -105,7 +105,7 @@ export function CartItem({ item }: CartItemProps) {
       <div className="hidden md:flex items-center">
         <QuantitySelector
           value={item.quantity}
-          max={product.available_stock}
+          max={product.availableStock}
           onChange={handleQuantityChange}
         />
       </div>

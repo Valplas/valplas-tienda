@@ -48,7 +48,7 @@ export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionPro
       if (productId && tiersData.length > 0) {
         setRows(
           tiersData.map((t) => ({
-            priceListId: t.priceListId,
+            priceListId: t.priceListId ?? '',
             minQuantity: t.minQuantity
           }))
         );

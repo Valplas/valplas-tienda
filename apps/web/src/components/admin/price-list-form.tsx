@@ -32,12 +32,12 @@ export function PriceListForm({ priceList, onSubmit, onCancel, isLoading }: Pric
           name: priceList.name,
           margin: priceList.margin,
           discount: priceList.discount,
-          is_active: priceList.is_active
+          isActive: priceList.isActive
         }
-      : { name: '', margin: 0, discount: 0, is_active: true }
+      : { name: '', margin: 0, discount: 0, isActive: true }
   });
 
-  const isActive = useWatch({ control, name: 'is_active' });
+  const isActive = useWatch({ control, name: 'isActive' });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -110,12 +110,12 @@ export function PriceListForm({ priceList, onSubmit, onCancel, isLoading }: Pric
       {/* Activa */}
       <div className="flex items-center space-x-2">
         <Checkbox
-          id="is_active"
+          id="isActive"
           checked={isActive}
-          onCheckedChange={(checked) => setValue('is_active', !!checked)}
+          onCheckedChange={(checked) => setValue('isActive', !!checked)}
           disabled={isLoading}
         />
-        <Label htmlFor="is_active" className="cursor-pointer">
+        <Label htmlFor="isActive" className="cursor-pointer">
           Lista activa
         </Label>
       </div>

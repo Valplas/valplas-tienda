@@ -36,13 +36,13 @@ import type { Address } from '@/lib/services/addresses.service';
 import type { PriceList } from '@/types';
 
 interface OrderItem {
-  product_id: string;
-  product_name: string;
-  product_sku: string;
-  available_stock: number;
-  price_list_id: string;
-  price_list_name: string;
-  unit_price: number;
+  productId: string;
+  productName: string;
+  productSku: string;
+  availableStock: number;
+  priceListId: string;
+  priceListName: string;
+  unitPrice: number;
   quantity: number;
 }
 
@@ -50,7 +50,7 @@ interface ProductSearchResult {
   id: string;
   name: string;
   sku: string;
-  available_stock: number;
+  availableStock: number;
 }
 
 export default function EditarPedidoPage({
@@ -111,7 +111,7 @@ export default function EditarPedidoPage({
           return;
         }
 
-        setOrderNumber(order.order_number);
+        setOrderNumber(order.orderNumber);
 
         if (priceListsRes.success && priceListsRes.data) {
           setPriceLists(priceListsRes.data.priceLists);
@@ -119,31 +119,31 @@ export default function EditarPedidoPage({
 
         // Load user addresses
         setIsLoadingAddresses(true);
-        const addrs = await getAdminUserAddresses(order.user_id);
+        const addrs = await getAdminUserAddresses(order.userId);
         if (!cancelled) {
-          const active = addrs.filter((a) => a.is_active);
+          const active = addrs.filter((a) => a.isActive);
           setAddresses(active);
 
           // Pre-select address matching the order's shipping fields
           const match = active.find(
             (a) =>
-              a.street === order.shipping_address?.street &&
-              a.street_number === order.shipping_address?.street_number &&
-              a.postcode === order.shipping_address?.postcode
+              a.street === order.shippingAddress?.street &&
+              a.streetNumber === order.shippingAddress?.streetNumber &&
+              a.postcode === order.shippingAddress?.postcode
           );
           if (match) setSelectedAddressId(match.id);
           else if (active.length === 1) setSelectedAddressId(active[0].id);
         }
 
-        // Pre-populate items (available_stock is conservative, backend validates)
+        // Pre-populate items (availableStock is conservative, backend validates)
         const preloaded: OrderItem[] = order.items.map((item) => ({
-          product_id: item.product_id,
-          product_name: item.product_name,
-          product_sku: item.product_sku,
-          available_stock: item.quantity + 999,
-          price_list_id: (item as unknown as { price_list_id?: string }).price_list_id ?? '',
-          price_list_name: '',
-          unit_price: item.unit_price,
+          productId: item.productId,
+          productName: item.productName,
+          productSku: item.productSku,
+          availableStock: item.quantity + 999,
+          priceListId: (item as unknown as { priceListId?: string }).priceListId ?? '',
+          priceListName: '',
+          unitPrice: item.unitPrice,
           quantity: item.quantity
         }));
         if (!cancelled) setItems(preloaded);
@@ -180,7 +180,7 @@ export default function EditarPedidoPage({
           id: p.id,
           name: p.name,
           sku: p.sku,
-          available_stock: p.available_stock ?? 0
+          availableStock: p.availableStock ?? 0
         }))
       );
     } finally {
@@ -231,13 +231,13 @@ export default function EditarPedidoPage({
       const item = items[index];
       setEditingIndex(index);
       setSelectedProduct({
-        id: item.product_id,
-        name: item.product_name,
-        sku: item.product_sku,
-        available_stock: item.available_stock
+        id: item.productId,
+        name: item.productName,
+        sku: item.productSku,
+        availableStock: item.availableStock
       });
-      setSelectedPriceListId(item.price_list_id);
-      setUnitPrice(item.unit_price);
+      setSelectedPriceListId(item.priceListId);
+      setUnitPrice(item.unitPrice);
       setQuantity(item.quantity);
       setProductSearch('');
       setProductResults([]);
@@ -257,13 +257,13 @@ export default function EditarPedidoPage({
 
     const priceList = priceLists.find((p) => p.id === selectedPriceListId);
     const newItem: OrderItem = {
-      product_id: selectedProduct.id,
-      product_name: selectedProduct.name,
-      product_sku: selectedProduct.sku,
-      available_stock: selectedProduct.available_stock,
-      price_list_id: selectedPriceListId,
-      price_list_name: priceList?.name ?? '',
-      unit_price: unitPrice,
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      productSku: selectedProduct.sku,
+      availableStock: selectedProduct.availableStock,
+      priceListId: selectedPriceListId,
+      priceListName: priceList?.name ?? '',
+      unitPrice,
       quantity
     };
 
@@ -271,7 +271,7 @@ export default function EditarPedidoPage({
       setItems((prev) => prev.map((item, i) => (i === editingIndex ? newItem : item)));
       setEditingIndex(null);
     } else {
-      const existingIndex = items.findIndex((i) => i.product_id === selectedProduct.id);
+      const existingIndex = items.findIndex((i) => i.productId === selectedProduct.id);
       if (existingIndex >= 0) {
         setItems((prev) =>
           prev.map((item, i) =>
@@ -303,7 +303,7 @@ export default function EditarPedidoPage({
     [editingIndex]
   );
 
-  const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
   const handleSubmit = useCallback(async () => {
     if (!selectedAddressId) {
@@ -318,10 +318,10 @@ export default function EditarPedidoPage({
     setIsSubmitting(true);
     try {
       await adminUpdateOrder(id, {
-        shipping_address_id: selectedAddressId,
+        shippingAddressId: selectedAddressId,
         items: items.map((i) => ({
-          product_id: i.product_id,
-          price_list_id: i.price_list_id,
+          productId: i.productId,
+          priceListId: i.priceListId,
           quantity: i.quantity
         }))
       });
@@ -395,7 +395,7 @@ export default function EditarPedidoPage({
                 <SelectContent>
                   {addresses.map((addr) => (
                     <SelectItem key={addr.id} value={addr.id}>
-                      {addr.street} {addr.street_number}
+                      {addr.street} {addr.streetNumber}
                       {addr.floor ? `, Piso ${addr.floor}` : ''}
                       {addr.apartment ? ` ${addr.apartment}` : ''} — {addr.city} ({addr.postcode})
                     </SelectItem>
@@ -404,7 +404,7 @@ export default function EditarPedidoPage({
               </Select>
               {selectedAddress && (
                 <p className="text-xs text-muted-foreground">
-                  {selectedAddress.street} {selectedAddress.street_number}
+                  {selectedAddress.street} {selectedAddress.streetNumber}
                   {selectedAddress.floor ? `, Piso ${selectedAddress.floor}` : ''}
                   {selectedAddress.apartment ? ` ${selectedAddress.apartment}` : ''},{' '}
                   {selectedAddress.city}, {selectedAddress.province} ({selectedAddress.postcode})
@@ -448,7 +448,7 @@ export default function EditarPedidoPage({
                     >
                       <div className="font-medium">{p.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        SKU: {p.sku} | Stock disponible: {p.available_stock}
+                        SKU: {p.sku} | Stock disponible: {p.availableStock}
                       </div>
                     </button>
                   ))}
@@ -463,7 +463,7 @@ export default function EditarPedidoPage({
                   <div className="font-medium">{selectedProduct.name}</div>
                   <div className="text-sm text-muted-foreground">
                     SKU: {selectedProduct.sku} | Stock disponible:{' '}
-                    <span className="font-semibold">{selectedProduct.available_stock}</span>
+                    <span className="font-semibold">{selectedProduct.availableStock}</span>
                   </div>
                 </div>
 
@@ -567,15 +567,15 @@ export default function EditarPedidoPage({
                         onClick={() => editingIndex !== i && handleEditItem(i)}
                       >
                         <TableCell>
-                          <div className="font-medium text-sm">{item.product_name}</div>
-                          <div className="text-xs text-muted-foreground">{item.product_sku}</div>
+                          <div className="font-medium text-sm">{item.productName}</div>
+                          <div className="text-xs text-muted-foreground">{item.productSku}</div>
                         </TableCell>
                         <TableCell className="text-center">{item.quantity}</TableCell>
                         <TableCell className="text-right text-sm">
-                          {formatCurrency(item.unit_price)}
+                          {formatCurrency(item.unitPrice)}
                         </TableCell>
                         <TableCell className="text-right font-medium text-sm">
-                          {formatCurrency(item.unit_price * item.quantity)}
+                          {formatCurrency(item.unitPrice * item.quantity)}
                         </TableCell>
                         <TableCell>
                           <div
@@ -586,7 +586,7 @@ export default function EditarPedidoPage({
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              aria-label={`Editar ${item.product_name}`}
+                              aria-label={`Editar ${item.productName}`}
                               onClick={() => handleEditItem(i)}
                             >
                               <Pencil className="h-3.5 w-3.5" />
@@ -595,7 +595,7 @@ export default function EditarPedidoPage({
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-destructive hover:text-destructive"
-                              aria-label={`Eliminar ${item.product_name}`}
+                              aria-label={`Eliminar ${item.productName}`}
                               onClick={() => handleRemoveItem(i)}
                             >
                               <Trash2 className="h-4 w-4" />

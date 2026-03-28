@@ -30,14 +30,14 @@ function ProductsContent() {
   const searchParams = useSearchParams();
 
   const search = useFilterStore((state) => state.search);
-  const categoryId = useFilterStore((state) => state.category_id);
-  const brandId = useFilterStore((state) => state.brand_id);
+  const categoryId = useFilterStore((state) => state.categoryId);
+  const brandId = useFilterStore((state) => state.brandId);
   const setCategoryId = useFilterStore((state) => state.setCategoryId);
   const setBrandId = useFilterStore((state) => state.setBrandId);
 
   useEffect(() => {
-    const categoryParam = searchParams.get('category_id');
-    const brandParam = searchParams.get('brand_id');
+    const categoryParam = searchParams.get('categoryId');
+    const brandParam = searchParams.get('brandId');
     if (categoryParam) setCategoryId(categoryParam);
     if (brandParam) setBrandId(brandParam);
   }, [searchParams, setCategoryId, setBrandId]);
@@ -48,8 +48,8 @@ function ProductsContent() {
       try {
         const filters: CatalogFilters = {
           search: search || undefined,
-          category_id: categoryId || undefined,
-          brand_id: brandId || undefined,
+          categoryId: categoryId || undefined,
+          brandId: brandId || undefined,
           page,
           limit: ITEMS_PER_PAGE
         };

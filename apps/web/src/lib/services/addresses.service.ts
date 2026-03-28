@@ -5,10 +5,10 @@ import type { ApiResponse } from '../api';
 
 export interface Address {
   id: string;
-  user_id: string;
+  userId: string;
   alias: string;
   street: string;
-  street_number: string;
+  streetNumber: string;
   floor: string | null;
   apartment: string | null;
   city: string;
@@ -16,18 +16,18 @@ export interface Address {
   postcode: string;
   latitude: number | null;
   longitude: number | null;
-  place_id: string | null;
+  placeId: string | null;
   notes: string | null;
-  is_default: boolean;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateAddressInput {
   alias: string;
   street: string;
-  street_number: string;
+  streetNumber: string;
   floor?: string;
   apartment?: string;
   city: string;
@@ -35,15 +35,15 @@ export interface CreateAddressInput {
   postcode: string;
   latitude?: number;
   longitude?: number;
-  place_id?: string;
+  placeId?: string;
   notes?: string;
-  is_default?: boolean;
+  isDefault?: boolean;
 }
 
 export interface UpdateAddressInput {
   alias?: string;
   street?: string;
-  street_number?: string;
+  streetNumber?: string;
   floor?: string;
   apartment?: string;
   city?: string;
@@ -51,10 +51,10 @@ export interface UpdateAddressInput {
   postcode?: string;
   latitude?: number;
   longitude?: number;
-  place_id?: string;
+  placeId?: string;
   notes?: string;
-  is_default?: boolean;
-  is_active?: boolean;
+  isDefault?: boolean;
+  isActive?: boolean;
 }
 
 /**

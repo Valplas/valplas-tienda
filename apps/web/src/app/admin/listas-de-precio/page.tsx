@@ -130,7 +130,7 @@ export default function ListasDePrecioPage() {
           name: data.name,
           margin: data.margin,
           discount: data.discount,
-          isActive: data.is_active
+          isActive: data.isActive
         });
         toast.success('Lista de precios actualizada');
       } else {
@@ -138,7 +138,7 @@ export default function ListasDePrecioPage() {
           name: data.name,
           margin: data.margin,
           discount: data.discount,
-          isActive: data.is_active
+          isActive: data.isActive
         });
         toast.success('Lista de precios creada');
       }
@@ -185,10 +185,10 @@ export default function ListasDePrecioPage() {
       )
     },
     {
-      accessorKey: 'is_active',
+      accessorKey: 'isActive',
       header: 'Estado',
       cell: ({ row }) =>
-        row.original.is_active ? (
+        row.original.isActive ? (
           <Badge variant="default" className="bg-green-500">
             Activa
           </Badge>

@@ -225,7 +225,7 @@ export default function AddressesPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-lg">{address.label}</CardTitle>
-                    {address.is_default && (
+                    {address.isDefault && (
                       <Badge variant="default" className="gap-1">
                         <Star className="h-3 w-3 fill-current" />
                         Predeterminada
@@ -237,7 +237,7 @@ export default function AddressesPage() {
               <CardContent className="space-y-4">
                 <div className="text-sm">
                   <p>
-                    {address.street} {address.street_number}
+                    {address.street} {address.streetNumber}
                   </p>
                   {(address.floor || address.apartment) && (
                     <p>
@@ -253,7 +253,7 @@ export default function AddressesPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {!address.is_default && (
+                  {!address.isDefault && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -305,7 +305,7 @@ function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) {
     defaultValues: {
       label: address?.label || '',
       street: address?.street || '',
-      street_number: address?.street_number || '',
+      streetNumber: address?.streetNumber || '',
       floor: address?.floor || '',
       apartment: address?.apartment || '',
       city: address?.city || '',
@@ -313,7 +313,7 @@ function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) {
       postcode: address?.postcode || '',
       latitude: address?.latitude,
       longitude: address?.longitude,
-      place_id: address?.place_id
+      placeId: address?.placeId
     }
   });
 
@@ -326,7 +326,7 @@ function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) {
       const addressData = {
         ...data,
         alias: data.label,
-        is_default: false
+        isDefault: false
       };
       delete (addressData as any).label;
 
@@ -382,7 +382,7 @@ function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) {
 
           <FormField
             control={form.control}
-            name="street_number"
+            name="streetNumber"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Número</FormLabel>

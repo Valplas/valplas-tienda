@@ -6,42 +6,53 @@ import type {
   UpdateCategoryData
 } from './category.types.js';
 
+function transformCategoryRow(row: Record<string, unknown>): Category {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    slug: row.slug as string,
+    description: (row.description as string | null) ?? null,
+    parentId: (row.parent_id as string | null) ?? null,
+    imageUrl: (row.image_url as string | null) ?? null,
+    isActive: row.is_active as boolean,
+    displayOrder: row.display_order as number,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string
+  };
+}
+
 /**
  * Obtener todas las categorías (para construir árbol)
  */
 export async function findAllCategories(): Promise<Category[]> {
-  const result = await query<Category>(
+  const result = await query(
     `SELECT *
      FROM categories
      WHERE deleted_at IS NULL AND is_active = true
      ORDER BY display_order ASC, name ASC`
   );
 
-  return result.rows;
+  return result.rows.map(transformCategoryRow);
 }
 
 /**
  * Buscar categoría por ID
  */
 export async function findCategoryById(id: string): Promise<Category | null> {
-  const result = await query<Category>(
-    'SELECT * FROM categories WHERE id = $1 AND deleted_at IS NULL',
-    [id]
-  );
+  const result = await query('SELECT * FROM categories WHERE id = $1 AND deleted_at IS NULL', [id]);
 
-  return result.rows[0] || null;
+  return result.rows[0] ? transformCategoryRow(result.rows[0]) : null;
 }
 
 /**
  * Buscar categoría por slug
  */
 export async function findCategoryBySlug(slug: string): Promise<Category | null> {
-  const result = await query<Category>(
-    'SELECT * FROM categories WHERE slug = $1 AND deleted_at IS NULL',
-    [slug]
-  );
+  const result = await query('SELECT * FROM categories WHERE slug = $1 AND deleted_at IS NULL', [
+    slug
+  ]);
 
-  return result.rows[0] || null;
+  return result.rows[0] ? transformCategoryRow(result.rows[0]) : null;
 }
 
 /**
@@ -110,7 +121,7 @@ export async function getProductCount(id: string): Promise<number> {
  * Crear categoría
  */
 export async function createCategory(data: CreateCategoryData): Promise<Category> {
-  const result = await query<Category>(
+  const result = await query(
     `INSERT INTO categories (name, slug, description, image_url, parent_id, display_order, is_active)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
@@ -125,7 +136,7 @@ export async function createCategory(data: CreateCategoryData): Promise<Category
     ]
   );
 
-  return result.rows[0];
+  return transformCategoryRow(result.rows[0]);
 }
 
 /**
@@ -185,7 +196,7 @@ export async function updateCategory(
 
   params.push(id);
 
-  const result = await query<Category>(
+  const result = await query(
     `UPDATE categories
      SET ${updates.join(', ')}
      WHERE id = $${paramIndex} AND deleted_at IS NULL
@@ -193,7 +204,7 @@ export async function updateCategory(
     params
   );
 
-  return result.rows[0] || null;
+  return result.rows[0] ? transformCategoryRow(result.rows[0]) : null;
 }
 
 /**
@@ -240,8 +251,8 @@ export function buildCategoryTree(categories: Category[]): CategoryWithChildren[
     const category = categoryMap.get(cat.id);
     if (!category) return; // Skip if not found (shouldn't happen)
 
-    if (cat.parent_id) {
-      const parent = categoryMap.get(cat.parent_id);
+    if (cat.parentId) {
+      const parent = categoryMap.get(cat.parentId);
       if (parent) {
         parent.children.push(category);
       } else {

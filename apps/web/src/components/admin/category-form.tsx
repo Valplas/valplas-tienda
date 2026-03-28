@@ -48,20 +48,20 @@ export function CategoryForm({
       ? {
           name: category.name,
           slug: category.slug,
-          parent_id: category.parent_id,
-          display_order: category.display_order,
+          parentId: category.parentId,
+          displayOrder: category.displayOrder,
           description: category.description ?? '',
-          is_active: category.is_active,
-          image_url: category.image_url ?? ''
+          isActive: category.isActive,
+          imageUrl: category.imageUrl ?? ''
         }
       : {
           name: '',
           slug: '',
-          parent_id: null,
-          display_order: 0,
+          parentId: null,
+          displayOrder: 0,
           description: '',
-          is_active: true,
-          image_url: ''
+          isActive: true,
+          imageUrl: ''
         }
   });
 
@@ -126,10 +126,10 @@ export function CategoryForm({
 
       {/* Parent Category */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="parent_id">Categoría Padre</Label>
+        <Label htmlFor="parentId">Categoría Padre</Label>
         <Select
-          value={watch('parent_id') ?? 'none'}
-          onValueChange={(value) => setValue('parent_id', value === 'none' ? null : value)}
+          value={watch('parentId') ?? 'none'}
+          onValueChange={(value) => setValue('parentId', value === 'none' ? null : value)}
           disabled={isLoading}
         >
           <SelectTrigger>
@@ -144,24 +144,24 @@ export function CategoryForm({
             ))}
           </SelectContent>
         </Select>
-        {errors.parent_id && (
-          <p className="text-sm text-red-500 absolute bottom-0">{errors.parent_id.message}</p>
+        {errors.parentId && (
+          <p className="text-sm text-red-500 absolute bottom-0">{errors.parentId.message}</p>
         )}
       </div>
 
       {/* Display Order */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="display_order">Orden de Visualización</Label>
+        <Label htmlFor="displayOrder">Orden de Visualización</Label>
         <Input
-          id="display_order"
+          id="displayOrder"
           type="number"
-          {...register('display_order', { valueAsNumber: true })}
+          {...register('displayOrder', { valueAsNumber: true })}
           placeholder="0"
           disabled={isLoading}
           min={0}
         />
-        {errors.display_order && (
-          <p className="text-sm text-red-500 absolute bottom-0">{errors.display_order.message}</p>
+        {errors.displayOrder && (
+          <p className="text-sm text-red-500 absolute bottom-0">{errors.displayOrder.message}</p>
         )}
         <p className="text-xs text-muted-foreground">
           Número menor aparece primero. Por defecto: 0
@@ -170,15 +170,15 @@ export function CategoryForm({
 
       {/* Image URL */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="image_url">URL de la Imagen</Label>
+        <Label htmlFor="imageUrl">URL de la Imagen</Label>
         <Input
-          id="image_url"
-          {...register('image_url')}
+          id="imageUrl"
+          {...register('imageUrl')}
           placeholder="https://ejemplo.com/imagen.jpg"
           disabled={isLoading}
         />
-        {errors.image_url && (
-          <p className="text-sm text-red-500 absolute bottom-0">{errors.image_url.message}</p>
+        {errors.imageUrl && (
+          <p className="text-sm text-red-500 absolute bottom-0">{errors.imageUrl.message}</p>
         )}
       </div>
 
@@ -200,12 +200,12 @@ export function CategoryForm({
       {/* Is Active */}
       <div className="flex items-center space-x-2">
         <Checkbox
-          id="is_active"
-          checked={watch('is_active')}
-          onCheckedChange={(checked) => setValue('is_active', !!checked)}
+          id="isActive"
+          checked={watch('isActive')}
+          onCheckedChange={(checked) => setValue('isActive', !!checked)}
           disabled={isLoading}
         />
-        <Label htmlFor="is_active" className="cursor-pointer">
+        <Label htmlFor="isActive" className="cursor-pointer">
           Categoría activa
         </Label>
       </div>

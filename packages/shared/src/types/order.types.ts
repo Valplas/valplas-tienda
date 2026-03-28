@@ -15,29 +15,29 @@ export type OrderStatus =
 
 export interface Order {
   id: string;
-  order_number: string;
-  user_id: string;
+  orderNumber: string;
+  userId: string;
   status: OrderStatus;
   subtotal: number;
-  shipping_cost: number;
-  discount_amount: number;
+  shippingCost: number;
+  discountAmount: number;
   total: number;
 
   // Direccion de envio (snapshot)
-  shipping_street: string | null;
-  shipping_street_number: string | null;
-  shipping_floor: string | null;
-  shipping_apartment: string | null;
-  shipping_city: string | null;
-  shipping_province: string | null;
-  shipping_postcode: string | null;
+  shippingStreet: string | null;
+  shippingStreetNumber: string | null;
+  shippingFloor: string | null;
+  shippingApartment: string | null;
+  shippingCity: string | null;
+  shippingProvince: string | null;
+  shippingPostcode: string | null;
 
   notes: string | null;
-  cancelled_at: string | null;
-  cancelled_reason: string | null;
+  cancelledAt: string | null;
+  cancelledReason: string | null;
 
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface OrderWithItems extends Order {
@@ -46,21 +46,21 @@ export interface OrderWithItems extends Order {
 
 export interface OrderItem {
   id: string;
-  order_id: string;
-  product_id: string;
-  product_name: string;
-  product_sku: string;
+  orderId: string;
+  productId: string;
+  productName: string;
+  productSku: string;
   quantity: number;
-  unit_price: number;
+  unitPrice: number;
   subtotal: number;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface CreateOrderInput {
   items: Array<{
-    product_id: string;
+    productId: string;
     quantity: number;
   }>;
-  shipping_address_id?: string;
+  shippingAddressId?: string;
   notes?: string;
 }

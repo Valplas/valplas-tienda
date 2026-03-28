@@ -28,11 +28,11 @@ import { RoleBadge } from './role-badge';
 interface UserFormUser {
   email: string | null;
   username: string;
-  first_name: string;
-  last_name: string | null;
+  firstName: string;
+  lastName: string | null;
   phone: string | null;
   role: UserRole;
-  is_active: boolean;
+  isActive: boolean;
 }
 
 interface UserFormProps {
@@ -58,27 +58,27 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
       ? {
           email: user.email ?? '',
           username: user.username,
-          first_name: user.first_name,
-          last_name: user.last_name ?? '',
+          firstName: user.firstName,
+          lastName: user.lastName ?? '',
           phone: user.phone ?? '',
           role: user.role,
           password: '',
-          is_active: user.is_active
+          isActive: user.isActive
         }
       : {
           email: '',
           username: '',
-          first_name: '',
-          last_name: '',
+          firstName: '',
+          lastName: '',
           phone: '',
           role: UserRole.CUSTOMER,
           password: '',
-          is_active: true
+          isActive: true
         }
   });
 
   const selectedRole = useWatch({ control, name: 'role' });
-  const isActive = useWatch({ control, name: 'is_active' });
+  const isActive = useWatch({ control, name: 'isActive' });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -126,30 +126,25 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
       {/* First Name & Last Name */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2 relative pb-5">
-          <Label htmlFor="first_name">
+          <Label htmlFor="firstName">
             Nombre <span className="text-red-500">*</span>
           </Label>
           <Input
-            id="first_name"
-            {...register('first_name')}
+            id="firstName"
+            {...register('firstName')}
             placeholder="Juan"
             disabled={isLoading}
           />
-          {errors.first_name && (
-            <p className="text-sm text-red-500 absolute bottom-0">{errors.first_name.message}</p>
+          {errors.firstName && (
+            <p className="text-sm text-red-500 absolute bottom-0">{errors.firstName.message}</p>
           )}
         </div>
 
         <div className="space-y-2 relative pb-5">
-          <Label htmlFor="last_name">Apellido</Label>
-          <Input
-            id="last_name"
-            {...register('last_name')}
-            placeholder="Pérez"
-            disabled={isLoading}
-          />
-          {errors.last_name && (
-            <p className="text-sm text-red-500 absolute bottom-0">{errors.last_name.message}</p>
+          <Label htmlFor="lastName">Apellido</Label>
+          <Input id="lastName" {...register('lastName')} placeholder="Pérez" disabled={isLoading} />
+          {errors.lastName && (
+            <p className="text-sm text-red-500 absolute bottom-0">{errors.lastName.message}</p>
           )}
         </div>
       </div>
@@ -249,12 +244,12 @@ export function UserForm({ user, onSubmit, onCancel, isLoading }: UserFormProps)
       {/* Is Active */}
       <div className="flex items-center gap-2">
         <Checkbox
-          id="is_active"
+          id="isActive"
           checked={isActive}
-          onCheckedChange={(checked) => setValue('is_active', !!checked)}
+          onCheckedChange={(checked) => setValue('isActive', !!checked)}
           disabled={isLoading}
         />
-        <Label htmlFor="is_active" className="cursor-pointer font-normal">
+        <Label htmlFor="isActive" className="cursor-pointer font-normal">
           Usuario activo
         </Label>
       </div>

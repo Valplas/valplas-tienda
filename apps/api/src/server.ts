@@ -7,6 +7,7 @@ import passport from 'passport';
 import swaggerUi from 'swagger-ui-express';
 import { errorHandler } from './shared/middleware/error.middleware.js';
 import { apiRateLimiter } from './shared/middleware/rate-limit.middleware.js';
+import { camelCaseResponse } from './shared/middleware/camel-case.middleware.js';
 import { env, validateEnv } from './env.js';
 import { swaggerSpec } from './config/swagger.js';
 import './modules/auth/oauth.controller.js';
@@ -62,6 +63,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());
+app.use(camelCaseResponse);
 
 // Rate limiting
 app.use('/api', apiRateLimiter);

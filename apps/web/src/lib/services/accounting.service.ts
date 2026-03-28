@@ -1,27 +1,27 @@
 import { get } from '../api';
 
 export interface PriceListSale {
-  price_list_id: string | null;
-  price_list_name: string | null;
-  margin_percentage: number | null;
-  quantity_sold: number;
+  priceListId: string | null;
+  priceListName: string | null;
+  marginPercentage: number | null;
+  quantitySold: number;
   ganancia: number;
 }
 
 export interface ProductDailySale {
-  product_id: string;
-  product_name: string;
-  product_sku: string;
-  cost_price: number;
-  available_stock: number;
-  total_quantity: number;
-  total_ganancia: number;
-  price_list_sales: PriceListSale[];
+  productId: string;
+  productName: string;
+  productSku: string;
+  costPrice: number;
+  availableStock: number;
+  totalQuantity: number;
+  totalGanancia: number;
+  priceListSales: PriceListSale[];
 }
 
 export interface DailySummary {
   date: string;
-  total_ganancia: number;
+  totalGanancia: number;
   products: ProductDailySale[];
 }
 

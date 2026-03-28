@@ -85,7 +85,7 @@ export async function login(data: LoginData): Promise<AuthResponse> {
   }
 
   // Verificar que el usuario esté activo
-  if (!user.is_active) {
+  if (!user.isActive) {
     throw new AppError('USER_INACTIVE', 'Usuario inactivo. Contacta a soporte.', 403);
   }
 
@@ -160,7 +160,7 @@ export async function refreshAccessToken(
 
   const user = await authRepository.findUserById(tokenRecord.user_id);
 
-  if (!user || !user.is_active) {
+  if (!user || !user.isActive) {
     throw new AppError('INVALID_TOKEN', 'Token inválido', 401);
   }
 

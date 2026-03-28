@@ -26,12 +26,12 @@ export interface User {
   email: string;
   username: string;
   phone: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   role: UserRole;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface LoginCredentials {
@@ -44,14 +44,14 @@ export interface RegisterData {
   username: string;
   password: string;
   phone: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
 }
 
 export interface AuthSession {
   user: User;
-  access_token: string;
-  refresh_token: string;
+  accessToken: string;
+  refreshToken: string;
 }
 
 // ============================================================================
@@ -60,10 +60,10 @@ export interface AuthSession {
 
 export interface Address {
   id: string;
-  user_id: string;
+  userId: string;
   label: string; // "Casa", "Trabajo", etc.
   street: string;
-  street_number: string;
+  streetNumber: string;
   floor?: string;
   apartment?: string;
   city: string;
@@ -71,10 +71,10 @@ export interface Address {
   postcode: string;
   latitude?: number;
   longitude?: number;
-  place_id?: string; // Google Maps
-  is_default: boolean;
-  created_at: string;
-  updated_at: string;
+  placeId?: string; // Google Maps
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================================================
@@ -86,23 +86,23 @@ export interface Category {
   name: string;
   slug: string;
   description: string | null;
-  parent_id: string | null;
-  image_url: string | null;
-  is_active: boolean;
-  display_order: number;
-  created_at: string;
-  updated_at: string;
+  parentId: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Brand {
   id: string;
   name: string;
   slug: string;
-  logo_url: string | null;
+  logoUrl: string | null;
   description: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================================================
@@ -115,27 +115,27 @@ export interface Product {
   name: string;
   slug: string;
   description: string;
-  category_id: string;
-  brand_id: string;
-  base_price: number;
-  cost_price: number;
-  final_price: number; // Con descuentos aplicados
+  categoryId: string;
+  brandId: string;
+  basePrice: number;
+  costPrice: number;
+  finalPrice: number; // Con descuentos aplicados
   stock: number;
-  reserved_stock: number;
-  available_stock: number; // stock - reserved_stock
+  reservedStock: number;
+  availableStock: number; // stock - reservedStock
   unit: string; // "unidad", "pack x 10", "caja x 50"
   weight?: number | null; // kg
   width?: number | null; // cm
   length?: number | null; // cm
   height?: number | null; // cm
   origin?: string | null;
-  image_url: string;
+  imageUrl: string;
   images: string[]; // URLs adicionales
-  is_featured: boolean;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  deleted_at?: string; // Soft delete
+  isFeatured: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string; // Soft delete
   // Relations
   category?: Category;
   brand?: Brand;
@@ -143,13 +143,13 @@ export interface Product {
 }
 
 export interface ProductFilters {
-  category_id?: string;
-  brand_id?: string;
-  min_price?: number;
-  max_price?: number;
+  categoryId?: string;
+  brandId?: string;
+  minPrice?: number;
+  maxPrice?: number;
   search?: string;
-  is_featured?: boolean;
-  is_active?: boolean;
+  isFeatured?: boolean;
+  isActive?: boolean;
 }
 
 // ============================================================================
@@ -157,7 +157,7 @@ export interface ProductFilters {
 // ============================================================================
 
 export interface CartItem {
-  product_id: string;
+  productId: string;
   quantity: number;
   product?: Product; // Populated for display
 }
@@ -165,9 +165,9 @@ export interface CartItem {
 export interface Cart {
   items: CartItem[];
   subtotal: number;
-  shipping_cost: number;
+  shippingCost: number;
   total: number;
-  updated_at: string;
+  updatedAt: string;
 }
 
 // ============================================================================
@@ -179,28 +179,28 @@ export interface ShippingZone {
   name: string;
   province: string;
   postcodes: string[]; // e.g., ["1000-1999", "2000-2500"]
-  excluded_postcodes?: string[]; // CPs específicos excluidos
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  excludedPostcodes?: string[]; // CPs específicos excluidos
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ShippingRate {
   id: string;
-  zone_id: string;
-  carrier_name: string; // "Valplas Express", "Andreani", etc.
-  min_amount: number; // Monto mínimo del carrito
+  zoneId: string;
+  carrierName: string; // "Valplas Express", "Andreani", etc.
+  minAmount: number; // Monto mínimo del carrito
   cost: number;
-  estimated_days: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  estimatedDays: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ShippingOption {
-  carrier_name: string;
+  carrierName: string;
   cost: number;
-  estimated_days: number;
+  estimatedDays: number;
 }
 
 // ============================================================================
@@ -208,37 +208,37 @@ export interface ShippingOption {
 // ============================================================================
 
 export interface OrderItem {
-  product_id: string;
-  product_name: string;
-  product_sku: string;
+  productId: string;
+  productName: string;
+  productSku: string;
   quantity: number;
-  unit_price: number;
+  unitPrice: number;
   subtotal: number;
 }
 
 export interface Order {
   id: string;
-  order_number: string; // VLP-YYYYMMDD-NNNN
-  user_id: string;
+  orderNumber: string; // VLP-YYYYMMDD-NNNN
+  userId: string;
   status: OrderStatus;
   items: OrderItem[];
   subtotal: number;
-  shipping_cost: number;
+  shippingCost: number;
   total: number;
   // Shipping info
-  shipping_address: Address;
-  shipping_carrier: string;
-  tracking_number?: string;
+  shippingAddress: Address;
+  shippingCarrier: string;
+  trackingNumber?: string;
   // Payment info
-  payment_method: string; // "mercadopago"
-  payment_id?: string;
-  payment_status?: string;
+  paymentMethod: string; // "mercadopago"
+  paymentId?: string;
+  paymentStatus?: string;
   // Timestamps
-  created_at: string;
-  updated_at: string;
-  shipped_at?: string;
-  delivered_at?: string;
-  cancelled_at?: string;
+  createdAt: string;
+  updatedAt: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+  cancelledAt?: string;
   // Relations
   user?: User;
 }
@@ -274,10 +274,10 @@ export interface PriceList {
   name: string;
   margin: number; // e.g. 50.0 = 50%
   discount: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
 }
 
 // ============================================================================
@@ -285,11 +285,10 @@ export interface PriceList {
 // ============================================================================
 
 export interface PriceTier {
-  id: string;
-  priceListId: string;
-  priceListName: string;
-  minQuantity: number; // bundle size: 1=unit, 10=box, 50=pallet
-  unitPrice: number; // price per individual unit (NUMERIC decimal, e.g. 1500.50)
+  minQuantity: number;
+  unitPrice: number;
+  priceListId?: string;
+  priceListName?: string;
 }
 
 export interface ProductPublic {
@@ -297,20 +296,20 @@ export interface ProductPublic {
   sku: string;
   name: string;
   slug: string;
-  image_url: string | null;
-  available_stock: number;
-  base_price: number; // fallback si no hay tiers
-  category_id: string;
-  brand_id: string | null;
+  imageUrl: string | null;
+  availableStock: number;
+  basePrice: number; // fallback si no hay tiers
+  categoryId: string;
+  brandId: string | null;
   category: { id: string; name: string } | null;
   brand: { id: string; name: string } | null;
-  tiers: PriceTier[]; // ordenados por min_quantity ASC
+  tiers: PriceTier[]; // ordenados por minQuantity ASC
 }
 
 export interface CatalogFilters {
   search?: string;
-  category_id?: string;
-  brand_id?: string;
+  categoryId?: string;
+  brandId?: string;
   page?: number;
   limit?: number;
 }

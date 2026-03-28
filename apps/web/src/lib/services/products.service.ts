@@ -68,14 +68,14 @@ export async function getProductBySlug(slug: string): Promise<Product> {
 
 // ─── Admin helpers ────────────────────────────────────────────────────────────
 
-// Raw shape returned by the API for a single product (camelCase mixed with snake_case)
+// Raw shape returned by the API for a single product (all camelCase)
 interface RawProduct {
   id: string;
   name: string;
   slug: string;
   description?: string;
-  base_price: number; // pesos ARS
-  is_active: boolean;
+  basePrice: number; // pesos ARS
+  isActive: boolean;
   categoryId?: string;
   brandId?: string;
   availableStock?: number;
@@ -84,25 +84,24 @@ interface RawProduct {
 }
 
 /**
- * Maps API response fields to the frontend Product shape:
- * - camelCase → snake_case
- * - images[0].url → image_url
+ * Maps API response fields to the frontend Product shape.
+ * API returns camelCase after middleware conversion.
  */
 export function normalizeProduct(raw: RawProduct): Product {
-  const basePricePesos = raw.base_price ?? 0;
+  const basePricePesos = raw.basePrice ?? 0;
   return {
     id: raw.id,
     name: raw.name,
     slug: raw.slug,
     description: raw.description ?? '',
-    base_price: basePricePesos,
-    cost_price: (raw.cost_price as number) ?? 0,
-    final_price: basePricePesos,
-    is_active: raw.is_active,
-    category_id: raw.categoryId ?? '',
-    brand_id: raw.brandId ?? '',
-    available_stock: raw.availableStock ?? 0,
-    image_url: raw.images?.[0]?.url ?? '',
+    basePrice: basePricePesos,
+    costPrice: (raw.costPrice as number) ?? 0,
+    finalPrice: basePricePesos,
+    isActive: raw.isActive,
+    categoryId: raw.categoryId ?? '',
+    brandId: raw.brandId ?? '',
+    availableStock: raw.availableStock ?? 0,
+    imageUrl: raw.images?.[0]?.url ?? '',
     sku: (raw.sku as string) ?? '',
     stock: (raw.stock as number) ?? 0,
     weight: (raw.weight as number | null) ?? null,
@@ -110,7 +109,7 @@ export function normalizeProduct(raw: RawProduct): Product {
     length: (raw.length as number | null) ?? null,
     height: (raw.height as number | null) ?? null,
     origin: (raw.origin as string | null) ?? null,
-    is_featured: (raw.is_featured as boolean) ?? false
+    isFeatured: (raw.isFeatured as boolean) ?? false
   } as unknown as Product;
 }
 

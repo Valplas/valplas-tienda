@@ -37,28 +37,28 @@ function generateCSV(summary: DailySummary): string {
   const rows: string[][] = [];
 
   for (const product of summary.products) {
-    for (const sale of product.price_list_sales) {
+    for (const sale of product.priceListSales) {
       rows.push([
-        product.product_name,
-        String(product.available_stock),
-        String(product.cost_price),
-        String(product.total_quantity),
-        String(product.total_ganancia),
-        sale.price_list_name ?? 'Sin lista',
-        sale.margin_percentage !== null ? String(sale.margin_percentage) : '',
-        String(sale.quantity_sold),
+        product.productName,
+        String(product.availableStock),
+        String(product.costPrice),
+        String(product.totalQuantity),
+        String(product.totalGanancia),
+        sale.priceListName ?? 'Sin lista',
+        sale.marginPercentage !== null ? String(sale.marginPercentage) : '',
+        String(sale.quantitySold),
         String(sale.ganancia)
       ]);
     }
 
     // If product has no price list sales, still emit one row
-    if (product.price_list_sales.length === 0) {
+    if (product.priceListSales.length === 0) {
       rows.push([
-        product.product_name,
-        String(product.available_stock),
-        String(product.cost_price),
-        String(product.total_quantity),
-        String(product.total_ganancia),
+        product.productName,
+        String(product.availableStock),
+        String(product.costPrice),
+        String(product.totalQuantity),
+        String(product.totalGanancia),
         '',
         '',
         '',
@@ -103,19 +103,19 @@ function ProductRows({ product }: ProductRowsProps) {
       {/* Product summary row */}
       <tr className="border-t border-border">
         <td className="py-3 pr-4 font-medium">
-          <div>{product.product_name}</div>
-          <div className="text-xs text-muted-foreground font-mono">{product.product_sku}</div>
+          <div>{product.productName}</div>
+          <div className="text-xs text-muted-foreground font-mono">{product.productSku}</div>
         </td>
-        <td className="py-3 pr-4 text-center">{product.available_stock}</td>
-        <td className="py-3 pr-4 text-right">{formatCurrency(product.cost_price)}</td>
-        <td className="py-3 pr-4 text-center font-semibold">{product.total_quantity}</td>
+        <td className="py-3 pr-4 text-center">{product.availableStock}</td>
+        <td className="py-3 pr-4 text-right">{formatCurrency(product.costPrice)}</td>
+        <td className="py-3 pr-4 text-center font-semibold">{product.totalQuantity}</td>
         <td className="py-3 text-right font-semibold text-green-700 dark:text-green-400">
-          {formatCurrency(product.total_ganancia)}
+          {formatCurrency(product.totalGanancia)}
         </td>
       </tr>
 
       {/* Price list sub-header */}
-      {product.price_list_sales.length > 0 && (
+      {product.priceListSales.length > 0 && (
         <tr className="bg-muted/30">
           <td className="py-1.5 pl-6 pr-4 text-xs font-bold text-muted-foreground uppercase tracking-wide">
             Lista de precios
@@ -136,16 +136,16 @@ function ProductRows({ product }: ProductRowsProps) {
       )}
 
       {/* Price list sub-rows */}
-      {product.price_list_sales.map((sale, idx) => (
+      {product.priceListSales.map((sale, idx) => (
         <tr key={idx} className="bg-muted/10 hover:bg-muted/20">
           <td className="py-2 pl-6 pr-4 text-sm text-muted-foreground">
-            {sale.price_list_name ?? 'Sin lista'}
+            {sale.priceListName ?? 'Sin lista'}
           </td>
           <td className="py-2 pr-4 text-sm text-muted-foreground">
-            {sale.margin_percentage !== null ? `${sale.margin_percentage}%` : '—'}
+            {sale.marginPercentage !== null ? `${sale.marginPercentage}%` : '—'}
           </td>
           <td className="py-2 pr-4 text-sm text-center text-muted-foreground">
-            {sale.quantity_sold}
+            {sale.quantitySold}
           </td>
           <td className="py-2 text-sm text-right text-muted-foreground" colSpan={2}>
             {formatCurrency(sale.ganancia)}
@@ -219,7 +219,7 @@ export default function ContabilidadPage() {
               <span>
                 Ganancia del dia {formatDisplayDate(date)}:{' '}
                 <span className="text-green-700 dark:text-green-400 font-semibold">
-                  {formatCurrency(summary?.total_ganancia ?? 0)}
+                  {formatCurrency(summary?.totalGanancia ?? 0)}
                 </span>
               </span>
             )}
@@ -260,7 +260,7 @@ export default function ContabilidadPage() {
             </thead>
             <tbody>
               {summary.products.map((product) => (
-                <ProductRows key={product.product_id} product={product} />
+                <ProductRows key={product.productId} product={product} />
               ))}
             </tbody>
             <tfoot>
@@ -269,7 +269,7 @@ export default function ContabilidadPage() {
                   Ganancia total del día:
                 </td>
                 <td className="py-3 text-right font-bold text-green-700 dark:text-green-400 text-base">
-                  {formatCurrency(summary.total_ganancia)}
+                  {formatCurrency(summary.totalGanancia)}
                 </td>
               </tr>
             </tfoot>

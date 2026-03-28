@@ -34,7 +34,7 @@ export function CartDrawer() {
             <ScrollArea className="flex-1 px-6">
               <div className="py-4">
                 {items.map((item) => (
-                  <CartItem key={item.product_id} item={item} />
+                  <CartItem key={item.productId} item={item} />
                 ))}
               </div>
             </ScrollArea>

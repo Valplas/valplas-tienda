@@ -19,11 +19,11 @@ function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
 
   return {
     items: items.map((item) => ({
-      product_id: item.productId,
+      productId: item.productId,
       quantity: item.quantity
     })),
     subtotal: serviceCart?.subtotal || 0,
-    updated_at: new Date().toISOString()
+    updatedAt: new Date().toISOString()
   };
 }
 
@@ -31,7 +31,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
   // State
   items: [],
   subtotal: 0,
-  updated_at: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
   isOpen: false,
   isLoading: false,
   itemCount: 0,
@@ -48,7 +48,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
       set({
         items: cart.items,
         subtotal: cart.subtotal,
-        updated_at: cart.updated_at,
+        updatedAt: cart.updatedAt,
         itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
         isLoading: false
       });
@@ -69,7 +69,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
       set({
         items: cart.items,
         subtotal: cart.subtotal,
-        updated_at: cart.updated_at,
+        updatedAt: cart.updatedAt,
         itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
         isLoading: false
       });
@@ -90,7 +90,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
       set({
         items: cart.items,
         subtotal: cart.subtotal,
-        updated_at: cart.updated_at,
+        updatedAt: cart.updatedAt,
         itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
         isLoading: false
       });
@@ -109,7 +109,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
       set({
         items: [],
         subtotal: 0,
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         itemCount: 0,
         isLoading: false
       });
@@ -141,7 +141,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
       set({
         items: cart.items,
         subtotal: cart.subtotal,
-        updated_at: cart.updated_at,
+        updatedAt: cart.updatedAt,
         itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
         isLoading: false
       });
@@ -152,7 +152,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
       set({
         items: [],
         subtotal: 0,
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         itemCount: 0,
         isLoading: false
       });

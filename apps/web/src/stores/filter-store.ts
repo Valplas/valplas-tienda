@@ -11,12 +11,12 @@ type FilterStore = FilterState & FilterActions;
 const initialState: FilterState = {
   // ProductFilters
   search: undefined,
-  category_id: undefined,
-  brand_id: undefined,
-  min_price: undefined,
-  max_price: undefined,
-  is_featured: undefined,
-  is_active: true, // Only show active products by default
+  categoryId: undefined,
+  brandId: undefined,
+  minPrice: undefined,
+  maxPrice: undefined,
+  isFeatured: undefined,
+  isActive: true, // Only show active products by default
 
   // UI State
   isOpen: false,
@@ -33,22 +33,22 @@ export const useFilterStore = create<FilterStore>((set) => ({
   },
 
   setCategoryId: (categoryId) => {
-    set({ category_id: categoryId });
+    set({ categoryId });
   },
 
   setBrandId: (brandId) => {
-    set({ brand_id: brandId });
+    set({ brandId });
   },
 
   setPriceRange: (min, max) => {
     set({
-      min_price: min,
-      max_price: max
+      minPrice: min,
+      maxPrice: max
     });
   },
 
   setFeatured: (featured) => {
-    set({ is_featured: featured });
+    set({ isFeatured: featured });
   },
 
   setSortBy: (sortBy) => {
@@ -66,11 +66,11 @@ export const useFilterStore = create<FilterStore>((set) => ({
   resetFilters: () => {
     set({
       search: undefined,
-      category_id: undefined,
-      brand_id: undefined,
-      min_price: undefined,
-      max_price: undefined,
-      is_featured: undefined,
+      categoryId: undefined,
+      brandId: undefined,
+      minPrice: undefined,
+      maxPrice: undefined,
+      isFeatured: undefined,
       sortBy: 'featured'
     });
   }

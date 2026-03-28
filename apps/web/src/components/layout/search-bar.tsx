@@ -132,9 +132,9 @@ export function SearchBar() {
                   >
                     {/* Product Image */}
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded border bg-muted">
-                      {product.image_url ? (
+                      {product.imageUrl ? (
                         <Image
-                          src={product.image_url}
+                          src={product.imageUrl}
                           alt={product.name}
                           fill
                           className="object-cover"
@@ -150,7 +150,7 @@ export function SearchBar() {
                     <div className="flex-1 overflow-hidden">
                       <p className="truncate text-sm font-medium">{product.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatPrice(product.final_price)}
+                        {formatPrice(product.finalPrice)}
                       </p>
                     </div>
                   </Link>

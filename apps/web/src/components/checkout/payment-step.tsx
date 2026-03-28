@@ -64,10 +64,10 @@ export function PaymentStep({
       // Create order
       // TODO: ShippingStep should pass carrier_id and zone_id instead of just carrier_name
       const orderData = {
-        shipping_address_id: shippingAddress.id,
-        shipping_zone_id: 'temp-zone-id', // TODO: Get from shipping step
-        carrier_id: 'temp-carrier-id', // TODO: Get from shipping step
-        payment_method: 'mercadopago' as const
+        shippingAddressId: shippingAddress.id,
+        shippingZoneId: 'temp-zone-id', // TODO: Get from shipping step
+        carrierId: 'temp-carrier-id', // TODO: Get from shipping step
+        paymentMethod: 'mercadopago' as const
       };
 
       const response = await createOrder(orderData);
@@ -106,15 +106,15 @@ export function PaymentStep({
               if (!product) return null;
 
               return (
-                <div key={item.product_id} className="flex justify-between text-sm">
+                <div key={item.productId} className="flex justify-between text-sm">
                   <div className="flex-1">
                     <div className="font-medium">{product.name}</div>
                     <div className="text-muted-foreground">
-                      {item.quantity} x {formatPrice(product.final_price)}
+                      {item.quantity} x {formatPrice(product.finalPrice)}
                     </div>
                   </div>
                   <div className="font-medium">
-                    {formatPrice(product.final_price * item.quantity)}
+                    {formatPrice(product.finalPrice * item.quantity)}
                   </div>
                 </div>
               );
@@ -131,7 +131,7 @@ export function PaymentStep({
             <div className="text-sm space-y-1">
               <div className="font-medium">{shippingAddress.label}</div>
               <div>
-                {shippingAddress.street} {shippingAddress.street_number}
+                {shippingAddress.street} {shippingAddress.streetNumber}
                 {shippingAddress.floor && `, Piso ${shippingAddress.floor}`}
                 {shippingAddress.apartment && ` Dpto ${shippingAddress.apartment}`}
               </div>
@@ -145,10 +145,10 @@ export function PaymentStep({
 
             <div className="text-sm">
               <div className="font-medium mb-1">Método de envío</div>
-              <div className="text-muted-foreground">{shippingOption.carrier_name}</div>
+              <div className="text-muted-foreground">{shippingOption.carrierName}</div>
               <div className="text-muted-foreground text-xs">
-                Entrega en {shippingOption.estimated_days}{' '}
-                {shippingOption.estimated_days === 1 ? 'día hábil' : 'días hábiles'}
+                Entrega en {shippingOption.estimatedDays}{' '}
+                {shippingOption.estimatedDays === 1 ? 'día hábil' : 'días hábiles'}
               </div>
             </div>
           </CardContent>

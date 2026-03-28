@@ -25,14 +25,14 @@ interface UserAddressesSectionProps {
 const EMPTY_FORM: CreateAddressInput = {
   alias: '',
   street: '',
-  street_number: '',
+  streetNumber: '',
   floor: '',
   apartment: '',
   city: '',
   province: '',
   postcode: '',
   notes: '',
-  is_default: false
+  isDefault: false
 };
 
 export function UserAddressesSection({ userId, userName }: UserAddressesSectionProps) {
@@ -63,7 +63,7 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
     const newErrors: Partial<Record<keyof CreateAddressInput, string>> = {};
     if (!form.alias.trim()) newErrors.alias = 'Requerido';
     if (!form.street.trim()) newErrors.street = 'Requerido';
-    if (!form.street_number.trim()) newErrors.street_number = 'Requerido';
+    if (!form.streetNumber.trim()) newErrors.streetNumber = 'Requerido';
     if (!form.city.trim()) newErrors.city = 'Requerido';
     if (!form.province.trim()) newErrors.province = 'Requerido';
     if (!form.postcode.trim()) newErrors.postcode = 'Requerido';
@@ -82,7 +82,7 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
         floor: form.floor || undefined,
         apartment: form.apartment || undefined,
         notes: form.notes || undefined,
-        is_default: addresses.length === 0 ? true : form.is_default
+        isDefault: addresses.length === 0 ? true : form.isDefault
       });
       toast.success('Dirección agregada');
       setForm(EMPTY_FORM);
@@ -152,10 +152,10 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2 font-medium">
                   {addr.alias}
-                  {addr.is_default && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
+                  {addr.isDefault && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
                 </div>
                 <div className="text-muted-foreground">
-                  {addr.street} {addr.street_number}
+                  {addr.street} {addr.streetNumber}
                   {addr.floor && `, Piso ${addr.floor}`}
                   {addr.apartment && ` ${addr.apartment}`}
                 </div>
@@ -218,11 +218,9 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
                 id="addr-number"
                 placeholder="1234"
                 className="h-8 text-sm"
-                {...field('street_number')}
+                {...field('streetNumber')}
               />
-              {errors.street_number && (
-                <p className="text-xs text-red-500">{errors.street_number}</p>
-              )}
+              {errors.streetNumber && <p className="text-xs text-red-500">{errors.streetNumber}</p>}
             </div>
           </div>
 

@@ -9,23 +9,23 @@ export interface User {
   email: string | null;
   username: string | null;
   phone: string | null;
-  first_name: string;
-  last_name: string | null;
+  firstName: string;
+  lastName: string | null;
   role: UserRole;
-  email_verified_at: string | null;
-  phone_verified_at: string | null;
-  last_login_at: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  emailVerifiedAt: string | null;
+  phoneVerifiedAt: string | null;
+  lastLoginAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UserAddress {
   id: string;
-  user_id: string;
+  userId: string;
   label: string;
   street: string;
-  street_number: string;
+  streetNumber: string;
   floor: string | null;
   apartment: string | null;
   city: string;
@@ -33,19 +33,19 @@ export interface UserAddress {
   postcode: string;
   latitude: number | null;
   longitude: number | null;
-  place_id: string | null;
-  is_default: boolean;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  placeId: string | null;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateUserInput {
   email: string;
   username?: string;
   phone?: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   password: string;
 }
 
@@ -53,6 +53,6 @@ export interface UpdateUserInput {
   email?: string;
   username?: string;
   phone?: string;
-  first_name?: string;
-  last_name?: string;
+  firstName?: string;
+  lastName?: string;
 }

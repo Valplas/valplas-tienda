@@ -21,12 +21,12 @@ export interface User {
   email: string;
   username: string | null;
   phone: string | null;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   role: 'owner' | 'admin' | 'driver' | 'customer';
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AuthResponse {

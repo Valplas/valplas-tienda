@@ -46,13 +46,13 @@ import type { AdminUser, AdminUserWithAddresses } from '@/lib/services/users.ser
 import type { PriceList } from '@/types';
 
 interface OrderItem {
-  product_id: string;
-  product_name: string;
-  product_sku: string;
-  available_stock: number;
-  price_list_id: string;
-  price_list_name: string;
-  unit_price: number;
+  productId: string;
+  productName: string;
+  productSku: string;
+  availableStock: number;
+  priceListId: string;
+  priceListName: string;
+  unitPrice: number;
   quantity: number;
 }
 
@@ -60,7 +60,7 @@ interface ProductSearchResult {
   id: string;
   name: string;
   sku: string;
-  available_stock: number;
+  availableStock: number;
 }
 
 type EmbeddedAddress = AdminUserWithAddresses['addresses'][number];
@@ -179,7 +179,7 @@ export default function NuevoPedidoPage() {
           id: p.id,
           name: p.name,
           sku: p.sku,
-          available_stock: p.available_stock ?? 0
+          availableStock: p.availableStock ?? 0
         }))
       );
     } finally {
@@ -224,13 +224,13 @@ export default function NuevoPedidoPage() {
       const item = items[index];
       setEditingIndex(index);
       setSelectedProduct({
-        id: item.product_id,
-        name: item.product_name,
-        sku: item.product_sku,
-        available_stock: item.available_stock
+        id: item.productId,
+        name: item.productName,
+        sku: item.productSku,
+        availableStock: item.availableStock
       });
-      setSelectedPriceListId(item.price_list_id);
-      setUnitPrice(item.unit_price);
+      setSelectedPriceListId(item.priceListId);
+      setUnitPrice(item.unitPrice);
       setQuantity(item.quantity);
       setProductSearch('');
       setProductResults([]);
@@ -243,20 +243,20 @@ export default function NuevoPedidoPage() {
       toast.error('Seleccioná un producto y una lista de precios');
       return;
     }
-    if (quantity < 1 || quantity > selectedProduct.available_stock) {
-      toast.error(`Cantidad inválida. Stock disponible: ${selectedProduct.available_stock}`);
+    if (quantity < 1 || quantity > selectedProduct.availableStock) {
+      toast.error(`Cantidad inválida. Stock disponible: ${selectedProduct.availableStock}`);
       return;
     }
 
     const priceList = priceLists.find((p) => p.id === selectedPriceListId);
     const newItem: OrderItem = {
-      product_id: selectedProduct.id,
-      product_name: selectedProduct.name,
-      product_sku: selectedProduct.sku,
-      available_stock: selectedProduct.available_stock,
-      price_list_id: selectedPriceListId,
-      price_list_name: priceList?.name ?? '',
-      unit_price: unitPrice,
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      productSku: selectedProduct.sku,
+      availableStock: selectedProduct.availableStock,
+      priceListId: selectedPriceListId,
+      priceListName: priceList?.name ?? '',
+      unitPrice,
       quantity
     };
 
@@ -265,11 +265,11 @@ export default function NuevoPedidoPage() {
       setItems((prev) => prev.map((item, i) => (i === editingIndex ? newItem : item)));
       setEditingIndex(null);
     } else {
-      const existingIndex = items.findIndex((i) => i.product_id === selectedProduct.id);
+      const existingIndex = items.findIndex((i) => i.productId === selectedProduct.id);
       if (existingIndex >= 0) {
         const newQty = items[existingIndex].quantity + quantity;
-        if (newQty > selectedProduct.available_stock) {
-          toast.error(`Stock insuficiente. Disponible: ${selectedProduct.available_stock}`);
+        if (newQty > selectedProduct.availableStock) {
+          toast.error(`Stock insuficiente. Disponible: ${selectedProduct.availableStock}`);
           return;
         }
         setItems((prev) =>
@@ -301,7 +301,7 @@ export default function NuevoPedidoPage() {
     [editingIndex]
   );
 
-  const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
   const handleSubmit = useCallback(async () => {
     if (!selectedUser) {
@@ -316,15 +316,15 @@ export default function NuevoPedidoPage() {
     setIsSubmitting(true);
     try {
       const order = await adminCreateOrder({
-        user_id: selectedUser.id,
-        shipping_address_id: selectedAddressId || undefined,
+        userId: selectedUser.id,
+        shippingAddressId: selectedAddressId || undefined,
         items: items.map((i) => ({
-          product_id: i.product_id,
-          price_list_id: i.price_list_id,
+          productId: i.productId,
+          priceListId: i.priceListId,
           quantity: i.quantity
         })),
         notes: notes || undefined,
-        payment_method: 'manual'
+        paymentMethod: 'manual'
       });
       toast.success('Pedido creado correctamente');
       router.push(`/admin/pedidos/${order.id}`);
@@ -368,7 +368,7 @@ export default function NuevoPedidoPage() {
             <div className="flex items-center justify-between bg-muted rounded-lg p-3">
               <div>
                 <div className="font-medium">
-                  {selectedUser.first_name} {selectedUser.last_name}
+                  {selectedUser.firstName} {selectedUser.lastName}
                 </div>
 
                 <div className="text-sm text-muted-foreground">{selectedUser.phone}</div>
@@ -409,7 +409,7 @@ export default function NuevoPedidoPage() {
                       onClick={() => handleSelectUserAddress(row)}
                     >
                       <div className="font-medium">
-                        {row.user.first_name} {row.user.last_name}
+                        {row.user.firstName} {row.user.lastName}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {row.user.phone ?? row.user.email}
@@ -417,7 +417,7 @@ export default function NuevoPedidoPage() {
                       {row.address ? (
                         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                           <MapPin className="h-3 w-3 shrink-0" />
-                          {row.address.street} {row.address.street_number}
+                          {row.address.street} {row.address.streetNumber}
                           {row.address.floor ? `, Piso ${row.address.floor}` : ''}
                           {row.address.apartment ? ` ${row.address.apartment}` : ''} —{' '}
                           {row.address.city}
@@ -459,7 +459,7 @@ export default function NuevoPedidoPage() {
                   <SelectContent>
                     {addresses.map((addr) => (
                       <SelectItem key={addr.id} value={addr.id}>
-                        {addr.street} {addr.street_number}
+                        {addr.street} {addr.streetNumber}
                         {addr.floor ? `, Piso ${addr.floor}` : ''}
                         {addr.apartment ? ` ${addr.apartment}` : ''} — {addr.city} ({addr.postcode})
                       </SelectItem>
@@ -468,7 +468,7 @@ export default function NuevoPedidoPage() {
                 </Select>
                 {selectedAddress && (
                   <p className="text-xs text-muted-foreground">
-                    {selectedAddress.street} {selectedAddress.street_number}
+                    {selectedAddress.street} {selectedAddress.streetNumber}
                     {selectedAddress.floor ? `, Piso ${selectedAddress.floor}` : ''}
                     {selectedAddress.apartment ? ` ${selectedAddress.apartment}` : ''},{' '}
                     {selectedAddress.city}, {selectedAddress.province} ({selectedAddress.postcode})
@@ -514,7 +514,7 @@ export default function NuevoPedidoPage() {
                       >
                         <div className="font-medium">{p.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          SKU: {p.sku} | Stock disponible: {p.available_stock}
+                          SKU: {p.sku} | Stock disponible: {p.availableStock}
                         </div>
                       </button>
                     ))}
@@ -529,7 +529,7 @@ export default function NuevoPedidoPage() {
                     <div className="font-medium">{selectedProduct.name}</div>
                     <div className="text-sm text-muted-foreground">
                       SKU: {selectedProduct.sku} | Stock disponible:{' '}
-                      <span className="font-semibold">{selectedProduct.available_stock}</span>
+                      <span className="font-semibold">{selectedProduct.availableStock}</span>
                     </div>
                   </div>
 
@@ -568,7 +568,7 @@ export default function NuevoPedidoPage() {
                       <Input
                         type="number"
                         min={1}
-                        max={selectedProduct.available_stock}
+                        max={selectedProduct.availableStock}
                         value={quantity}
                         onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                       />
@@ -639,18 +639,18 @@ export default function NuevoPedidoPage() {
                           onClick={() => editingIndex !== i && handleEditItem(i)}
                         >
                           <TableCell>
-                            <div className="font-medium text-sm">{item.product_name}</div>
-                            <div className="text-xs text-muted-foreground">{item.product_sku}</div>
+                            <div className="font-medium text-sm">{item.productName}</div>
+                            <div className="text-xs text-muted-foreground">{item.productSku}</div>
                           </TableCell>
                           <TableCell className="text-center">{item.quantity}</TableCell>
                           <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                            {item.price_list_name}
+                            {item.priceListName}
                           </TableCell>
                           <TableCell className="text-right text-sm">
-                            {formatCurrency(item.unit_price)}
+                            {formatCurrency(item.unitPrice)}
                           </TableCell>
                           <TableCell className="text-right font-medium text-sm">
-                            {formatCurrency(item.unit_price * item.quantity)}
+                            {formatCurrency(item.unitPrice * item.quantity)}
                           </TableCell>
                           <TableCell>
                             <div
@@ -709,14 +709,14 @@ export default function NuevoPedidoPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cliente:</span>
                 <span className="font-medium">
-                  {selectedUser.first_name} {selectedUser.last_name}
+                  {selectedUser.firstName} {selectedUser.lastName}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Dirección:</span>
                 <span>
                   {selectedAddress
-                    ? `${selectedAddress.street} ${selectedAddress.street_number}, ${selectedAddress.city}`
+                    ? `${selectedAddress.street} ${selectedAddress.streetNumber}, ${selectedAddress.city}`
                     : 'Sin dirección'}
                 </span>
               </div>

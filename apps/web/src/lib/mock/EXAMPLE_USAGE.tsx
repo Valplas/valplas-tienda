@@ -50,7 +50,7 @@ export function ExampleLogin() {
       <h2>Login Example</h2>
       {session ? (
         <div>
-          <p>Bienvenido, {session.user.first_name}!</p>
+          <p>Bienvenido, {session.user.firstName}!</p>
           <p>Email: {session.user.email}</p>
           <p>Rol: {session.user.role}</p>
         </div>
@@ -96,11 +96,11 @@ export function ExampleProductList() {
 
     const response = await fake_getProducts(
       {
-        // category_id: 'cat-004', // Uncomment to filter by category
+        // categoryId: 'cat-004', // Uncomment to filter by category
         // min_price: 1000,
         // max_price: 5000,
         // search: 'bolsas',
-        is_active: true
+        isActive: true
       },
       {
         page,
@@ -130,9 +130,9 @@ export function ExampleProductList() {
             <h3>{product.name}</h3>
             <p>{product.description}</p>
             <p>
-              <strong>${product.final_price.toLocaleString('es-AR')}</strong>
+              <strong>${product.finalPrice.toLocaleString('es-AR')}</strong>
             </p>
-            <p>Stock: {product.available_stock}</p>
+            <p>Stock: {product.availableStock}</p>
             <p>
               Categoría: {product.category?.name} | Marca: {product.brand?.name}
             </p>
@@ -179,12 +179,12 @@ export function ExampleFeaturedProducts() {
         {products.map((product) => (
           <div key={product.id} style={{ border: '1px solid #ccc', padding: '10px' }}>
             <img
-              src={product.image_url}
+              src={product.imageUrl}
               alt={product.name}
               style={{ width: '100%', height: '200px', objectFit: 'cover' }}
             />
             <h4>{product.name}</h4>
-            <p>${product.final_price.toLocaleString('es-AR')}</p>
+            <p>${product.finalPrice.toLocaleString('es-AR')}</p>
           </div>
         ))}
       </div>
@@ -235,22 +235,22 @@ export function ExampleCart() {
         <div>
           {cart.items.map((item) => (
             <div
-              key={item.product_id}
+              key={item.productId}
               style={{ border: '1px solid #ccc', padding: '10px', margin: '10px' }}
             >
               <h4>{item.product?.name}</h4>
               <p>Cantidad: {item.quantity}</p>
-              <p>Precio unitario: ${item.product?.final_price.toLocaleString('es-AR')}</p>
+              <p>Precio unitario: ${item.product?.finalPrice.toLocaleString('es-AR')}</p>
               <p>
                 Subtotal: $
-                {((item.product?.final_price || 0) * item.quantity).toLocaleString('es-AR')}
+                {((item.product?.finalPrice || 0) * item.quantity).toLocaleString('es-AR')}
               </p>
             </div>
           ))}
 
           <div style={{ marginTop: '20px', fontSize: '18px', fontWeight: 'bold' }}>
             <p>Subtotal: ${cart.subtotal.toLocaleString('es-AR')}</p>
-            <p>Envío: ${cart.shipping_cost.toLocaleString('es-AR')}</p>
+            <p>Envío: ${cart.shippingCost.toLocaleString('es-AR')}</p>
             <p>TOTAL: ${cart.total.toLocaleString('es-AR')}</p>
           </div>
         </div>
@@ -313,10 +313,10 @@ export function ExampleShipping() {
               {result.data?.map((option, i) => (
                 <div key={i} style={{ border: '1px solid #ccc', padding: '10px', margin: '10px' }}>
                   <p>
-                    <strong>{option.carrier_name}</strong>
+                    <strong>{option.carrierName}</strong>
                   </p>
                   <p>Costo: ${option.cost.toLocaleString('es-AR')}</p>
-                  <p>Tiempo estimado: {option.estimated_days} días</p>
+                  <p>Tiempo estimado: {option.estimatedDays} días</p>
                 </div>
               ))}
             </div>

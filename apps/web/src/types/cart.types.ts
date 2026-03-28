@@ -5,7 +5,7 @@
 
 import { Cart } from './index';
 
-export interface CartState extends Omit<Cart, 'shipping_cost' | 'total'> {
+export interface CartState extends Omit<Cart, 'shippingCost' | 'total'> {
   isOpen: boolean; // Drawer state
   isLoading: boolean;
   itemCount: number; // Computed

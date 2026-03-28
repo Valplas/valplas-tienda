@@ -84,9 +84,9 @@ export async function verifyMockSystem() {
     // Test filters
     const filteredResponse = await fake_getProducts(
       {
-        category_id: 'cat-004',
-        min_price: 1000,
-        max_price: 3000
+        categoryId: 'cat-004',
+        minPrice: 1000,
+        maxPrice: 3000
       },
       { page: 1, limit: 5 }
     );
@@ -133,7 +133,7 @@ export async function verifyMockSystem() {
     // Test insufficient stock (try to add more than available)
     const product = await fake_getProductById('prod-001');
     if (product.success && product.data) {
-      const excessiveQuantity = product.data.available_stock + 100;
+      const excessiveQuantity = product.data.availableStock + 100;
       const stockResponse = await fake_addToCart('prod-001', excessiveQuantity, userId);
       if (stockResponse.success) {
         throw new Error('Should have failed due to insufficient stock');
@@ -155,7 +155,7 @@ export async function verifyMockSystem() {
     }
     const option = shippingResponse.data[0];
     console.log(
-      `✅ Shipping for CP 1043: ${option.carrier_name} - $${option.cost} - ${option.estimated_days} días`
+      `✅ Shipping for CP 1043: ${option.carrierName} - $${option.cost} - ${option.estimatedDays} días`
     );
 
     // Test free shipping threshold

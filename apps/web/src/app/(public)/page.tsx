@@ -22,7 +22,7 @@ export default async function Home() {
     // Filter root categories (parent_id is null)
 
     categories = Array.isArray(categoriesRes)
-      ? categoriesRes.filter((cat: Category) => cat.parent_id === null)
+      ? categoriesRes.filter((cat: Category) => cat.parentId === null)
       : [];
   } catch (error) {
     console.error('Error loading home page data:', error);

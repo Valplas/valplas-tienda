@@ -44,7 +44,7 @@ export default function AdminDashboardPage() {
   if (isLoading || !user) return null;
 
   // Calculate stats
-  const activeProducts = MOCK_PRODUCTS.filter((p) => p.is_active && !p.deleted_at).length;
+  const activeProducts = MOCK_PRODUCTS.filter((p) => p.isActive && !p.deletedAt).length;
   const totalOrders = MOCK_ORDERS.length;
   const pendingOrders = MOCK_ORDERS.filter(
     (o) => o.status === OrderStatus.PENDING || o.status === OrderStatus.PROCESSING
@@ -54,7 +54,7 @@ export default function AdminDashboardPage() {
   const currentMonth = dayjs().month();
   const currentYear = dayjs().year();
   const monthRevenue = MOCK_ORDERS.filter((o) => {
-    const orderDate = dayjs(o.created_at);
+    const orderDate = dayjs(o.createdAt);
     return (
       orderDate.month() === currentMonth &&
       orderDate.year() === currentYear &&
@@ -64,12 +64,12 @@ export default function AdminDashboardPage() {
 
   // Recent orders (last 10)
   const recentOrders = [...MOCK_ORDERS]
-    .sort((a, b) => dayjs(b.created_at).unix() - dayjs(a.created_at).unix())
+    .sort((a, b) => dayjs(b.createdAt).unix() - dayjs(a.createdAt).unix())
     .slice(0, 10);
 
   // Low stock products (stock < 10)
   const lowStockProducts = MOCK_PRODUCTS.filter(
-    (p) => p.is_active && !p.deleted_at && p.available_stock < 10
+    (p) => p.isActive && !p.deletedAt && p.availableStock < 10
   ).slice(0, 5);
 
   return (
@@ -137,9 +137,9 @@ export default function AdminDashboardPage() {
                       const statusInfo = orderStatusLabels[order.status];
                       return (
                         <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.order_number}</TableCell>
+                          <TableCell className="font-medium">{order.orderNumber}</TableCell>
                           <TableCell>
-                            {order.user ? `${order.user.first_name} ${order.user.last_name}` : '-'}
+                            {order.user ? `${order.user.firstName} ${order.user.lastName}` : '-'}
                           </TableCell>
                           <TableCell>
                             <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
@@ -182,8 +182,8 @@ export default function AdminDashboardPage() {
                       <p className="text-xs text-muted-foreground">{product.sku}</p>
                     </div>
                     <div className="ml-4 flex items-center gap-2">
-                      <Badge variant={product.available_stock === 0 ? 'destructive' : 'secondary'}>
-                        Stock: {product.available_stock}
+                      <Badge variant={product.availableStock === 0 ? 'destructive' : 'secondary'}>
+                        Stock: {product.availableStock}
                       </Badge>
                     </div>
                   </div>

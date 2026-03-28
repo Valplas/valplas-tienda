@@ -93,15 +93,14 @@ export default function CategoriasPage() {
   const handleSubmit = async (data: CategoryFormData) => {
     setIsSubmitting(true);
     try {
-      // Map form snake_case fields to API camelCase payload
       const payload = {
         name: data.name,
         slug: data.slug,
-        parentId: data.parent_id ?? undefined,
-        isActive: data.is_active,
-        displayOrder: data.display_order,
+        parentId: data.parentId ?? undefined,
+        isActive: data.isActive,
+        displayOrder: data.displayOrder,
         description: data.description || null,
-        imageUrl: data.image_url || null
+        imageUrl: data.imageUrl || null
       };
 
       if (selectedCategory) {

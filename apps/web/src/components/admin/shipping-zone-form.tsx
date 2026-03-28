@@ -31,17 +31,17 @@ export function ShippingZoneForm({ zone, onSubmit, onCancel, isLoading }: Shippi
           name: zone.name,
           description: '',
           postcodes: zone.postcodes.join(', '),
-          is_active: zone.is_active
+          isActive: zone.isActive
         }
       : {
           name: '',
           description: '',
           postcodes: '',
-          is_active: true
+          isActive: true
         }
   });
 
-  const isActive = useWatch({ control, name: 'is_active' });
+  const isActive = useWatch({ control, name: 'isActive' });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -99,12 +99,12 @@ export function ShippingZoneForm({ zone, onSubmit, onCancel, isLoading }: Shippi
       {/* Is Active */}
       <div className="flex items-center gap-2">
         <Checkbox
-          id="is_active"
+          id="isActive"
           checked={isActive}
-          onCheckedChange={(checked) => setValue('is_active', !!checked)}
+          onCheckedChange={(checked) => setValue('isActive', !!checked)}
           disabled={isLoading}
         />
-        <Label htmlFor="is_active" className="cursor-pointer font-normal">
+        <Label htmlFor="isActive" className="cursor-pointer font-normal">
           Zona activa
         </Label>
       </div>

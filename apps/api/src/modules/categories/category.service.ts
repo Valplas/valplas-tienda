@@ -20,7 +20,7 @@ export async function getCategoryById(id: string) {
 
   const productCount = await categoryRepository.getProductCount(id);
   const allCategories = await categoryRepository.findAllCategories();
-  const children = allCategories.filter((c) => c.parent_id === id);
+  const children = allCategories.filter((c) => c.parentId === id);
 
   return { ...category, productCount, children };
 }

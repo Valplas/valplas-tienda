@@ -38,13 +38,13 @@ export interface CreateProductInput {
   name: string;
   sku: string;
   description: string;
-  base_price: number;
+  basePrice: number;
   stock: number;
-  category_id: string;
-  brand_id: string;
+  categoryId: string;
+  brandId: string;
   unit?: string;
-  is_featured: boolean;
-  is_active: boolean;
+  isFeatured: boolean;
+  isActive: boolean;
   images?: string[];
 }
 
@@ -59,7 +59,7 @@ export async function fake_createProduct(data: CreateProductInput): Promise<ApiR
   const products = getProducts();
 
   // Check if SKU already exists
-  const existingSku = products.find((p) => p.sku === data.sku && !p.deleted_at);
+  const existingSku = products.find((p) => p.sku === data.sku && !p.deletedAt);
   if (existingSku) {
     return {
       success: false,
@@ -71,8 +71,8 @@ export async function fake_createProduct(data: CreateProductInput): Promise<ApiR
   }
 
   // Find category and brand
-  const category = MOCK_CATEGORIES.find((c) => c.id === data.category_id);
-  const brand = MOCK_BRANDS.find((b) => b.id === data.brand_id);
+  const category = MOCK_CATEGORIES.find((c) => c.id === data.categoryId);
+  const brand = MOCK_BRANDS.find((b) => b.id === data.brandId);
 
   if (!category) {
     return {
@@ -109,21 +109,21 @@ export async function fake_createProduct(data: CreateProductInput): Promise<ApiR
     name: data.name,
     slug,
     description: data.description,
-    category_id: data.category_id,
-    brand_id: data.brand_id,
-    base_price: data.base_price,
-    cost_price: 0,
-    final_price: data.base_price,
+    categoryId: data.categoryId,
+    brandId: data.brandId,
+    basePrice: data.basePrice,
+    costPrice: 0,
+    finalPrice: data.basePrice,
     stock: data.stock,
-    reserved_stock: 0,
-    available_stock: data.stock,
+    reservedStock: 0,
+    availableStock: data.stock,
     unit: data.unit || 'unidad',
-    image_url: data.images?.[0] || '/products/placeholder.jpg',
+    imageUrl: data.images?.[0] || '/products/placeholder.jpg',
     images: data.images || ['/products/placeholder.jpg'],
-    is_featured: data.is_featured,
-    is_active: data.is_active,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    isFeatured: data.isFeatured,
+    isActive: data.isActive,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     category,
     brand
   };
@@ -147,7 +147,7 @@ export async function fake_updateProduct(
   await delay(800);
 
   const products = getProducts();
-  const index = products.findIndex((p) => p.id === id && !p.deleted_at);
+  const index = products.findIndex((p) => p.id === id && !p.deletedAt);
 
   if (index === -1) {
     return {
@@ -161,7 +161,7 @@ export async function fake_updateProduct(
 
   // Check SKU uniqueness if SKU is being updated
   if (data.sku && data.sku !== products[index].sku) {
-    const existingSku = products.find((p) => p.sku === data.sku && p.id !== id && !p.deleted_at);
+    const existingSku = products.find((p) => p.sku === data.sku && p.id !== id && !p.deletedAt);
     if (existingSku) {
       return {
         success: false,
@@ -177,7 +177,7 @@ export async function fake_updateProduct(
   const updatedProduct: Product = {
     ...products[index],
     ...data,
-    updated_at: new Date().toISOString()
+    updatedAt: new Date().toISOString()
   };
 
   // Recalculate slug if name changed
@@ -190,29 +190,29 @@ export async function fake_updateProduct(
       .replace(/^-+|-+$/g, '');
   }
 
-  // Update final_price if base_price changed
-  if (data.base_price !== undefined) {
-    updatedProduct.final_price = data.base_price;
+  // Update finalPrice if basePrice changed
+  if (data.basePrice !== undefined) {
+    updatedProduct.finalPrice = data.basePrice;
   }
 
-  // Update available_stock if stock changed
+  // Update availableStock if stock changed
   if (data.stock !== undefined) {
-    updatedProduct.available_stock = data.stock - updatedProduct.reserved_stock;
+    updatedProduct.availableStock = data.stock - updatedProduct.reservedStock;
   }
 
-  // Update image_url if images changed
+  // Update imageUrl if images changed
   if (data.images && data.images.length > 0) {
-    updatedProduct.image_url = data.images[0];
+    updatedProduct.imageUrl = data.images[0];
   }
 
   // Update category relation
-  if (data.category_id) {
-    updatedProduct.category = MOCK_CATEGORIES.find((c) => c.id === data.category_id);
+  if (data.categoryId) {
+    updatedProduct.category = MOCK_CATEGORIES.find((c) => c.id === data.categoryId);
   }
 
   // Update brand relation
-  if (data.brand_id) {
-    updatedProduct.brand = MOCK_BRANDS.find((b) => b.id === data.brand_id);
+  if (data.brandId) {
+    updatedProduct.brand = MOCK_BRANDS.find((b) => b.id === data.brandId);
   }
 
   products[index] = updatedProduct;
@@ -231,7 +231,7 @@ export async function fake_deleteProduct(id: string): Promise<ApiResponse<void>>
   await delay(600);
 
   const products = getProducts();
-  const index = products.findIndex((p) => p.id === id && !p.deleted_at);
+  const index = products.findIndex((p) => p.id === id && !p.deletedAt);
 
   if (index === -1) {
     return {
@@ -246,8 +246,8 @@ export async function fake_deleteProduct(id: string): Promise<ApiResponse<void>>
   // Soft delete
   products[index] = {
     ...products[index],
-    deleted_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    deletedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
   saveProducts(products);
@@ -267,12 +267,12 @@ export async function fake_deleteProducts(ids: string[]): Promise<ApiResponse<vo
   let deletedCount = 0;
 
   ids.forEach((id) => {
-    const index = products.findIndex((p) => p.id === id && !p.deleted_at);
+    const index = products.findIndex((p) => p.id === id && !p.deletedAt);
     if (index !== -1) {
       products[index] = {
         ...products[index],
-        deleted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        deletedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       deletedCount++;
     }
@@ -302,7 +302,7 @@ export async function fake_getProductById(id: string): Promise<ApiResponse<Produ
   await delay(400);
 
   const products = getProducts();
-  const product = products.find((p) => p.id === id && !p.deleted_at);
+  const product = products.find((p) => p.id === id && !p.deletedAt);
 
   if (!product) {
     return {

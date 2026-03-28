@@ -54,7 +54,7 @@ export async function fake_getCategoryById(id: string): Promise<Category | null>
  * Create a new category
  */
 export async function fake_createCategory(
-  data: Omit<Category, 'id' | 'created_at' | 'updated_at'>
+  data: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<Category> {
   await new Promise((resolve) => setTimeout(resolve, 400));
 
@@ -66,8 +66,8 @@ export async function fake_createCategory(
   }
 
   // Validate parent exists if provided
-  if (data.parent_id) {
-    const parentExists = categories.some((c) => c.id === data.parent_id);
+  if (data.parentId) {
+    const parentExists = categories.some((c) => c.id === data.parentId);
     if (!parentExists) {
       throw new Error('Categoría padre no encontrada');
     }
@@ -76,8 +76,8 @@ export async function fake_createCategory(
   const newCategory: Category = {
     ...data,
     id: `cat-${Date.now()}`,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
   categories.push(newCategory);
@@ -91,7 +91,7 @@ export async function fake_createCategory(
  */
 export async function fake_updateCategory(
   id: string,
-  data: Partial<Omit<Category, 'id' | 'created_at' | 'updated_at'>>
+  data: Partial<Omit<Category, 'id' | 'createdAt' | 'updatedAt'>>
 ): Promise<Category> {
   await new Promise((resolve) => setTimeout(resolve, 400));
 
@@ -108,14 +108,14 @@ export async function fake_updateCategory(
   }
 
   // Validate parent exists and check for circular references
-  if (data.parent_id !== undefined && data.parent_id !== null) {
-    const parentExists = categories.some((c) => c.id === data.parent_id);
+  if (data.parentId !== undefined && data.parentId !== null) {
+    const parentExists = categories.some((c) => c.id === data.parentId);
     if (!parentExists) {
       throw new Error('Categoría padre no encontrada');
     }
 
     // Check circular reference
-    if (wouldCreateCircularReference(categories, id, data.parent_id)) {
+    if (wouldCreateCircularReference(categories, id, data.parentId)) {
       throw new Error(
         'No se puede establecer esta categoría como padre (crearía una referencia circular)'
       );
@@ -125,7 +125,7 @@ export async function fake_updateCategory(
   const updatedCategory: Category = {
     ...categories[index],
     ...data,
-    updated_at: new Date().toISOString()
+    updatedAt: new Date().toISOString()
   };
 
   categories[index] = updatedCategory;
@@ -148,7 +148,7 @@ export async function fake_deleteCategory(id: string): Promise<void> {
   }
 
   // Check if category has children
-  const children = categories.filter((c) => c.parent_id === id);
+  const children = categories.filter((c) => c.parentId === id);
   if (children.length > 0) {
     throw new Error(
       `No se puede eliminar la categoría porque tiene ${children.length} subcategoría(s)`
@@ -156,7 +156,7 @@ export async function fake_deleteCategory(id: string): Promise<void> {
   }
 
   // Check if category has products
-  const products = MOCK_PRODUCTS.filter((p) => p.category_id === id);
+  const products = MOCK_PRODUCTS.filter((p) => p.categoryId === id);
   if (products.length > 0) {
     throw new Error(
       `No se puede eliminar la categoría porque tiene ${products.length} producto(s) asociado(s)`
@@ -169,10 +169,10 @@ export async function fake_deleteCategory(id: string): Promise<void> {
 }
 
 /**
- * Reorder categories (update display_order)
+ * Reorder categories (update displayOrder)
  */
 export async function fake_reorderCategories(
-  updates: Array<{ id: string; display_order: number }>
+  updates: Array<{ id: string; displayOrder: number }>
 ): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -181,8 +181,8 @@ export async function fake_reorderCategories(
   updates.forEach((update) => {
     const category = categories.find((c) => c.id === update.id);
     if (category) {
-      category.display_order = update.display_order;
-      category.updated_at = new Date().toISOString();
+      category.displayOrder = update.displayOrder;
+      category.updatedAt = new Date().toISOString();
     }
   });
 
@@ -197,12 +197,12 @@ export function fake_getCategoryProductCount(categoryId: string): number {
   const descendantIds = getDescendantIds(categories, categoryId);
   const allIds = [categoryId, ...descendantIds];
 
-  return MOCK_PRODUCTS.filter((p) => allIds.includes(p.category_id)).length;
+  return MOCK_PRODUCTS.filter((p) => allIds.includes(p.categoryId)).length;
 }
 
 /**
  * Get direct product count for a category (excluding descendants)
  */
 export function fake_getCategoryDirectProductCount(categoryId: string): number {
-  return MOCK_PRODUCTS.filter((p) => p.category_id === categoryId).length;
+  return MOCK_PRODUCTS.filter((p) => p.categoryId === categoryId).length;
 }

@@ -26,8 +26,8 @@ interface RawProductShape {
   name: string;
   slug: string;
   description?: string;
-  base_price: number; // pesos ARS
-  is_active: boolean;
+  basePrice: number; // pesos ARS
+  isActive: boolean;
   categoryId?: string;
   brandId?: string;
   availableStock?: number;
@@ -69,13 +69,13 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
 
   const handleSubmit = async (data: ProductFormData & { images?: string[] }) => {
     try {
-      const price = parsePriceInput(String(data.base_price));
+      const price = parsePriceInput(String(data.basePrice));
       await updateProduct(id, {
         name: data.name,
         description: data.description,
         basePrice: price,
-        categoryId: data.category_id,
-        brandId: data.brand_id || undefined,
+        categoryId: data.categoryId,
+        brandId: data.brandId || undefined,
         sku: data.sku?.toUpperCase(),
         stock: data.stock,
         weight: data.weight,
@@ -83,8 +83,8 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
         length: data.length,
         height: data.height,
         origin: data.origin,
-        isFeatured: data.is_featured,
-        isActive: data.is_active
+        isFeatured: data.isFeatured,
+        isActive: data.isActive
       });
       toast.success('Producto actualizado correctamente');
       router.push('/admin/productos');

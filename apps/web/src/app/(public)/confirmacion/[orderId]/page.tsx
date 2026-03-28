@@ -50,7 +50,7 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            Pedido {order.order_number}
+            Pedido {order.orderNumber}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -71,7 +71,7 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
             </div>
             <div>
               <span className="text-muted-foreground">Fecha:</span>
-              <div className="font-medium mt-1">{formatDateTime(order.created_at)}</div>
+              <div className="font-medium mt-1">{formatDateTime(order.createdAt)}</div>
             </div>
           </div>
 
@@ -82,11 +82,11 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
             <h3 className="font-medium mb-3">Productos</h3>
             <div className="space-y-2">
               {order.items.map((item) => (
-                <div key={item.product_id} className="flex justify-between text-sm">
+                <div key={item.productId} className="flex justify-between text-sm">
                   <div>
-                    <div className="font-medium">{item.product_name}</div>
+                    <div className="font-medium">{item.productName}</div>
                     <div className="text-muted-foreground">
-                      {item.quantity} x {formatPrice(item.unit_price)}
+                      {item.quantity} x {formatPrice(item.unitPrice)}
                     </div>
                   </div>
                   <div className="font-medium">{formatPrice(item.subtotal)}</div>
@@ -106,10 +106,10 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Envío</span>
               <span className="font-medium">
-                {order.shipping_cost === 0 ? (
+                {order.shippingCost === 0 ? (
                   <span className="text-green-600">Gratis</span>
                 ) : (
-                  formatPrice(order.shipping_cost)
+                  formatPrice(order.shippingCost)
                 )}
               </span>
             </div>
@@ -126,18 +126,17 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
           <div>
             <h3 className="font-medium mb-2">Dirección de envío</h3>
             <div className="text-sm text-muted-foreground">
-              {order.shipping_address ? (
+              {order.shippingAddress ? (
                 <>
                   <div>
-                    {order.shipping_address.street} {order.shipping_address.street_number}
-                    {order.shipping_address.floor && `, Piso ${order.shipping_address.floor}`}
-                    {order.shipping_address.apartment &&
-                      ` Dpto ${order.shipping_address.apartment}`}
+                    {order.shippingAddress.street} {order.shippingAddress.streetNumber}
+                    {order.shippingAddress.floor && `, Piso ${order.shippingAddress.floor}`}
+                    {order.shippingAddress.apartment && ` Dpto ${order.shippingAddress.apartment}`}
                   </div>
                   <div>
-                    {order.shipping_address.city}, {order.shipping_address.province}
+                    {order.shippingAddress.city}, {order.shippingAddress.province}
                   </div>
-                  <div>CP {order.shipping_address.postcode}</div>
+                  <div>CP {order.shippingAddress.postcode}</div>
                 </>
               ) : (
                 <div>Sin información de dirección</div>

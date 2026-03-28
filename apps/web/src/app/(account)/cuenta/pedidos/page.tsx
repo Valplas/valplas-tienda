@@ -154,8 +154,8 @@ export default function OrdersListPage() {
                 <TableBody>
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.order_number}</TableCell>
-                      <TableCell>{formatDate(order.created_at)}</TableCell>
+                      <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                      <TableCell>{formatDate(order.createdAt)}</TableCell>
                       <TableCell>
                         <span className="text-muted-foreground">
                           {order.items.length} {order.items.length === 1 ? 'producto' : 'productos'}

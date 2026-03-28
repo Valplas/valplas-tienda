@@ -75,7 +75,7 @@ export function AddressStep({ savedAddresses = [], onNext, onBack }: AddressStep
                     <CardContent className="p-4">
                       <div className="font-medium">{address.label}</div>
                       <div className="text-sm text-muted-foreground mt-1">
-                        {address.street} {address.street_number}
+                        {address.street} {address.streetNumber}
                         {address.floor && `, Piso ${address.floor}`}
                         {address.apartment && ` Dpto ${address.apartment}`}
                       </div>
@@ -130,12 +130,12 @@ export function AddressStep({ savedAddresses = [], onNext, onBack }: AddressStep
               />
             </div>
             <div>
-              <Label htmlFor="street_number">Número *</Label>
+              <Label htmlFor="streetNumber">Número *</Label>
               <Input
-                id="street_number"
+                id="streetNumber"
                 placeholder="1234"
-                {...register('street_number')}
-                error={errors.street_number?.message}
+                {...register('streetNumber')}
+                error={errors.streetNumber?.message}
               />
             </div>
           </div>

@@ -105,7 +105,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Mi Cuenta</h1>
         <p className="mt-2 text-muted-foreground">
-          Bienvenido, {user?.first_name} {user?.last_name}
+          Bienvenido, {user?.firstName} {user?.lastName}
         </p>
       </div>
 
@@ -154,7 +154,7 @@ export default function DashboardPage() {
               {stats.lastOrder ? formatPrice(stats.lastOrder.total) : '-'}
             </div>
             <p className="text-xs text-muted-foreground">
-              {stats.lastOrder ? formatDate(stats.lastOrder.created_at) : 'Sin compras'}
+              {stats.lastOrder ? formatDate(stats.lastOrder.createdAt) : 'Sin compras'}
             </p>
           </CardContent>
         </Card>
@@ -197,8 +197,8 @@ export default function DashboardPage() {
               <TableBody>
                 {recentOrders.map((order) => (
                   <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.order_number}</TableCell>
-                    <TableCell>{formatDate(order.created_at)}</TableCell>
+                    <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                    <TableCell>{formatDate(order.createdAt)}</TableCell>
                     <TableCell>{formatPrice(order.total)}</TableCell>
                     <TableCell>
                       <OrderStatusBadge status={order.status} />
@@ -227,7 +227,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Nombre</p>
               <p className="text-base">
-                {user?.first_name} {user?.last_name}
+                {user?.firstName} {user?.lastName}
               </p>
             </div>
             <div>
