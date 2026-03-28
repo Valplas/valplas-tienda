@@ -230,25 +230,25 @@ export default function EnviosPage() {
         header: 'Carrier'
       },
       {
-        accessorKey: 'base_rate',
+        accessorKey: 'baseRate',
         header: 'Tarifa Base',
         cell: ({ row }) =>
           new Intl.NumberFormat('es-AR', {
             style: 'currency',
             currency: 'ARS'
-          }).format(row.original.base_rate)
+          }).format(row.original.baseRate)
       },
       {
-        accessorKey: 'estimated_days',
+        accessorKey: 'estimatedDays',
         header: 'Días Estimados',
         cell: ({ row }) =>
-          `${row.original.estimated_days} día${row.original.estimated_days !== 1 ? 's' : ''}`
+          `${row.original.estimatedDays} día${row.original.estimatedDays !== 1 ? 's' : ''}`
       },
       {
-        accessorKey: 'is_active',
+        accessorKey: 'isActive',
         header: 'Estado',
         cell: ({ row }) =>
-          row.original.is_active ? (
+          row.original.isActive ? (
             <Badge variant="default">Activo</Badge>
           ) : (
             <Badge variant="secondary">Inactivo</Badge>
@@ -332,7 +332,7 @@ export default function EnviosPage() {
                       {zone.postcodes.length !== 1 ? 'es' : ''}
                     </p>
                   </div>
-                  {zone.is_active ? (
+                  {zone.isActive ? (
                     <Badge variant="default">Activa</Badge>
                   ) : (
                     <Badge variant="secondary">Inactiva</Badge>

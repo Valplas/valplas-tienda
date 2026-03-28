@@ -20,7 +20,7 @@ export interface OrderShippingAddress {
   id: string;
   alias: string;
   street: string;
-  street_number: string;
+  streetNumber: string;
   floor: string | null;
   apartment: string | null;
   city: string;
@@ -31,52 +31,52 @@ export interface OrderShippingAddress {
 export interface OrderUser {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   phone: string;
 }
 
 export interface Order {
   id: string;
-  order_number: string;
-  user_id: string;
+  orderNumber: string;
+  userId: string;
   status: OrderStatus;
   subtotal: number;
-  shipping_cost: number;
+  shippingCost: number;
   total: number;
-  payment_method: string;
-  payment_id: string | null;
+  paymentMethod: string;
+  paymentId: string | null;
   notes: string | null;
-  shipping_address?: OrderShippingAddress;
-  shipping_carrier?: {
+  shippingAddress?: OrderShippingAddress;
+  shippingCarrier?: {
     id: string;
     name: string;
   };
   items: Array<{
     id: string;
-    product_id: string;
-    product_name: string;
-    product_sku: string;
+    productId: string;
+    productName: string;
+    productSku: string;
     quantity: number;
-    unit_price: number;
+    unitPrice: number;
     subtotal: number;
   }>;
   user?: OrderUser;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateOrderRequest {
-  shipping_address_id: string;
-  shipping_zone_id: string;
-  carrier_id: string;
-  payment_method: 'mercadopago';
+  shippingAddressId: string;
+  shippingZoneId: string;
+  carrierId: string;
+  paymentMethod: 'mercadopago';
   notes?: string;
 }
 
 export interface CreateOrderResponse {
   order: Order;
-  payment_url?: string; // URL de Mercado Pago para pagar
+  paymentUrl?: string; // URL de Mercado Pago para pagar
 }
 
 /**
@@ -109,7 +109,7 @@ export async function getOrderById(id: string): Promise<Order> {
 }
 
 /**
- * Obtener orden por order_number
+ * Obtener orden por orderNumber
  */
 export async function getOrderByNumber(orderNumber: string): Promise<Order> {
   const response = await get<Order>(`/orders/number/${orderNumber}`);
@@ -144,19 +144,19 @@ export async function getAdminOrders(params?: {
   page?: number;
   limit?: number;
   status?: string;
-  from_date?: string;
-  to_date?: string;
+  fromDate?: string;
+  toDate?: string;
   search?: string;
-  include_items?: boolean;
+  includeItems?: boolean;
 }) {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.status && params.status !== 'all') query.set('status', params.status);
-  if (params?.from_date) query.set('from_date', params.from_date);
-  if (params?.to_date) query.set('to_date', params.to_date);
+  if (params?.fromDate) query.set('from_date', params.fromDate);
+  if (params?.toDate) query.set('to_date', params.toDate);
   if (params?.search) query.set('search', params.search);
-  if (params?.include_items) query.set('include_items', 'true');
+  if (params?.includeItems) query.set('include_items', 'true');
 
   const qs = query.toString();
   const res = await get<Order[]>(`/orders/admin/all${qs ? `?${qs}` : ''}`);
@@ -184,17 +184,17 @@ export async function updateOrderStatus(id: string, status: string): Promise<Ord
 }
 
 export interface AdminCreateOrderItem {
-  product_id: string;
-  price_list_id: string;
+  productId: string;
+  priceListId: string;
   quantity: number;
 }
 
 export async function adminCreateOrder(data: {
-  user_id: string;
-  shipping_address_id?: string;
+  userId: string;
+  shippingAddressId?: string;
   items: AdminCreateOrderItem[];
   notes?: string;
-  payment_method?: string;
+  paymentMethod?: string;
 }): Promise<Order> {
   const res = await post<Order>('/orders/admin/create', data);
   if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear pedido');
@@ -202,15 +202,15 @@ export async function adminCreateOrder(data: {
 }
 
 export interface AdminUpdateOrderItem {
-  product_id: string;
-  price_list_id: string;
+  productId: string;
+  priceListId: string;
   quantity: number;
 }
 
 export async function adminUpdateOrder(
   id: string,
   data: {
-    shipping_address_id: string;
+    shippingAddressId: string;
     items: AdminUpdateOrderItem[];
   }
 ): Promise<Order> {

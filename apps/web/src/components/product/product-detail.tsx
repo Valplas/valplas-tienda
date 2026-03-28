@@ -33,8 +33,8 @@ interface ProductDetailProps {
 export function ProductDetail({ product, className }: ProductDetailProps) {
   const [quantity, setQuantity] = useState(1);
   const hasTiers = product.tiers && product.tiers.length > 0;
-  const isOutOfStock = product.available_stock === 0;
-  const maxQuantity = Math.min(product.available_stock, 999);
+  const isOutOfStock = product.availableStock === 0;
+  const maxQuantity = Math.min(product.availableStock, 999);
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -94,14 +94,14 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
           {!hasTiers && (
             <div className="space-y-1">
               <div className="flex items-baseline gap-3">
-                <p className="text-3xl font-bold">{formatPrice(product.base_price)}</p>
+                <p className="text-3xl font-bold">{formatPrice(product.basePrice)}</p>
               </div>
             </div>
           )}
 
           {/* Stock */}
           <div>
-            <StockBadge stock={product.available_stock} />
+            <StockBadge stock={product.availableStock} />
           </div>
 
           <Separator />
@@ -120,7 +120,7 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
               productId={product.id}
               productName={product.name}
               tiers={product.tiers!}
-              availableStock={product.available_stock}
+              availableStock={product.availableStock}
             />
           ) : (
             <div className="space-y-4">

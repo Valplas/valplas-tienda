@@ -50,8 +50,8 @@ export async function fake_getUsers(filters?: UserFilters): Promise<ApiResponse<
       const search = filters.search.toLowerCase();
       users = users.filter(
         (u) =>
-          u.first_name.toLowerCase().includes(search) ||
-          u.last_name.toLowerCase().includes(search) ||
+          u.firstName.toLowerCase().includes(search) ||
+          u.lastName.toLowerCase().includes(search) ||
           u.email.toLowerCase().includes(search) ||
           u.phone.toLowerCase().includes(search) ||
           u.username.toLowerCase().includes(search)
@@ -138,12 +138,12 @@ export async function fake_createUser(data: CreateUserFormData): Promise<ApiResp
       email: data.email ?? '',
       username: data.username || '',
       phone: data.phone || '',
-      first_name: data.first_name,
-      last_name: data.last_name ?? '',
+      firstName: data.firstName,
+      lastName: data.lastName ?? '',
       role: data.role,
-      is_active: data.is_active,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      isActive: data.isActive,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     users.push(newUser);
@@ -214,11 +214,11 @@ export async function fake_updateUser(
       email: data.email ?? '',
       username: data.username || '',
       phone: data.phone || '',
-      first_name: data.first_name,
-      last_name: data.last_name ?? '',
+      firstName: data.firstName,
+      lastName: data.lastName ?? '',
       role: data.role,
-      is_active: data.is_active,
-      updated_at: new Date().toISOString()
+      isActive: data.isActive,
+      updatedAt: new Date().toISOString()
     };
 
     saveUsersToStorage(users);

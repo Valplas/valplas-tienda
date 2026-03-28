@@ -56,7 +56,7 @@ passport.use(
           }
         }
 
-        if (!user.is_active) {
+        if (!user.isActive) {
           return done(null, false);
         }
 

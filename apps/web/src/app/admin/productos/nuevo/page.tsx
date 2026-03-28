@@ -31,14 +31,14 @@ export default function NewProductPage() {
 
   const handleSubmit = async (data: ProductFormData & { images?: string[] }) => {
     try {
-      const price = parsePriceInput(String(data.base_price));
+      const price = parsePriceInput(String(data.basePrice));
       await createProduct({
         name: data.name,
         slug: generateSlug(data.name),
         description: data.description,
         basePrice: price,
-        categoryId: data.category_id,
-        brandId: data.brand_id || undefined,
+        categoryId: data.categoryId,
+        brandId: data.brandId || undefined,
         sku: data.sku?.toUpperCase() || generateSlug(data.name).toUpperCase(),
         stock: data.stock,
         weight: data.weight,
@@ -46,8 +46,8 @@ export default function NewProductPage() {
         length: data.length,
         height: data.height,
         origin: data.origin,
-        isFeatured: data.is_featured,
-        isActive: data.is_active ?? true
+        isFeatured: data.isFeatured,
+        isActive: data.isActive ?? true
       });
       toast.success('Producto creado correctamente');
       router.push('/admin/productos');

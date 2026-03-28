@@ -178,13 +178,13 @@ export default function AdminProductsPage() {
     () => [
       createCheckboxColumn<Product>(),
       {
-        accessorKey: 'image_url',
+        accessorKey: 'imageUrl',
         header: 'Imagen',
         cell: ({ row }) => (
           <div className="relative w-12 h-12 rounded overflow-hidden bg-muted">
-            {row.original.image_url ? (
+            {row.original.imageUrl ? (
               <Image
-                src={row.original.image_url}
+                src={row.original.imageUrl}
                 alt={row.original.name}
                 fill
                 className="object-cover"
@@ -224,17 +224,17 @@ export default function AdminProductsPage() {
         cell: ({ row }) => row.original.brand?.name || '-'
       },
       {
-        accessorKey: 'base_price',
+        accessorKey: 'basePrice',
         header: 'Precio',
         cell: ({ row }) => (
-          <span className="font-medium">{formatCurrency(row.original.base_price)}</span>
+          <span className="font-medium">{formatCurrency(row.original.basePrice)}</span>
         )
       },
       {
-        accessorKey: 'available_stock',
+        accessorKey: 'availableStock',
         header: 'Stock',
         cell: ({ row }) => {
-          const stock = row.original.available_stock;
+          const stock = row.original.availableStock;
           return (
             <Badge variant={stock === 0 ? 'destructive' : stock < 10 ? 'secondary' : 'default'}>
               {stock}
@@ -243,11 +243,11 @@ export default function AdminProductsPage() {
         }
       },
       {
-        accessorKey: 'is_active',
+        accessorKey: 'isActive',
         header: 'Estado',
         cell: ({ row }) => (
-          <Badge variant={row.original.is_active ? 'default' : 'outline'}>
-            {row.original.is_active ? 'Activo' : 'Inactivo'}
+          <Badge variant={row.original.isActive ? 'default' : 'outline'}>
+            {row.original.isActive ? 'Activo' : 'Inactivo'}
           </Badge>
         )
       },

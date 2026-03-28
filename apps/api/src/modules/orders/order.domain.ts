@@ -114,25 +114,25 @@ export async function createOrder(
       throw new Error(`Producto ${item.product_id} no encontrado`);
     }
 
-    if (!product.is_active) {
+    if (!product.isActive) {
       throw new Error(`Producto ${product.name} no está disponible`);
     }
 
     // Check stock availability
-    const availableStock = product.stock - product.reserved_stock;
+    const availableStock = product.stock - product.reservedStock;
     if (availableStock < item.quantity) {
       throw new Error(
         `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, solicitado: ${item.quantity}`
       );
     }
 
-    const itemSubtotal = product.base_price * item.quantity;
+    const itemSubtotal = product.basePrice * item.quantity;
     subtotal += itemSubtotal;
 
     itemsWithPrices.push({
       product_id: item.product_id,
       quantity: item.quantity,
-      unit_price: product.base_price,
+      unit_price: product.basePrice,
       subtotal: itemSubtotal
     });
   }
@@ -290,11 +290,11 @@ export async function createAdminOrder(
 
   for (const item of data.items) {
     const product = await findProductById(item.product_id);
-    if (!product || !product.is_active) {
+    if (!product || !product.isActive) {
       throw new Error(`Producto ${item.product_id} no encontrado o inactivo`);
     }
 
-    const availableStock = product.stock - product.reserved_stock;
+    const availableStock = product.stock - product.reservedStock;
 
     const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
     const bundleSizeSnapshot = tier.minQuantity;
@@ -369,7 +369,7 @@ export async function updateAdminOrder(
   const enrichedItems = [];
   for (const item of activeItems) {
     const product = await findProductById(item.product_id);
-    if (!product || !product.is_active) {
+    if (!product || !product.isActive) {
       throw new Error(`Producto ${item.product_id} no encontrado o inactivo`);
     }
     const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);

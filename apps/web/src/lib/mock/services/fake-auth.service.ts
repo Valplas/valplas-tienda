@@ -40,7 +40,7 @@ export async function fake_login(credentials: LoginCredentials): Promise<ApiResp
     const user = users.find(
       (u) =>
         (u.email === identifier || u.username === identifier) &&
-        u.is_active &&
+        u.isActive &&
         MOCK_CREDENTIALS[identifier] === password
     );
 
@@ -57,8 +57,8 @@ export async function fake_login(credentials: LoginCredentials): Promise<ApiResp
     // Generar sesión
     const session: AuthSession = {
       user,
-      access_token: generateToken(user),
-      refresh_token: `refresh_${generateToken(user)}`
+      accessToken: generateToken(user),
+      refreshToken: `refresh_${generateToken(user)}`
     };
 
     // Guardar sesión en localStorage
@@ -109,12 +109,12 @@ export async function fake_register(data: RegisterData): Promise<ApiResponse<Aut
       email: data.email,
       username: data.username,
       phone: data.phone,
-      first_name: data.first_name,
-      last_name: data.last_name,
+      firstName: data.firstName,
+      lastName: data.lastName,
       role: UserRole.CUSTOMER,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     // Guardar usuario
@@ -128,8 +128,8 @@ export async function fake_register(data: RegisterData): Promise<ApiResponse<Aut
     // Generar sesión
     const session: AuthSession = {
       user: newUser,
-      access_token: generateToken(newUser),
-      refresh_token: `refresh_${generateToken(newUser)}`
+      accessToken: generateToken(newUser),
+      refreshToken: `refresh_${generateToken(newUser)}`
     };
 
     setItem(STORAGE_KEY_SESSION, session);
@@ -201,8 +201,8 @@ export async function fake_refreshToken(): Promise<ApiResponse<AuthSession>> {
     // Generar nuevos tokens
     const newSession: AuthSession = {
       ...session,
-      access_token: generateToken(session.user),
-      refresh_token: `refresh_${generateToken(session.user)}`
+      accessToken: generateToken(session.user),
+      refreshToken: `refresh_${generateToken(session.user)}`
     };
 
     setItem(STORAGE_KEY_SESSION, newSession);

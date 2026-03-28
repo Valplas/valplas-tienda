@@ -39,7 +39,7 @@ export function UserMenu() {
   if (!user) return null;
 
   const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.OWNER;
-  const displayName = user.first_name ? `${user.first_name} ${user.last_name}` : user.username;
+  const displayName = user.firstName ? `${user.firstName} ${user.lastName}` : user.username;
 
   return (
     <DropdownMenu>

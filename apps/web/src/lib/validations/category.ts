@@ -6,11 +6,11 @@ export const categorySchema = z.object({
     .string()
     .min(1, 'Slug requerido')
     .regex(/^[a-z0-9-]+$/, 'Solo minúsculas, números y guiones'),
-  parent_id: z.string().nullable(),
-  display_order: z.number().min(0),
+  parentId: z.string().nullable(),
+  displayOrder: z.number().min(0),
   description: z.string().optional().or(z.literal('')),
-  is_active: z.boolean(),
-  image_url: z.string().url('URL inválida').optional().or(z.literal(''))
+  isActive: z.boolean(),
+  imageUrl: z.string().url('URL inválida').optional().or(z.literal(''))
 });
 
 export type CategoryFormData = z.infer<typeof categorySchema>;

@@ -78,8 +78,8 @@ export default function PedidosPage() {
           page: 1,
           limit: PAGE_SIZE,
           status: statusFilter,
-          from_date: dateFilter || undefined,
-          to_date: dateFilter ? `${dateFilter}T23:59:59` : undefined,
+          fromDate: dateFilter || undefined,
+          toDate: dateFilter ? `${dateFilter}T23:59:59` : undefined,
           search: searchTerm || undefined
         });
         if (!isMountedRef.current) return;
@@ -105,8 +105,8 @@ export default function PedidosPage() {
           page: nextPage,
           limit: PAGE_SIZE,
           status: statusFilter,
-          from_date: dateFilter || undefined,
-          to_date: dateFilter ? `${dateFilter}T23:59:59` : undefined,
+          fromDate: dateFilter || undefined,
+          toDate: dateFilter ? `${dateFilter}T23:59:59` : undefined,
           search: search || undefined
         });
         if (!isMountedRef.current) return;
@@ -138,7 +138,7 @@ export default function PedidosPage() {
     setIsCancelling(true);
     try {
       await updateOrderStatus(cancelTarget.id, 'cancelled');
-      toast.success(`Pedido ${cancelTarget.order_number} cancelado`);
+      toast.success(`Pedido ${cancelTarget.orderNumber} cancelado`);
       setCancelTarget(null);
       loadOrders(search);
     } catch (error) {
@@ -155,9 +155,9 @@ export default function PedidosPage() {
       const { orders: targetOrders } = await getAdminOrders({
         page: 1,
         limit: 500,
-        from_date: date,
-        to_date: `${date}T23:59:59`,
-        include_items: true
+        fromDate: date,
+        toDate: `${date}T23:59:59`,
+        includeItems: true
       });
       if (targetOrders.length === 0) {
         toast.info(`No hay pedidos para ${dateFilter ? 'esa fecha' : 'hoy'}`);
@@ -197,11 +197,9 @@ export default function PedidosPage() {
   const columns = useMemo<ColumnDef<Order>[]>(
     () => [
       {
-        accessorKey: 'order_number',
+        accessorKey: 'orderNumber',
         header: 'N° Pedido',
-        cell: ({ row }) => (
-          <span className="font-mono font-medium">{row.original.order_number}</span>
-        )
+        cell: ({ row }) => <span className="font-mono font-medium">{row.original.orderNumber}</span>
       },
       {
         accessorKey: 'customer',
@@ -209,11 +207,11 @@ export default function PedidosPage() {
         cell: ({ row }) => {
           const user = row.original.user;
           const name = user
-            ? [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email
+            ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email
             : null;
           return (
             <div>
-              <div className="font-medium">{name ?? row.original.user_id}</div>
+              <div className="font-medium">{name ?? row.original.userId}</div>
               {user?.phone && <div className="text-sm text-muted-foreground">{user.phone}</div>}
             </div>
           );
@@ -221,13 +219,13 @@ export default function PedidosPage() {
         enableSorting: false
       },
       {
-        accessorKey: 'created_at',
+        accessorKey: 'createdAt',
         header: 'Fecha',
         cell: ({ row }) => (
           <div>
-            <div>{dayjs(row.original.created_at).format('DD/MM/YYYY')}</div>
+            <div>{dayjs(row.original.createdAt).format('DD/MM/YYYY')}</div>
             <div className="text-xs text-muted-foreground">
-              {dayjs(row.original.created_at).format('HH:mm')}
+              {dayjs(row.original.createdAt).format('HH:mm')}
             </div>
           </div>
         )
@@ -369,7 +367,7 @@ export default function PedidosPage() {
         searchPlaceholder="Buscar por N° pedido, cliente, email o teléfono..."
         isLoading={isLoading}
         getRowId={(row) => row.id}
-        getRowName={(row) => row.order_number}
+        getRowName={(row) => row.orderNumber}
       />
 
       {/* Infinite scroll sentinel */}
@@ -390,8 +388,8 @@ export default function PedidosPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar pedido</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de cancelar el pedido <strong>{cancelTarget?.order_number}</strong>?
-              Esta acción no se puede deshacer.
+              ¿Estás seguro de cancelar el pedido <strong>{cancelTarget?.orderNumber}</strong>? Esta
+              acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

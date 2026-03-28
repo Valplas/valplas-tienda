@@ -32,21 +32,21 @@ function filterProducts(products: Product[], filters: ProductFilters): Product[]
   let filtered = [...products];
 
   // Filtrar por categoría
-  if (filters.category_id) {
-    filtered = filtered.filter((p) => p.category_id === filters.category_id);
+  if (filters.categoryId) {
+    filtered = filtered.filter((p) => p.categoryId === filters.categoryId);
   }
 
   // Filtrar por marca
-  if (filters.brand_id) {
-    filtered = filtered.filter((p) => p.brand_id === filters.brand_id);
+  if (filters.brandId) {
+    filtered = filtered.filter((p) => p.brandId === filters.brandId);
   }
 
-  // Filtrar por rango de precio (usar final_price)
-  if (filters.min_price !== undefined) {
-    filtered = filtered.filter((p) => p.final_price >= filters.min_price!);
+  // Filtrar por rango de precio (usar finalPrice)
+  if (filters.minPrice !== undefined) {
+    filtered = filtered.filter((p) => p.finalPrice >= filters.minPrice!);
   }
-  if (filters.max_price !== undefined) {
-    filtered = filtered.filter((p) => p.final_price <= filters.max_price!);
+  if (filters.maxPrice !== undefined) {
+    filtered = filtered.filter((p) => p.finalPrice <= filters.maxPrice!);
   }
 
   // Filtrar por búsqueda (nombre, descripción, SKU)
@@ -61,16 +61,16 @@ function filterProducts(products: Product[], filters: ProductFilters): Product[]
   }
 
   // Filtrar por featured
-  if (filters.is_featured !== undefined) {
-    filtered = filtered.filter((p) => p.is_featured === filters.is_featured);
+  if (filters.isFeatured !== undefined) {
+    filtered = filtered.filter((p) => p.isFeatured === filters.isFeatured);
   }
 
   // Filtrar por active (default: solo activos)
-  if (filters.is_active !== undefined) {
-    filtered = filtered.filter((p) => p.is_active === filters.is_active);
+  if (filters.isActive !== undefined) {
+    filtered = filtered.filter((p) => p.isActive === filters.isActive);
   } else {
     // Por defecto, solo productos activos
-    filtered = filtered.filter((p) => p.is_active);
+    filtered = filtered.filter((p) => p.isActive);
   }
 
   return filtered;
@@ -112,8 +112,8 @@ export async function fake_getProducts(
     const products = initProducts();
     const filtered = filterProducts(products, filters);
 
-    // Ordenar por final_price (SIEMPRE)
-    filtered.sort((a, b) => a.final_price - b.final_price);
+    // Ordenar por finalPrice (SIEMPRE)
+    filtered.sort((a, b) => a.finalPrice - b.finalPrice);
 
     const paginated = paginate(filtered, pagination);
 
@@ -182,8 +182,8 @@ export async function fake_getFeaturedProducts(limit: number = 8): Promise<ApiRe
   return fakeFetch(() => {
     const products = initProducts();
     const featured = products
-      .filter((p) => p.is_featured && p.is_active)
-      .sort((a, b) => a.final_price - b.final_price)
+      .filter((p) => p.isFeatured && p.isActive)
+      .sort((a, b) => a.finalPrice - b.finalPrice)
       .slice(0, limit);
 
     return {
@@ -197,7 +197,7 @@ export async function fake_getFeaturedProducts(limit: number = 8): Promise<ApiRe
  * Crear producto (admin)
  */
 export async function fake_createProduct(
-  productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>
+  productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<ApiResponse<Product>> {
   return fakeFetch(() => {
     const products = initProducts();
@@ -227,8 +227,8 @@ export async function fake_createProduct(
     const newProduct: Product = {
       ...productData,
       id: `prod-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     products.push(newProduct);
@@ -266,7 +266,7 @@ export async function fake_updateProduct(
       ...products[index],
       ...updates,
       id, // Mantener ID original
-      updated_at: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     };
 
     products[index] = updatedProduct;
@@ -297,8 +297,8 @@ export async function fake_deactivateProduct(id: string): Promise<ApiResponse<vo
       };
     }
 
-    products[index].is_active = false;
-    products[index].updated_at = new Date().toISOString();
+    products[index].isActive = false;
+    products[index].updatedAt = new Date().toISOString();
     saveProducts(products);
 
     return {
@@ -325,8 +325,8 @@ export async function fake_activateProduct(id: string): Promise<ApiResponse<void
       };
     }
 
-    products[index].is_active = true;
-    products[index].updated_at = new Date().toISOString();
+    products[index].isActive = true;
+    products[index].updatedAt = new Date().toISOString();
     saveProducts(products);
 
     return {

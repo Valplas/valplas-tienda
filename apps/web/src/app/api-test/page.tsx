@@ -126,7 +126,7 @@ export default function ApiTestPage() {
                   <strong>Rol:</strong> {user?.role}
                 </p>
                 <p className="text-sm">
-                  <strong>Nombre:</strong> {user?.first_name} {user?.last_name}
+                  <strong>Nombre:</strong> {user?.firstName} {user?.lastName}
                 </p>
               </div>
               <button
@@ -161,10 +161,10 @@ export default function ApiTestPage() {
                     <h3 className="font-semibold">{product.name}</h3>
                     <p className="text-sm text-gray-600">SKU: {product.sku}</p>
                     <p className="text-sm text-gray-600">
-                      Precio: ${Number(product.base_price).toFixed(2)}
+                      Precio: ${Number(product.basePrice).toFixed(2)}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Stock: {product.stock - product.reserved_stock} disponibles
+                      Stock: {product.stock - product.reservedStock} disponibles
                     </p>
                     <p className="text-sm text-gray-600">
                       Categoría: {product.category?.name || 'Sin categoría'}

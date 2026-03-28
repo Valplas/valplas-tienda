@@ -24,7 +24,7 @@ function initBrands(): Brand[] {
 export async function fake_getBrands(): Promise<ApiResponse<Brand[]>> {
   return fakeFetch(() => {
     const brands = initBrands();
-    const active = brands.filter((b) => b.is_active);
+    const active = brands.filter((b) => b.isActive);
 
     // Ordenar por nombre
     active.sort((a, b) => a.name.localeCompare(b.name, 'es-AR'));

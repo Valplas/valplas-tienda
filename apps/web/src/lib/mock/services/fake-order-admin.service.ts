@@ -45,7 +45,7 @@ function saveOrders(orders: Order[]): void {
 export async function fake_getOrders(filters?: {
   status?: OrderStatus;
   search?: string;
-  user_id?: string;
+  userId?: string;
 }): Promise<Order[]> {
   await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -61,21 +61,21 @@ export async function fake_getOrders(filters?: {
     const search = filters.search.toLowerCase();
     orders = orders.filter(
       (o) =>
-        o.order_number.toLowerCase().includes(search) ||
-        o.user?.first_name?.toLowerCase().includes(search) ||
-        o.user?.last_name?.toLowerCase().includes(search) ||
+        o.orderNumber.toLowerCase().includes(search) ||
+        o.user?.firstName?.toLowerCase().includes(search) ||
+        o.user?.lastName?.toLowerCase().includes(search) ||
         o.user?.email?.toLowerCase().includes(search)
     );
   }
 
   // Filter by user
-  if (filters?.user_id) {
-    orders = orders.filter((o) => o.user_id === filters.user_id);
+  if (filters?.userId) {
+    orders = orders.filter((o) => o.userId === filters.userId);
   }
 
-  // Sort by created_at desc (newest first)
+  // Sort by createdAt desc (newest first)
   return orders.sort((a, b) => {
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 }
 
@@ -122,26 +122,26 @@ export async function fake_updateOrderStatus(
   const updatedOrder: Order = {
     ...order,
     status: newStatus,
-    updated_at: now
+    updatedAt: now
   };
 
   // Update status-specific timestamps
-  if (newStatus === OrderStatus.SHIPPED && !order.shipped_at) {
-    updatedOrder.shipped_at = now;
+  if (newStatus === OrderStatus.SHIPPED && !order.shippedAt) {
+    updatedOrder.shippedAt = now;
     // Generate tracking number if not exists
-    if (!updatedOrder.tracking_number) {
+    if (!updatedOrder.trackingNumber) {
       const dateStr = now.slice(0, 10).replace(/-/g, '');
-      const orderNum = updatedOrder.order_number.split('-')[2];
-      updatedOrder.tracking_number = `VLP${dateStr}${orderNum}`;
+      const orderNum = updatedOrder.orderNumber.split('-')[2];
+      updatedOrder.trackingNumber = `VLP${dateStr}${orderNum}`;
     }
   }
 
-  if (newStatus === OrderStatus.DELIVERED && !order.delivered_at) {
-    updatedOrder.delivered_at = now;
+  if (newStatus === OrderStatus.DELIVERED && !order.deliveredAt) {
+    updatedOrder.deliveredAt = now;
   }
 
-  if (newStatus === OrderStatus.CANCELLED && !order.cancelled_at) {
-    updatedOrder.cancelled_at = now;
+  if (newStatus === OrderStatus.CANCELLED && !order.cancelledAt) {
+    updatedOrder.cancelledAt = now;
   }
 
   orders[index] = updatedOrder;

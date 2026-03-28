@@ -82,10 +82,10 @@ export function CheckoutPage({ isAuthenticated, userId, savedAddresses = [] }: C
     return {
       ...shippingAddress,
       id: 'temp-address',
-      user_id: userId || 'guest',
-      is_default: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      userId: userId || 'guest',
+      isDefault: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     } as Address;
   };
 

@@ -116,7 +116,7 @@ export default function PedidoDetailPage({
   }
 
   const validNextStatuses = getValidNextStatuses(order.status);
-  const shippingAddress = order.shipping_address;
+  const shippingAddress = order.shippingAddress;
 
   return (
     <div className="space-y-6">
@@ -128,9 +128,9 @@ export default function PedidoDetailPage({
           </Link>
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">Pedido {order.order_number}</h1>
+          <h1 className="text-3xl font-bold">Pedido {order.orderNumber}</h1>
           <p className="text-muted-foreground">
-            Creado el {dayjs(order.created_at).format('DD/MM/YYYY [a las] HH:mm')}
+            Creado el {dayjs(order.createdAt).format('DD/MM/YYYY [a las] HH:mm')}
           </p>
         </div>
         {order.status === 'processing' && (
@@ -185,14 +185,14 @@ export default function PedidoDetailPage({
             {order.user ? (
               <div>
                 <div className="font-medium">
-                  {order.user.first_name} {order.user.last_name}
+                  {order.user.firstName} {order.user.lastName}
                 </div>
                 {order.user.phone && (
                   <div className="text-sm text-muted-foreground">{order.user.phone}</div>
                 )}
               </div>
             ) : (
-              <div className="text-sm text-muted-foreground">ID: {order.user_id}</div>
+              <div className="text-sm text-muted-foreground">ID: {order.userId}</div>
             )}
           </CardContent>
         </Card>
@@ -210,7 +210,7 @@ export default function PedidoDetailPage({
               <div>
                 <div className="font-medium">{shippingAddress.alias}</div>
                 <div className="text-sm text-muted-foreground">
-                  {shippingAddress.street} {shippingAddress.street_number}
+                  {shippingAddress.street} {shippingAddress.streetNumber}
                   {shippingAddress.floor && `, Piso ${shippingAddress.floor}`}
                   {shippingAddress.apartment && ` ${shippingAddress.apartment}`}
                 </div>
@@ -235,7 +235,7 @@ export default function PedidoDetailPage({
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Transportista:</span>
-              <span className="font-medium">{order.shipping_carrier?.name ?? '-'}</span>
+              <span className="font-medium">{order.shippingCarrier?.name ?? '-'}</span>
             </div>
             {order.notes && (
               <div className="flex justify-between">
@@ -257,12 +257,12 @@ export default function PedidoDetailPage({
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Método:</span>
-              <span className="font-medium capitalize">{order.payment_method}</span>
+              <span className="font-medium capitalize">{order.paymentMethod}</span>
             </div>
-            {order.payment_id && (
+            {order.paymentId && (
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">ID de pago:</span>
-                <span className="font-mono text-sm">{order.payment_id}</span>
+                <span className="font-mono text-sm">{order.paymentId}</span>
               </div>
             )}
           </CardContent>
@@ -292,10 +292,10 @@ export default function PedidoDetailPage({
               {order.items.map((item, index) => {
                 return (
                   <TableRow key={index}>
-                    <TableCell className="font-mono text-sm">{item.product_sku}</TableCell>
-                    <TableCell>{item.product_name}</TableCell>
+                    <TableCell className="font-mono text-sm">{item.productSku}</TableCell>
+                    <TableCell>{item.productName}</TableCell>
                     <TableCell className="text-center">{item.quantity}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(item.subtotal)}
                     </TableCell>
@@ -318,7 +318,7 @@ export default function PedidoDetailPage({
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Envío:</span>
               <span>
-                {order.shipping_cost === 0 ? 'Gratis' : formatCurrency(order.shipping_cost)}
+                {order.shippingCost === 0 ? 'Gratis' : formatCurrency(order.shippingCost)}
               </span>
             </div>
             <div className="flex justify-between text-lg font-bold pt-2 border-t">

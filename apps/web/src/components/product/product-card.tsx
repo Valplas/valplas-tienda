@@ -24,12 +24,12 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
 
-  const isOutOfStock = product.available_stock === 0;
+  const isOutOfStock = product.availableStock === 0;
   const hasTiers = product.tiers.length > 0;
   const hasMultipleTiers = product.tiers.length > 1;
 
   const selectedTier = hasTiers ? product.tiers[selectedTierIndex] : null;
-  const unitPrice = hasTiers ? product.tiers[0].unitPrice : product.base_price;
+  const unitPrice = hasTiers ? product.tiers[0].unitPrice : product.basePrice;
   const bulkTier = hasMultipleTiers ? product.tiers[product.tiers.length - 1] : null;
 
   const handleTierSelect = (index: number) => {
@@ -40,7 +40,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const handleDecrement = () => setCounter((c) => Math.max(1, c - 1));
   const handleIncrement = () => {
     const presentation = selectedTier?.minQuantity ?? 1;
-    const maxCounter = Math.floor(product.available_stock / presentation);
+    const maxCounter = Math.floor(product.availableStock / presentation);
     setCounter((c) => Math.min(c + 1, maxCounter));
   };
 
@@ -68,9 +68,9 @@ export function ProductCard({ product, className }: ProductCardProps) {
       {/* Imagen */}
       <Link href={`/productos/${product.slug}`} className="block">
         <div className="relative aspect-square overflow-hidden bg-muted">
-          {product.image_url ? (
+          {product.imageUrl ? (
             <Image
-              src={product.image_url}
+              src={product.imageUrl}
               alt={product.name}
               fill
               className="object-cover transition-transform hover:scale-105"
@@ -106,7 +106,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
 
         {/* Stock + SKU */}
         <div className="flex items-center gap-2">
-          <StockBadge stock={product.available_stock} />
+          <StockBadge stock={product.availableStock} />
           <span className="text-xs text-muted-foreground">SKU {product.sku}</span>
         </div>
 

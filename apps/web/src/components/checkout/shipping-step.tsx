@@ -45,9 +45,9 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
       if (response.success && response.data) {
         // Map service rates to ShippingOptions
         const mappedOptions: ShippingOption[] = response.data.rates.map((rate) => ({
-          carrier_name: rate.carrier.name,
+          carrierName: rate.carrier.name,
           cost: rate.cost,
-          estimated_days: parseInt(rate.estimatedDays.split('-')[0]) // Parse "3-5 días" -> 3
+          estimatedDays: parseInt(rate.estimatedDays.split('-')[0]) // Parse "3-5 días" -> 3
         }));
 
         setOptions(mappedOptions);
@@ -109,9 +109,9 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
       {/* Shipping Options */}
       {!loading && !error && options.length > 0 && (
         <RadioGroup
-          value={selectedOption?.carrier_name}
+          value={selectedOption?.carrierName}
           onValueChange={(value) => {
-            const option = options.find((opt) => opt.carrier_name === value);
+            const option = options.find((opt) => opt.carrierName === value);
             if (option) setSelectedOption(option);
           }}
         >
@@ -120,13 +120,13 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
               const displayCost = isFreeShipping ? 0 : option.cost;
 
               return (
-                <div key={option.carrier_name} className="flex items-start space-x-3">
+                <div key={option.carrierName} className="flex items-start space-x-3">
                   <RadioGroupItem
-                    value={option.carrier_name}
-                    id={option.carrier_name}
+                    value={option.carrierName}
+                    id={option.carrierName}
                     className="mt-1"
                   />
-                  <Label htmlFor={option.carrier_name} className="flex-1 cursor-pointer">
+                  <Label htmlFor={option.carrierName} className="flex-1 cursor-pointer">
                     <Card className="hover:border-primary transition-colors">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
@@ -135,10 +135,10 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
                               <Truck className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                              <div className="font-medium">{option.carrier_name}</div>
+                              <div className="font-medium">{option.carrierName}</div>
                               <div className="text-sm text-muted-foreground mt-1">
-                                Entrega en {option.estimated_days}{' '}
-                                {option.estimated_days === 1 ? 'día hábil' : 'días hábiles'}
+                                Entrega en {option.estimatedDays}{' '}
+                                {option.estimatedDays === 1 ? 'día hábil' : 'días hábiles'}
                               </div>
                             </div>
                           </div>

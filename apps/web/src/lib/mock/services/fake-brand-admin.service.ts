@@ -36,7 +36,7 @@ function saveBrands(brands: Brand[]): void {
  */
 export async function fake_getBrands(filters?: {
   search?: string;
-  is_active?: boolean;
+  isActive?: boolean;
 }): Promise<Brand[]> {
   await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -51,8 +51,8 @@ export async function fake_getBrands(filters?: {
   }
 
   // Filter by active status
-  if (filters?.is_active !== undefined) {
-    brands = brands.filter((b) => b.is_active === filters.is_active);
+  if (filters?.isActive !== undefined) {
+    brands = brands.filter((b) => b.isActive === filters.isActive);
   }
 
   return brands;
@@ -72,7 +72,7 @@ export async function fake_getBrandById(id: string): Promise<Brand | null> {
  * Create a new brand
  */
 export async function fake_createBrand(
-  data: Omit<Brand, 'id' | 'created_at' | 'updated_at'>
+  data: Omit<Brand, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<Brand> {
   await new Promise((resolve) => setTimeout(resolve, 400));
 
@@ -86,8 +86,8 @@ export async function fake_createBrand(
   const newBrand: Brand = {
     ...data,
     id: `brand-${Date.now()}`,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
   brands.push(newBrand);
@@ -101,7 +101,7 @@ export async function fake_createBrand(
  */
 export async function fake_updateBrand(
   id: string,
-  data: Partial<Omit<Brand, 'id' | 'created_at' | 'updated_at'>>
+  data: Partial<Omit<Brand, 'id' | 'createdAt' | 'updatedAt'>>
 ): Promise<Brand> {
   await new Promise((resolve) => setTimeout(resolve, 400));
 
@@ -120,7 +120,7 @@ export async function fake_updateBrand(
   const updatedBrand: Brand = {
     ...brands[index],
     ...data,
-    updated_at: new Date().toISOString()
+    updatedAt: new Date().toISOString()
   };
 
   brands[index] = updatedBrand;
@@ -143,7 +143,7 @@ export async function fake_deleteBrand(id: string): Promise<void> {
   }
 
   // Check if brand has products
-  const products = MOCK_PRODUCTS.filter((p) => p.brand_id === id);
+  const products = MOCK_PRODUCTS.filter((p) => p.brandId === id);
   if (products.length > 0) {
     throw new Error(
       `No se puede eliminar la marca porque tiene ${products.length} producto(s) asociado(s)`
@@ -168,7 +168,7 @@ export async function fake_deleteBrands(ids: string[]): Promise<void> {
     const brand = brands.find((b) => b.id === id);
     if (!brand) continue;
 
-    const products = MOCK_PRODUCTS.filter((p) => p.brand_id === id);
+    const products = MOCK_PRODUCTS.filter((p) => p.brandId === id);
     if (products.length > 0) {
       throw new Error(
         `La marca "${brand.name}" tiene ${products.length} producto(s) asociado(s) y no puede eliminarse`
@@ -185,5 +185,5 @@ export async function fake_deleteBrands(ids: string[]): Promise<void> {
  * Get product count for a brand
  */
 export function fake_getBrandProductCount(brandId: string): number {
-  return MOCK_PRODUCTS.filter((p) => p.brand_id === brandId).length;
+  return MOCK_PRODUCTS.filter((p) => p.brandId === brandId).length;
 }

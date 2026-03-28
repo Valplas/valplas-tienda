@@ -51,38 +51,38 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           name: product.name,
           sku: product.sku,
           description: product.description,
-          base_price: product.base_price,
+          basePrice: product.basePrice,
           stock: product.stock,
-          category_id: product.category_id,
-          brand_id: product.brand_id,
+          categoryId: product.categoryId,
+          brandId: product.brandId,
           unit: product.unit,
           weight: product.weight ?? undefined,
           width: product.width ?? undefined,
           length: product.length ?? undefined,
           height: product.height ?? undefined,
           origin: product.origin ?? undefined,
-          is_featured: product.is_featured,
-          is_active: product.is_active
+          isFeatured: product.isFeatured,
+          isActive: product.isActive
         }
       : {
-          is_featured: false,
-          is_active: true,
+          isFeatured: false,
+          isActive: true,
           stock: 0
         }
   });
 
-  const categoryId = watch('category_id');
-  const brandId = watch('brand_id');
-  const isFeatured = watch('is_featured');
-  const isActive = watch('is_active');
+  const categoryId = watch('categoryId');
+  const brandId = watch('brandId');
+  const isFeatured = watch('isFeatured');
+  const isActive = watch('isActive');
 
   React.useEffect(() => {
     const loadData = async () => {
       setIsLoadingData(true);
       try {
         const [categoriesData, brandsData] = await Promise.all([getCategories(), getBrands()]);
-        setCategories(categoriesData.filter((c) => c.is_active));
-        setBrands(brandsData.filter((b) => b.is_active));
+        setCategories(categoriesData.filter((c) => c.isActive));
+        setBrands(brandsData.filter((b) => b.isActive));
       } catch (error) {
         console.error('Error loading form data:', error);
       } finally {
@@ -133,10 +133,10 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           {/* Marca */}
           <div className="relative pb-5">
             <Label>Fabricante</Label>
-            <Select value={brandId} onValueChange={(value) => setValue('brand_id', value)}>
+            <Select value={brandId} onValueChange={(value) => setValue('brandId', value)}>
               <SelectTrigger
                 className={cn(
-                  errors.brand_id && 'border-destructive focus-visible:ring-destructive'
+                  errors.brandId && 'border-destructive focus-visible:ring-destructive'
                 )}
               >
                 <SelectValue placeholder="Fabricante del producto" />
@@ -153,9 +153,9 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
                 )}
               </SelectContent>
             </Select>
-            {errors.brand_id && (
+            {errors.brandId && (
               <p className="absolute top-full left-0 text-xs text-destructive mt-1">
-                {errors.brand_id.message}
+                {errors.brandId.message}
               </p>
             )}
           </div>
@@ -176,8 +176,8 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             step="0.01"
             placeholder="1234"
             required
-            error={errors.base_price?.message}
-            {...register('base_price', { setValueAs: toRequiredNumber })}
+            error={errors.basePrice?.message}
+            {...register('basePrice', { setValueAs: toRequiredNumber })}
           />
         </div>
 
@@ -250,10 +250,10 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             <Label className="after:content-['*'] after:ml-0.5 after:text-destructive">
               Categoría
             </Label>
-            <Select value={categoryId} onValueChange={(value) => setValue('category_id', value)}>
+            <Select value={categoryId} onValueChange={(value) => setValue('categoryId', value)}>
               <SelectTrigger
                 className={cn(
-                  errors.category_id && 'border-destructive focus-visible:ring-destructive'
+                  errors.categoryId && 'border-destructive focus-visible:ring-destructive'
                 )}
               >
                 <SelectValue placeholder="Seleccioná una categoría" />
@@ -270,9 +270,9 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
                 )}
               </SelectContent>
             </Select>
-            {errors.category_id && (
+            {errors.categoryId && (
               <p className="absolute top-full left-0 text-xs text-destructive mt-1">
-                {errors.category_id.message}
+                {errors.categoryId.message}
               </p>
             )}
           </div>
@@ -299,12 +299,12 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
             <Checkbox
-              id="is_featured"
+              id="isFeatured"
               checked={isFeatured}
-              onCheckedChange={(checked) => setValue('is_featured', !!checked)}
+              onCheckedChange={(checked) => setValue('isFeatured', !!checked)}
             />
             <Label
-              htmlFor="is_featured"
+              htmlFor="isFeatured"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
             >
               Producto destacado
@@ -313,12 +313,12 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
 
           <div className="flex items-center space-x-2">
             <Checkbox
-              id="is_active"
+              id="isActive"
               checked={isActive}
-              onCheckedChange={(checked) => setValue('is_active', !!checked)}
+              onCheckedChange={(checked) => setValue('isActive', !!checked)}
             />
             <Label
-              htmlFor="is_active"
+              htmlFor="isActive"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
             >
               Producto activo
@@ -330,7 +330,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       {/* Price Tiers */}
       <div className="space-y-3">
         <h3 className="text-base font-semibold">Tiers de precio</h3>
-        <PriceTiersSection productId={product?.id} costPrice={product?.cost_price} />
+        <PriceTiersSection productId={product?.id} costPrice={product?.costPrice} />
       </div>
 
       {/* Actions */}

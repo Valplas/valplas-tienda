@@ -27,8 +27,8 @@ export const registerSchema = z
       .regex(/^[a-zA-Z0-9_]+$/, 'Solo letras, números y guion bajo')
       .optional()
       .or(z.literal('')),
-    first_name: z.string().min(2, 'Ingresá tu nombre'),
-    last_name: z.string().min(2, 'Ingresá tu apellido'),
+    firstName: z.string().min(2, 'Ingresá tu nombre'),
+    lastName: z.string().min(2, 'Ingresá tu apellido'),
     phone: z
       .string()
       .regex(/^\+54\d{10,11}$/, 'Teléfono inválido (ej: +5491122334455)')

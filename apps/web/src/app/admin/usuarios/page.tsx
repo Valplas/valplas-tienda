@@ -66,7 +66,7 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'first_name' | 'created_at'>('first_name');
+  const [sortBy, setSortBy] = useState<'firstName' | 'createdAt'>('firstName');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -184,11 +184,11 @@ export default function UsuariosPage() {
         const updateData: Parameters<typeof updateAdminUser>[1] = {
           email: data.email || undefined,
           username: data.username || undefined,
-          first_name: data.first_name,
-          last_name: data.last_name || undefined,
+          firstName: data.firstName,
+          lastName: data.lastName || undefined,
           role: data.role,
           phone: data.phone || undefined,
-          is_active: data.is_active
+          isActive: data.isActive
         };
         await updateAdminUser(selectedUser.id, updateData);
         toast.success('Usuario actualizado correctamente');
@@ -199,12 +199,12 @@ export default function UsuariosPage() {
         const newUser = await createAdminUser({
           email: createData.email || undefined,
           username: createData.username || undefined,
-          first_name: createData.first_name,
-          last_name: createData.last_name || undefined,
+          firstName: createData.firstName,
+          lastName: createData.lastName || undefined,
           password: createData.password,
           role: createData.role,
           phone: createData.phone,
-          is_active: createData.is_active
+          isActive: createData.isActive
         });
         toast.success('Usuario creado correctamente');
         await loadUsers(search);
@@ -253,7 +253,7 @@ export default function UsuariosPage() {
         header: '',
         cell: ({ row }) => {
           const initials =
-            `${row.original.first_name[0]}${row.original.last_name?.[0] ?? ''}`.toUpperCase();
+            `${row.original.firstName[0]}${row.original.lastName?.[0] ?? ''}`.toUpperCase();
           return (
             <Avatar className="h-8 w-8">
               <AvatarFallback>{initials}</AvatarFallback>
@@ -268,7 +268,7 @@ export default function UsuariosPage() {
         cell: ({ row }) => (
           <div>
             <div className="font-medium">
-              {row.original.first_name} {row.original.last_name ?? ''}
+              {row.original.firstName} {row.original.lastName ?? ''}
             </div>
             <div className="text-sm text-muted-foreground">@{row.original.username}</div>
           </div>
@@ -285,20 +285,20 @@ export default function UsuariosPage() {
         cell: ({ row }) => <RoleBadge role={row.original.role} />
       },
       {
-        accessorKey: 'is_active',
+        accessorKey: 'isActive',
         header: 'Estado',
         cell: ({ row }) =>
-          row.original.is_active ? (
+          row.original.isActive ? (
             <Badge variant="default">Activo</Badge>
           ) : (
             <Badge variant="secondary">Inactivo</Badge>
           )
       },
       {
-        accessorKey: 'created_at',
+        accessorKey: 'createdAt',
         header: 'Creado',
         cell: ({ row }) =>
-          new Date(row.original.created_at).toLocaleDateString('es-AR', {
+          new Date(row.original.createdAt).toLocaleDateString('es-AR', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
@@ -370,8 +370,8 @@ export default function UsuariosPage() {
               <SelectValue placeholder="Ordenar por" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="first_name">Orden alfabético</SelectItem>
-              <SelectItem value="created_at">Fecha de creación</SelectItem>
+              <SelectItem value="firstName">Orden alfabético</SelectItem>
+              <SelectItem value="createdAt">Fecha de creación</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -389,7 +389,7 @@ export default function UsuariosPage() {
         searchPlaceholder="Buscar por nombre, email o teléfono..."
         isLoading={loading}
         getRowId={(row) => row.id}
-        getRowName={(row) => `${row.first_name} ${row.last_name ?? ''}`.trim()}
+        getRowName={(row) => `${row.firstName} ${row.lastName ?? ''}`.trim()}
       />
 
       {/* Infinite scroll sentinel */}
@@ -438,7 +438,7 @@ export default function UsuariosPage() {
                 userId={createdUserId ?? selectedUser!.id}
                 userName={
                   selectedUser
-                    ? `${selectedUser.first_name} ${selectedUser.last_name ?? ''}`.trim()
+                    ? `${selectedUser.firstName} ${selectedUser.lastName ?? ''}`.trim()
                     : ''
                 }
               />
@@ -462,7 +462,7 @@ export default function UsuariosPage() {
             <AlertDialogDescription>
               ¿Estás seguro de que querés eliminar al usuario{' '}
               <strong>
-                {userToDelete?.first_name} {userToDelete?.last_name ?? ''}
+                {userToDelete?.firstName} {userToDelete?.lastName ?? ''}
               </strong>
               ? Esta acción no se puede deshacer.
             </AlertDialogDescription>

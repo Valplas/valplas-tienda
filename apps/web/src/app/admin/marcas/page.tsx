@@ -125,9 +125,9 @@ export default function MarcasPage() {
       const payload = {
         name: data.name,
         slug: data.slug,
-        logoUrl: data.logo_url || undefined,
+        logoUrl: data.logoUrl || undefined,
         description: data.description || undefined,
-        isActive: data.is_active
+        isActive: data.isActive
       };
 
       if (selectedBrand) {
@@ -164,10 +164,10 @@ export default function MarcasPage() {
     () => [
       createCheckboxColumn<Brand>(),
       {
-        accessorKey: 'logo_url',
+        accessorKey: 'logoUrl',
         header: 'Logo',
         cell: ({ row }) => {
-          const logoUrl = row.original.logo_url;
+          const logoUrl = row.original.logoUrl;
           return (
             <div className="w-12 h-12 relative rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
               {logoUrl ? (
@@ -199,10 +199,10 @@ export default function MarcasPage() {
         )
       },
       {
-        accessorKey: 'is_active',
+        accessorKey: 'isActive',
         header: 'Estado',
         cell: ({ row }) =>
-          row.original.is_active ? (
+          row.original.isActive ? (
             <Badge variant="default" className="bg-green-500">
               Activa
             </Badge>

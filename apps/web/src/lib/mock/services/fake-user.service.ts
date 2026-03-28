@@ -68,7 +68,7 @@ export async function fake_getUserById(id: string): Promise<ApiResponse<User>> {
  */
 export async function fake_updateProfile(
   userId: string,
-  updates: Partial<Pick<User, 'first_name' | 'last_name' | 'phone'>>
+  updates: Partial<Pick<User, 'firstName' | 'lastName' | 'phone'>>
 ): Promise<ApiResponse<User>> {
   return fakeFetch(() => {
     const users = initUsers();
@@ -87,7 +87,7 @@ export async function fake_updateProfile(
     const updatedUser: User = {
       ...users[index],
       ...updates,
-      updated_at: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     };
 
     users[index] = updatedUser;
@@ -110,7 +110,7 @@ export async function fake_updateProfile(
 export async function fake_getUserAddresses(userId: string): Promise<ApiResponse<Address[]>> {
   return fakeFetch(() => {
     const addresses = initAddresses();
-    const userAddresses = addresses.filter((a) => a.user_id === userId);
+    const userAddresses = addresses.filter((a) => a.userId === userId);
 
     return {
       success: true,
@@ -148,16 +148,16 @@ export async function fake_getAddressById(id: string): Promise<ApiResponse<Addre
  * Crear nueva dirección
  */
 export async function fake_createAddress(
-  addressData: Omit<Address, 'id' | 'created_at' | 'updated_at'>
+  addressData: Omit<Address, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<ApiResponse<Address>> {
   return fakeFetch(() => {
     const addresses = initAddresses();
 
     // Si es_default, desmarcar otras direcciones del mismo usuario
-    if (addressData.is_default) {
+    if (addressData.isDefault) {
       addresses.forEach((addr) => {
-        if (addr.user_id === addressData.user_id) {
-          addr.is_default = false;
+        if (addr.userId === addressData.userId) {
+          addr.isDefault = false;
         }
       });
     }
@@ -165,8 +165,8 @@ export async function fake_createAddress(
     const newAddress: Address = {
       ...addressData,
       id: `addr-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     addresses.push(newAddress);
@@ -201,11 +201,11 @@ export async function fake_updateAddress(
     }
 
     // Si se marca como default, desmarcar otras
-    if (updates.is_default) {
-      const userId = addresses[index].user_id;
+    if (updates.isDefault) {
+      const userId = addresses[index].userId;
       addresses.forEach((addr) => {
-        if (addr.user_id === userId && addr.id !== id) {
-          addr.is_default = false;
+        if (addr.userId === userId && addr.id !== id) {
+          addr.isDefault = false;
         }
       });
     }
@@ -214,7 +214,7 @@ export async function fake_updateAddress(
       ...addresses[index],
       ...updates,
       id, // Mantener ID original
-      updated_at: new Date().toISOString()
+      updatedAt: new Date().toISOString()
     };
 
     addresses[index] = updatedAddress;
@@ -272,18 +272,18 @@ export async function fake_setDefaultAddress(id: string): Promise<ApiResponse<Ad
       };
     }
 
-    const userId = addresses[index].user_id;
+    const userId = addresses[index].userId;
 
     // Desmarcar todas las direcciones del usuario
     addresses.forEach((addr) => {
-      if (addr.user_id === userId) {
-        addr.is_default = false;
+      if (addr.userId === userId) {
+        addr.isDefault = false;
       }
     });
 
     // Marcar la dirección seleccionada
-    addresses[index].is_default = true;
-    addresses[index].updated_at = new Date().toISOString();
+    addresses[index].isDefault = true;
+    addresses[index].updatedAt = new Date().toISOString();
 
     saveAddresses(addresses);
 

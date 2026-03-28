@@ -114,6 +114,47 @@ valplas-tienda/
 - Funciones y variables en camelCase
 - Constantes en UPPER_SNAKE_CASE
 
+### Convención de Nombres: camelCase en toda la capa JS/TS
+
+**El backend convierte automáticamente todas las respuestas JSON a camelCase** via `camelCaseResponse` middleware (`apps/api/src/shared/middleware/camel-case.middleware.ts`), registrado globalmente en `server.ts`.
+
+Esto significa:
+
+- **Base de datos / SQL**: snake_case siempre (`available_stock`, `created_at`, `first_name`)
+- **Repositorios y servicios backend**: pueden usar snake_case internamente (mapean desde la DB)
+- **Respuestas JSON de la API**: camelCase siempre (`availableStock`, `createdAt`, `firstName`)
+- **Tipos TypeScript del frontend**: camelCase siempre
+- **Componentes React**: acceden propiedades en camelCase
+
+**Nunca** definir tipos frontend con snake_case. Si la API devuelve snake_case, es un bug — el middleware lo convierte automáticamente.
+
+Ejemplos de la transformación automática:
+
+```
+available_stock  →  availableStock
+created_at       →  createdAt
+first_name       →  firstName
+base_price       →  basePrice
+image_url        →  imageUrl
+is_active        →  isActive
+order_number     →  orderNumber
+```
+
+**Excepción — datos enviados AL backend (requests):**
+Los query params de URL y los bodies de request siguen en snake_case porque los controllers del backend los esperan así. Ejemplo:
+
+```ts
+// ✅ Correcto: query param enviado al backend
+href={`/productos?category_id=${category.id}`}
+
+// ✅ Correcto: schema Zod de form que se envía al backend
+const schema = z.object({ first_name: z.string(), is_active: z.boolean() })
+
+// ✅ Correcto: tipo TypeScript de dato recibido del backend
+const product: ProductPublic = await fetchProduct(id)
+product.availableStock // camelCase — convertido por el middleware
+```
+
 ### Next.js
 
 - Server Components por defecto

@@ -453,22 +453,21 @@ function transformProductRow(row: Record<string, unknown>): ProductWithDetails {
     categoryName: row.category_name,
     brandId: row.brand_id,
     brandName: row.brand_name,
-    base_price: row.base_price,
-    cost_price: row.cost_price,
+    basePrice: row.base_price,
+    costPrice: row.cost_price,
     stock: row.stock,
-    reserved_stock: row.reserved_stock,
+    reservedStock: row.reserved_stock,
     availableStock: row.available_stock,
     weight: row.weight ?? null,
     width: row.width ?? null,
     length: row.length ?? null,
     height: row.height ?? null,
     origin: row.origin ?? null,
-    is_featured: row.is_featured,
-    is_active: row.is_active,
-    images: row.images || [],
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    deleted_at: row.deleted_at
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any; // Type mismatch between API types and shared types
+    isFeatured: row.is_featured,
+    isActive: row.is_active,
+    images: (row.images as ProductWithDetails['images']) || [],
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+    deletedAt: (row.deleted_at as string | null) ?? null
+  } as ProductWithDetails;
 }

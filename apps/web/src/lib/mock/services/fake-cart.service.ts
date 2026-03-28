@@ -26,9 +26,9 @@ function initCart(userId?: string): Cart {
   const emptyCart: Cart = {
     items: [],
     subtotal: 0,
-    shipping_cost: 0,
+    shippingCost: 0,
     total: 0,
-    updated_at: new Date().toISOString()
+    updatedAt: new Date().toISOString()
   };
   return getOrInit(getCartKey(userId), emptyCart);
 }
@@ -38,25 +38,25 @@ function initCart(userId?: string): Cart {
  */
 async function calculateTotals(items: CartItem[]): Promise<{
   subtotal: number;
-  shipping_cost: number;
+  shippingCost: number;
   total: number;
 }> {
   let subtotal = 0;
 
-  // Calcular subtotal usando final_price de cada producto
+  // Calcular subtotal usando finalPrice de cada producto
   for (const item of items) {
-    const productResponse = await fake_getProductById(item.product_id);
+    const productResponse = await fake_getProductById(item.productId);
     if (productResponse.success && productResponse.data) {
-      subtotal += productResponse.data.final_price * item.quantity;
+      subtotal += productResponse.data.finalPrice * item.quantity;
     }
   }
 
-  // En MVP, shipping_cost se calcula en checkout
+  // En MVP, shippingCost se calcula en checkout
   // Aquí lo dejamos en 0
-  const shipping_cost = 0;
-  const total = subtotal + shipping_cost;
+  const shippingCost = 0;
+  const total = subtotal + shippingCost;
 
-  return { subtotal, shipping_cost, total };
+  return { subtotal, shippingCost, total };
 }
 
 /**
@@ -68,7 +68,7 @@ async function saveCart(items: CartItem[], userId?: string): Promise<Cart> {
   const cart: Cart = {
     items,
     ...totals,
-    updated_at: new Date().toISOString()
+    updatedAt: new Date().toISOString()
   };
 
   setItem(getCartKey(userId), cart);
@@ -85,7 +85,7 @@ export async function fake_getCart(userId?: string): Promise<ApiResponse<Cart>> 
     // Enriquecer items con datos de productos
     const enrichedItems: CartItem[] = [];
     for (const item of cart.items) {
-      const productResponse = await fake_getProductById(item.product_id);
+      const productResponse = await fake_getProductById(item.productId);
       if (productResponse.success && productResponse.data) {
         enrichedItems.push({
           ...item,
@@ -102,7 +102,7 @@ export async function fake_getCart(userId?: string): Promise<ApiResponse<Cart>> 
       data: {
         items: enrichedItems,
         ...totals,
-        updated_at: cart.updated_at
+        updatedAt: cart.updatedAt
       }
     };
   });
@@ -131,7 +131,7 @@ export async function fake_addToCart(
 
     const product = productResponse.data;
 
-    if (!product.is_active) {
+    if (!product.isActive) {
       return {
         success: false,
         error: {
@@ -143,18 +143,18 @@ export async function fake_addToCart(
 
     // Verificar stock disponible
     const cart = initCart(userId);
-    const existingItem = cart.items.find((i) => i.product_id === productId);
+    const existingItem = cart.items.find((i) => i.productId === productId);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
     const newQuantity = currentQuantity + quantity;
 
-    if (newQuantity > product.available_stock) {
+    if (newQuantity > product.availableStock) {
       return {
         success: false,
         error: {
           code: 'INSUFFICIENT_STOCK',
-          message: `Stock insuficiente. Disponible: ${product.available_stock}`,
+          message: `Stock insuficiente. Disponible: ${product.availableStock}`,
           details: {
-            available: product.available_stock,
+            available: product.availableStock,
             requested: newQuantity
           }
         }
@@ -165,10 +165,10 @@ export async function fake_addToCart(
     let items: CartItem[];
     if (existingItem) {
       items = cart.items.map((i) =>
-        i.product_id === productId ? { ...i, quantity: newQuantity } : i
+        i.productId === productId ? { ...i, quantity: newQuantity } : i
       );
     } else {
-      items = [...cart.items, { product_id: productId, quantity }];
+      items = [...cart.items, { productId, quantity }];
     }
 
     const updatedCart = await saveCart(items, userId);
@@ -190,7 +190,7 @@ export async function fake_updateCartItem(
 ): Promise<ApiResponse<Cart>> {
   return fakeFetch(async () => {
     const cart = initCart(userId);
-    const itemIndex = cart.items.findIndex((i) => i.product_id === productId);
+    const itemIndex = cart.items.findIndex((i) => i.productId === productId);
 
     if (itemIndex === -1) {
       return {
@@ -220,18 +220,18 @@ export async function fake_updateCartItem(
     }
 
     const product = productResponse.data;
-    if (quantity > product.available_stock) {
+    if (quantity > product.availableStock) {
       return {
         success: false,
         error: {
           code: 'INSUFFICIENT_STOCK',
-          message: `Stock insuficiente. Disponible: ${product.available_stock}`
+          message: `Stock insuficiente. Disponible: ${product.availableStock}`
         }
       };
     }
 
     // Actualizar cantidad
-    const items = cart.items.map((i) => (i.product_id === productId ? { ...i, quantity } : i));
+    const items = cart.items.map((i) => (i.productId === productId ? { ...i, quantity } : i));
 
     const updatedCart = await saveCart(items, userId);
 
@@ -251,7 +251,7 @@ export async function fake_removeFromCart(
 ): Promise<ApiResponse<Cart>> {
   return fakeFetch(async () => {
     const cart = initCart(userId);
-    const items = cart.items.filter((i) => i.product_id !== productId);
+    const items = cart.items.filter((i) => i.productId !== productId);
 
     const updatedCart = await saveCart(items, userId);
 
@@ -287,20 +287,20 @@ export async function fake_migrateCart(userId: string): Promise<ApiResponse<Cart
     const mergedItems = [...userCart.items];
 
     for (const guestItem of guestCart.items) {
-      const existingIndex = mergedItems.findIndex((i) => i.product_id === guestItem.product_id);
+      const existingIndex = mergedItems.findIndex((i) => i.productId === guestItem.productId);
 
       if (existingIndex !== -1) {
         // Sumar cantidades (verificar stock)
-        const productResponse = await fake_getProductById(guestItem.product_id);
+        const productResponse = await fake_getProductById(guestItem.productId);
         if (productResponse.success && productResponse.data) {
           const product = productResponse.data;
           const newQuantity = mergedItems[existingIndex].quantity + guestItem.quantity;
 
-          if (newQuantity <= product.available_stock) {
+          if (newQuantity <= product.availableStock) {
             mergedItems[existingIndex].quantity = newQuantity;
           } else {
             // Si excede stock, usar el máximo disponible
-            mergedItems[existingIndex].quantity = product.available_stock;
+            mergedItems[existingIndex].quantity = product.availableStock;
           }
         }
       } else {

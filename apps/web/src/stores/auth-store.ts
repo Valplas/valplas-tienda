@@ -41,12 +41,12 @@ function mapServiceUserToFrontendUser(serviceUser: ServiceUser): User {
     email: serviceUser.email,
     username: serviceUser.username || '',
     phone: serviceUser.phone || '',
-    first_name: serviceUser.first_name,
-    last_name: serviceUser.last_name,
+    firstName: serviceUser.firstName,
+    lastName: serviceUser.lastName,
     role: roleMap[serviceUser.role] || UserRole.CUSTOMER,
-    is_active: serviceUser.is_active,
-    created_at: serviceUser.created_at,
-    updated_at: serviceUser.updated_at
+    isActive: serviceUser.isActive,
+    createdAt: serviceUser.createdAt,
+    updatedAt: serviceUser.updatedAt
   };
 }
 
@@ -108,8 +108,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
         email: data.email,
         username: data.username,
         password: data.password,
-        firstName: data.first_name,
-        lastName: data.last_name,
+        firstName: data.firstName,
+        lastName: data.lastName,
         phone: data.phone
       });
 

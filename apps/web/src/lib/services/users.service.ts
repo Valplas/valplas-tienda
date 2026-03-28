@@ -7,16 +7,16 @@ export interface AdminUser {
   id: string;
   email: string | null;
   username: string;
-  first_name: string;
-  last_name: string | null;
+  firstName: string;
+  lastName: string | null;
   phone: string | null;
   role: UserRole;
-  is_active: boolean;
-  email_verified: boolean;
-  phone_verified: boolean;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
+  isActive: boolean;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
 }
 
 export interface AdminUserWithAddresses extends AdminUser {
@@ -24,14 +24,14 @@ export interface AdminUserWithAddresses extends AdminUser {
     id: string;
     alias: string;
     street: string;
-    street_number: string;
+    streetNumber: string;
     floor: string | null;
     apartment: string | null;
     city: string;
     province: string;
     postcode: string;
-    is_default: boolean;
-    is_active: boolean;
+    isDefault: boolean;
+    isActive: boolean;
   }[];
 }
 
@@ -40,8 +40,8 @@ export interface GetAdminUsersParams {
   limit?: number;
   search?: string;
   role?: string;
-  is_active?: boolean;
-  sort?: 'first_name' | 'created_at';
+  isActive?: boolean;
+  sort?: 'firstName' | 'createdAt';
   includeAddresses?: boolean;
 }
 
@@ -53,7 +53,7 @@ export async function getAdminUsers(
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.search) query.set('search', params.search);
   if (params?.role) query.set('role', params.role);
-  if (params?.is_active !== undefined) query.set('is_active', String(params.is_active));
+  if (params?.isActive !== undefined) query.set('is_active', String(params.isActive));
   if (params?.sort) query.set('sort', params.sort);
   if (params?.includeAddresses) query.set('include_addresses', 'true');
 
@@ -70,12 +70,12 @@ export async function getAdminUsers(
 export interface CreateAdminUserData {
   email?: string;
   username?: string;
-  first_name: string;
-  last_name?: string;
+  firstName: string;
+  lastName?: string;
   password: string;
   role: UserRole;
   phone: string;
-  is_active?: boolean;
+  isActive?: boolean;
 }
 
 export async function createAdminUser(data: CreateAdminUserData): Promise<AdminUser> {
@@ -87,11 +87,11 @@ export async function createAdminUser(data: CreateAdminUserData): Promise<AdminU
 export interface UpdateAdminUserData {
   email?: string;
   username?: string;
-  first_name?: string;
-  last_name?: string;
+  firstName?: string;
+  lastName?: string;
   role?: UserRole;
   phone?: string;
-  is_active?: boolean;
+  isActive?: boolean;
 }
 
 export async function updateAdminUser(id: string, data: UpdateAdminUserData): Promise<AdminUser> {

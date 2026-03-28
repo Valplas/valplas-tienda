@@ -9,12 +9,12 @@ export const createUserSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, 'Solo letras, números y guion bajo')
     .optional()
     .or(z.literal('')),
-  first_name: z.string().min(2, 'Ingresá el nombre'),
-  last_name: z.string().optional().or(z.literal('')),
+  firstName: z.string().min(2, 'Ingresá el nombre'),
+  lastName: z.string().optional().or(z.literal('')),
   phone: z.string().regex(/^\+54\d{10,11}$/, 'Formato: +5491122334455'),
   role: z.nativeEnum(UserRole),
   password: z.string().min(8, 'Mínimo 8 caracteres'),
-  is_active: z.boolean()
+  isActive: z.boolean()
 });
 
 export const updateUserSchema = createUserSchema.extend({

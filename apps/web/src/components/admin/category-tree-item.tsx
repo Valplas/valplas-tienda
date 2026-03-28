@@ -26,7 +26,7 @@ export function CategoryTreeItem({ node, productCounts, onEdit, onDelete }: Cate
       <div
         className={cn(
           'flex items-center gap-2 py-2 px-3 rounded-md hover:bg-accent/50 transition-colors group',
-          !node.item.is_active && 'opacity-60'
+          !node.item.isActive && 'opacity-60'
         )}
         style={{ paddingLeft: `${node.level * 24 + 12}px` }}
       >
@@ -53,7 +53,7 @@ export function CategoryTreeItem({ node, productCounts, onEdit, onDelete }: Cate
         <div className="flex-1 flex items-center gap-2">
           <span className="font-medium">{node.item.name}</span>
           <span className="text-xs text-muted-foreground">({node.item.slug})</span>
-          {!node.item.is_active && (
+          {!node.item.isActive && (
             <Badge variant="outline" className="text-xs">
               Inactiva
             </Badge>
@@ -70,7 +70,7 @@ export function CategoryTreeItem({ node, productCounts, onEdit, onDelete }: Cate
 
         {/* Display order */}
         <div className="text-xs text-muted-foreground w-8 text-center">
-          #{node.item.display_order}
+          #{node.item.displayOrder}
         </div>
 
         {/* Actions */}

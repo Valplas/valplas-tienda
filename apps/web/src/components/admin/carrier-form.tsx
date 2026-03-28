@@ -28,19 +28,19 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
     defaultValues: carrier
       ? {
           name: carrier.name,
-          base_rate: carrier.base_rate,
-          estimated_days: carrier.estimated_days,
-          is_active: carrier.is_active
+          baseRate: carrier.baseRate,
+          estimatedDays: carrier.estimatedDays,
+          isActive: carrier.isActive
         }
       : {
           name: '',
-          base_rate: 0,
-          estimated_days: 1,
-          is_active: true
+          baseRate: 0,
+          estimatedDays: 1,
+          isActive: true
         }
   });
 
-  const isActive = useWatch({ control, name: 'is_active' });
+  const isActive = useWatch({ control, name: 'isActive' });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -62,38 +62,38 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
 
       {/* Base Rate */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="base_rate">
+        <Label htmlFor="baseRate">
           Tarifa Base (ARS) <span className="text-red-500">*</span>
         </Label>
         <Input
-          id="base_rate"
+          id="baseRate"
           type="number"
           step="0.01"
-          {...register('base_rate', { valueAsNumber: true })}
+          {...register('baseRate', { valueAsNumber: true })}
           placeholder="0.00"
           disabled={isLoading}
         />
-        {errors.base_rate && (
-          <p className="text-sm text-red-500 absolute bottom-0">{errors.base_rate.message}</p>
+        {errors.baseRate && (
+          <p className="text-sm text-red-500 absolute bottom-0">{errors.baseRate.message}</p>
         )}
         <p className="text-xs text-muted-foreground">Tarifa base para esta opción de envío</p>
       </div>
 
       {/* Estimated Days */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="estimated_days">
+        <Label htmlFor="estimatedDays">
           Días Estimados <span className="text-red-500">*</span>
         </Label>
         <Input
-          id="estimated_days"
+          id="estimatedDays"
           type="number"
           min="1"
-          {...register('estimated_days', { valueAsNumber: true })}
+          {...register('estimatedDays', { valueAsNumber: true })}
           placeholder="1"
           disabled={isLoading}
         />
-        {errors.estimated_days && (
-          <p className="text-sm text-red-500 absolute bottom-0">{errors.estimated_days.message}</p>
+        {errors.estimatedDays && (
+          <p className="text-sm text-red-500 absolute bottom-0">{errors.estimatedDays.message}</p>
         )}
         <p className="text-xs text-muted-foreground">Tiempo estimado de entrega</p>
       </div>
@@ -101,12 +101,12 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
       {/* Is Active */}
       <div className="flex items-center gap-2">
         <Checkbox
-          id="is_active"
+          id="isActive"
           checked={isActive}
-          onCheckedChange={(checked) => setValue('is_active', !!checked)}
+          onCheckedChange={(checked) => setValue('isActive', !!checked)}
           disabled={isLoading}
         />
-        <Label htmlFor="is_active" className="cursor-pointer font-normal">
+        <Label htmlFor="isActive" className="cursor-pointer font-normal">
           Carrier activo
         </Label>
       </div>

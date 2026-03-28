@@ -11,15 +11,15 @@ const LABEL_W = 28; // width of labels ("Dirección: " is the widest)
 
 function getClientName(order: Order): string {
   const user = order.user;
-  if (!user) return order.user_id;
-  return [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+  if (!user) return order.userId;
+  return [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
 }
 
 function getAddress(order: Order): string {
-  const addr = order.shipping_address;
+  const addr = order.shippingAddress;
   if (!addr || !addr.street) return 'Sin dirección';
   return [
-    `${addr.street} ${addr.street_number}`.trim(),
+    `${addr.street} ${addr.streetNumber}`.trim(),
     addr.floor ? `Piso ${addr.floor}` : null,
     addr.apartment ? `Dpto ${addr.apartment}` : null,
     addr.city,
@@ -54,13 +54,13 @@ function addOrderPage(doc: jsPDF, order: Order) {
   // ── Title line: Orden # (left) + Fecha (right) ─────────────────────────────
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text(`Orden #${order.order_number}`, LEFT_COL, 20);
+  doc.text(`Orden #${order.orderNumber}`, LEFT_COL, 20);
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('Fecha:', PAGE_WIDTH - 45, 20);
   doc.setFont('helvetica', 'normal');
-  doc.text(dayjs(order.created_at).format('DD/MM/YYYY'), PAGE_WIDTH, 20, { align: 'right' });
+  doc.text(dayjs(order.createdAt).format('DD/MM/YYYY'), PAGE_WIDTH, 20, { align: 'right' });
 
   doc.setFontSize(12);
 
@@ -93,10 +93,10 @@ function addOrderPage(doc: jsPDF, order: Order) {
 
   // ── Items table ────────────────────────────────────────────────────────────
   const tableRows = (order.items ?? []).map((item) => [
-    item.product_sku,
-    item.product_name,
+    item.productSku,
+    item.productName,
     item.quantity,
-    formatCurrency(item.unit_price),
+    formatCurrency(item.unitPrice),
     formatCurrency(item.subtotal)
   ]);
 

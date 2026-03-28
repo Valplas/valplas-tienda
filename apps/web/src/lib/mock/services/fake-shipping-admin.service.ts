@@ -29,11 +29,11 @@ function saveZonesToStorage(zones: ShippingZone[]): void {
 interface Carrier {
   id: string;
   name: string;
-  base_rate: number;
-  estimated_days: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  baseRate: number;
+  estimatedDays: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 function getCarriersFromStorage(): Carrier[] {
@@ -41,15 +41,15 @@ function getCarriersFromStorage(): Carrier[] {
     // Extract unique carriers from shipping rates
     const uniqueCarriers = new Map<string, Carrier>();
     MOCK_SHIPPING_RATES.forEach((rate) => {
-      if (!uniqueCarriers.has(rate.carrier_name)) {
-        uniqueCarriers.set(rate.carrier_name, {
+      if (!uniqueCarriers.has(rate.carrierName)) {
+        uniqueCarriers.set(rate.carrierName, {
           id: `carrier-${uniqueCarriers.size + 1}`,
-          name: rate.carrier_name,
-          base_rate: rate.cost,
-          estimated_days: rate.estimated_days,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          name: rate.carrierName,
+          baseRate: rate.cost,
+          estimatedDays: rate.estimatedDays,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         });
       }
     });
@@ -61,15 +61,15 @@ function getCarriersFromStorage(): Carrier[] {
   // First time: extract from mock data
   const uniqueCarriers = new Map<string, Carrier>();
   MOCK_SHIPPING_RATES.forEach((rate) => {
-    if (!uniqueCarriers.has(rate.carrier_name)) {
-      uniqueCarriers.set(rate.carrier_name, {
+    if (!uniqueCarriers.has(rate.carrierName)) {
+      uniqueCarriers.set(rate.carrierName, {
         id: `carrier-${uniqueCarriers.size + 1}`,
-        name: rate.carrier_name,
-        base_rate: rate.cost,
-        estimated_days: rate.estimated_days,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        name: rate.carrierName,
+        baseRate: rate.cost,
+        estimatedDays: rate.estimatedDays,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
   });
@@ -123,9 +123,9 @@ export async function fake_createShippingZone(
       name: data.name,
       province: 'Buenos Aires', // Default for MVP
       postcodes,
-      is_active: data.is_active,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      isActive: data.isActive,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     zones.push(newZone);
@@ -173,8 +173,8 @@ export async function fake_updateShippingZone(
       ...zones[index],
       name: data.name,
       postcodes,
-      is_active: data.is_active,
-      updated_at: new Date().toISOString()
+      isActive: data.isActive,
+      updatedAt: new Date().toISOString()
     };
 
     saveZonesToStorage(zones);
@@ -250,11 +250,11 @@ export async function fake_createCarrier(data: CarrierFormData): Promise<ApiResp
     const newCarrier: Carrier = {
       id: `carrier-${Date.now()}`,
       name: data.name,
-      base_rate: data.base_rate,
-      estimated_days: data.estimated_days,
-      is_active: data.is_active,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      baseRate: data.baseRate,
+      estimatedDays: data.estimatedDays,
+      isActive: data.isActive,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     carriers.push(newCarrier);
@@ -298,10 +298,10 @@ export async function fake_updateCarrier(
     carriers[index] = {
       ...carriers[index],
       name: data.name,
-      base_rate: data.base_rate,
-      estimated_days: data.estimated_days,
-      is_active: data.is_active,
-      updated_at: new Date().toISOString()
+      baseRate: data.baseRate,
+      estimatedDays: data.estimatedDays,
+      isActive: data.isActive,
+      updatedAt: new Date().toISOString()
     };
 
     saveCarriersToStorage(carriers);

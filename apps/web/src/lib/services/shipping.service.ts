@@ -7,22 +7,22 @@ export interface ShippingZone {
   id: string;
   name: string;
   description: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ShippingRate {
   id: string;
-  zone_id: string;
-  carrier_id: string;
-  min_amount: number;
-  max_amount: number | null;
-  base_cost: number;
-  free_shipping_threshold: number | null;
-  estimated_days_min: number;
-  estimated_days_max: number;
-  is_active: boolean;
+  zoneId: string;
+  carrierId: string;
+  minAmount: number;
+  maxAmount: number | null;
+  baseCost: number;
+  freeShippingThreshold: number | null;
+  estimatedDaysMin: number;
+  estimatedDaysMax: number;
+  isActive: boolean;
 }
 
 export interface ShippingQuoteRequest {

@@ -45,13 +45,11 @@ function findZoneByPostcode(postcode: string): ShippingZone | null {
   const zones = initZones();
 
   for (const zone of zones) {
-    if (!zone.is_active) continue;
+    if (!zone.isActive) continue;
 
     // Verificar si está excluido
-    if (zone.excluded_postcodes) {
-      const isExcluded = zone.excluded_postcodes.some((range) =>
-        isPostcodeInRange(postcode, range)
-      );
+    if (zone.excludedPostcodes) {
+      const isExcluded = zone.excludedPostcodes.some((range) => isPostcodeInRange(postcode, range));
       if (isExcluded) continue;
     }
 
@@ -90,11 +88,11 @@ export async function fake_getShippingOptions(
     // Buscar tarifas para la zona
     const rates = initRates();
     const zoneRates = rates
-      .filter((r) => r.zone_id === zone.id && r.is_active)
-      .sort((a, b) => b.min_amount - a.min_amount); // Ordenar de mayor a menor
+      .filter((r) => r.zoneId === zone.id && r.isActive)
+      .sort((a, b) => b.minAmount - a.minAmount); // Ordenar de mayor a menor
 
     // Encontrar la tarifa aplicable según monto
-    const applicableRate = zoneRates.find((r) => cartAmount >= r.min_amount);
+    const applicableRate = zoneRates.find((r) => cartAmount >= r.minAmount);
 
     if (!applicableRate) {
       return {
@@ -108,9 +106,9 @@ export async function fake_getShippingOptions(
 
     // Crear opción de envío
     const option: ShippingOption = {
-      carrier_name: applicableRate.carrier_name,
+      carrierName: applicableRate.carrierName,
       cost: applicableRate.cost,
-      estimated_days: applicableRate.estimated_days
+      estimatedDays: applicableRate.estimatedDays
     };
 
     return {
@@ -152,7 +150,7 @@ export async function fake_getShippingRates(): Promise<ApiResponse<ShippingRate[
 export async function fake_getZoneRates(zoneId: string): Promise<ApiResponse<ShippingRate[]>> {
   return fakeFetch(() => {
     const rates = initRates();
-    const zoneRates = rates.filter((r) => r.zone_id === zoneId);
+    const zoneRates = rates.filter((r) => r.zoneId === zoneId);
 
     return {
       success: true,

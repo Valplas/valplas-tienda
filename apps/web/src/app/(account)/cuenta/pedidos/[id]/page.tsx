@@ -80,10 +80,10 @@ export default function OrderDetailPage() {
           </Link>
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">Pedido {order.order_number}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Pedido {order.orderNumber}</h1>
           <p className="mt-1 text-muted-foreground">
-            Realizado el {formatDate(order.created_at)} a las{' '}
-            {formatDateTime(order.created_at).split(' ')[1]}
+            Realizado el {formatDate(order.createdAt)} a las{' '}
+            {formatDateTime(order.createdAt).split(' ')[1]}
           </p>
         </div>
         <OrderStatusBadge status={order.status} />
@@ -116,12 +116,12 @@ export default function OrderDetailPage() {
                     <TableRow key={index}>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{item.product_name}</p>
-                          <p className="text-sm text-muted-foreground">SKU: {item.product_sku}</p>
+                          <p className="font-medium">{item.productName}</p>
+                          <p className="text-sm text-muted-foreground">SKU: {item.productSku}</p>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">{item.quantity}</TableCell>
-                      <TableCell className="text-right">{formatPrice(item.unit_price)}</TableCell>
+                      <TableCell className="text-right">{formatPrice(item.unitPrice)}</TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatPrice(item.subtotal)}
                       </TableCell>
@@ -142,7 +142,7 @@ export default function OrderDetailPage() {
                       Envío
                     </TableCell>
                     <TableCell className="text-right font-semibold">
-                      {order.shipping_cost === 0 ? 'Gratis' : formatPrice(order.shipping_cost)}
+                      {order.shippingCost === 0 ? 'Gratis' : formatPrice(order.shippingCost)}
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -169,34 +169,34 @@ export default function OrderDetailPage() {
             <CardContent className="space-y-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Carrier</p>
-                <p className="text-base">{order.shipping_carrier}</p>
+                <p className="text-base">{order.shippingCarrier}</p>
               </div>
 
-              {order.tracking_number && (
+              {order.trackingNumber && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Número de Seguimiento</p>
-                  <p className="text-base font-mono">{order.tracking_number}</p>
+                  <p className="text-base font-mono">{order.trackingNumber}</p>
                 </div>
               )}
 
-              {order.shipped_at && (
+              {order.shippedAt && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Fecha de Envío</p>
-                  <p className="text-base">{formatDateTime(order.shipped_at)}</p>
+                  <p className="text-base">{formatDateTime(order.shippedAt)}</p>
                 </div>
               )}
 
-              {order.delivered_at && (
+              {order.deliveredAt && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Fecha de Entrega</p>
-                  <p className="text-base">{formatDateTime(order.delivered_at)}</p>
+                  <p className="text-base">{formatDateTime(order.deliveredAt)}</p>
                 </div>
               )}
 
-              {order.cancelled_at && (
+              {order.cancelledAt && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Fecha de Cancelación</p>
-                  <p className="text-base">{formatDateTime(order.cancelled_at)}</p>
+                  <p className="text-base">{formatDateTime(order.cancelledAt)}</p>
                 </div>
               )}
             </CardContent>
@@ -215,22 +215,21 @@ export default function OrderDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1 text-sm">
-                <p className="font-medium">{order.shipping_address.label}</p>
+                <p className="font-medium">{order.shippingAddress.label}</p>
                 <p>
-                  {order.shipping_address.street} {order.shipping_address.street_number}
+                  {order.shippingAddress.street} {order.shippingAddress.streetNumber}
                 </p>
-                {(order.shipping_address.floor || order.shipping_address.apartment) && (
+                {(order.shippingAddress.floor || order.shippingAddress.apartment) && (
                   <p>
-                    {order.shipping_address.floor && `Piso ${order.shipping_address.floor}`}
-                    {order.shipping_address.floor && order.shipping_address.apartment && ', '}
-                    {order.shipping_address.apartment &&
-                      `Depto ${order.shipping_address.apartment}`}
+                    {order.shippingAddress.floor && `Piso ${order.shippingAddress.floor}`}
+                    {order.shippingAddress.floor && order.shippingAddress.apartment && ', '}
+                    {order.shippingAddress.apartment && `Depto ${order.shippingAddress.apartment}`}
                   </p>
                 )}
                 <p>
-                  {order.shipping_address.city}, {order.shipping_address.province}
+                  {order.shippingAddress.city}, {order.shippingAddress.province}
                 </p>
-                <p>CP: {order.shipping_address.postcode}</p>
+                <p>CP: {order.shippingAddress.postcode}</p>
               </div>
             </CardContent>
           </Card>
@@ -246,20 +245,20 @@ export default function OrderDetailPage() {
             <CardContent className="space-y-3">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Método de Pago</p>
-                <p className="text-base capitalize">{order.payment_method}</p>
+                <p className="text-base capitalize">{order.paymentMethod}</p>
               </div>
 
-              {order.payment_id && (
+              {order.paymentId && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">ID de Pago</p>
-                  <p className="text-base font-mono text-xs">{order.payment_id}</p>
+                  <p className="text-base font-mono text-xs">{order.paymentId}</p>
                 </div>
               )}
 
-              {order.payment_status && (
+              {order.paymentStatus && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Estado del Pago</p>
-                  <p className="text-base capitalize">{order.payment_status}</p>
+                  <p className="text-base capitalize">{order.paymentStatus}</p>
                 </div>
               )}
             </CardContent>

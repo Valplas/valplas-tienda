@@ -30,8 +30,8 @@ export default function RegistroPage() {
     defaultValues: {
       email: '',
       username: '',
-      first_name: '',
-      last_name: '',
+      firstName: '',
+      lastName: '',
       phone: '',
       password: '',
       confirmPassword: ''
@@ -45,8 +45,8 @@ export default function RegistroPage() {
       await register_action({
         email: data.email,
         username: data.username || '',
-        first_name: data.first_name,
-        last_name: data.last_name,
+        firstName: data.firstName,
+        lastName: data.lastName,
         phone: data.phone || '',
         password: data.password
       });
@@ -101,23 +101,23 @@ export default function RegistroPage() {
             {/* Nombre */}
             <FormField
               label="Nombre"
-              error={errors.first_name?.message}
+              error={errors.firstName?.message}
               type="text"
               placeholder="Juan"
               autoComplete="given-name"
               required
-              {...register('first_name')}
+              {...register('firstName')}
             />
 
             {/* Apellido */}
             <FormField
               label="Apellido"
-              error={errors.last_name?.message}
+              error={errors.lastName?.message}
               type="text"
               placeholder="Pérez"
               autoComplete="family-name"
               required
-              {...register('last_name')}
+              {...register('lastName')}
             />
 
             {/* Teléfono (opcional) */}

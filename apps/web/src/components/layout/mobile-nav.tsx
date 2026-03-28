@@ -88,7 +88,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
               <Separator className="my-4" />
               <div className="mb-2 px-3">
                 <p className="text-sm font-medium">
-                  {user.first_name ? `${user.first_name} ${user.last_name}` : user.username}
+                  {user.firstName ? `${user.firstName} ${user.lastName}` : user.username}
                 </p>
                 <p className="text-xs text-muted-foreground">{user.email}</p>
               </div>

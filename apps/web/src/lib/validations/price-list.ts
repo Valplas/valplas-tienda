@@ -10,7 +10,7 @@ export const priceListSchema = z.object({
     .number({ error: 'Debe ser un número' })
     .min(0, 'No puede ser negativo')
     .max(100, 'Máximo 100%'),
-  is_active: z.boolean()
+  isActive: z.boolean()
 });
 
 export type PriceListFormData = z.infer<typeof priceListSchema>;

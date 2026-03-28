@@ -24,10 +24,10 @@ function initCategories(): Category[] {
 export async function fake_getCategories(): Promise<ApiResponse<Category[]>> {
   return fakeFetch(() => {
     const categories = initCategories();
-    const active = categories.filter((c) => c.is_active);
+    const active = categories.filter((c) => c.isActive);
 
-    // Ordenar por display_order
-    active.sort((a, b) => a.display_order - b.display_order);
+    // Ordenar por displayOrder
+    active.sort((a, b) => a.displayOrder - b.displayOrder);
 
     return {
       success: true,
@@ -37,14 +37,14 @@ export async function fake_getCategories(): Promise<ApiResponse<Category[]>> {
 }
 
 /**
- * Obtener categorías raíz (sin parent_id)
+ * Obtener categorías raíz (sin parentId)
  */
 export async function fake_getRootCategories(): Promise<ApiResponse<Category[]>> {
   return fakeFetch(() => {
     const categories = initCategories();
-    const root = categories.filter((c) => c.is_active && c.parent_id === null);
+    const root = categories.filter((c) => c.isActive && c.parentId === null);
 
-    root.sort((a, b) => a.display_order - b.display_order);
+    root.sort((a, b) => a.displayOrder - b.displayOrder);
 
     return {
       success: true,
@@ -59,9 +59,9 @@ export async function fake_getRootCategories(): Promise<ApiResponse<Category[]>>
 export async function fake_getSubcategories(parentId: string): Promise<ApiResponse<Category[]>> {
   return fakeFetch(() => {
     const categories = initCategories();
-    const subcategories = categories.filter((c) => c.is_active && c.parent_id === parentId);
+    const subcategories = categories.filter((c) => c.isActive && c.parentId === parentId);
 
-    subcategories.sort((a, b) => a.display_order - b.display_order);
+    subcategories.sort((a, b) => a.displayOrder - b.displayOrder);
 
     return {
       success: true,

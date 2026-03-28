@@ -49,7 +49,7 @@ export function CartPage() {
             <CardContent className="p-0">
               <div className="divide-y px-6">
                 {items.map((item) => (
-                  <CartItem key={item.product_id} item={item} />
+                  <CartItem key={item.productId} item={item} />
                 ))}
               </div>
             </CardContent>

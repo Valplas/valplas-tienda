@@ -15,12 +15,12 @@ export const MOCK_USERS: User[] = [
     email: 'owner@valplas.net',
     username: 'owner_valplas',
     phone: '+541141234567',
-    first_name: 'Carlos',
-    last_name: 'Fernández',
+    firstName: 'Carlos',
+    lastName: 'Fernández',
     role: UserRole.OWNER,
-    is_active: true,
-    created_at: '2024-01-01T10:00:00.000Z',
-    updated_at: '2024-01-01T10:00:00.000Z'
+    isActive: true,
+    createdAt: '2024-01-01T10:00:00.000Z',
+    updatedAt: '2024-01-01T10:00:00.000Z'
   },
 
   // Admin
@@ -29,12 +29,12 @@ export const MOCK_USERS: User[] = [
     email: 'admin@valplas.net',
     username: 'admin_valplas',
     phone: '+541141234568',
-    first_name: 'María',
-    last_name: 'González',
+    firstName: 'María',
+    lastName: 'González',
     role: UserRole.ADMIN,
-    is_active: true,
-    created_at: '2024-01-05T10:00:00.000Z',
-    updated_at: '2024-01-05T10:00:00.000Z'
+    isActive: true,
+    createdAt: '2024-01-05T10:00:00.000Z',
+    updatedAt: '2024-01-05T10:00:00.000Z'
   },
 
   // Driver
@@ -43,12 +43,12 @@ export const MOCK_USERS: User[] = [
     email: 'driver@valplas.net',
     username: 'driver_valplas',
     phone: '+541141234569',
-    first_name: 'Jorge',
-    last_name: 'Ramírez',
+    firstName: 'Jorge',
+    lastName: 'Ramírez',
     role: UserRole.DRIVER,
-    is_active: true,
-    created_at: '2024-01-10T10:00:00.000Z',
-    updated_at: '2024-01-10T10:00:00.000Z'
+    isActive: true,
+    createdAt: '2024-01-10T10:00:00.000Z',
+    updatedAt: '2024-01-10T10:00:00.000Z'
   },
 
   // Customers
@@ -57,72 +57,72 @@ export const MOCK_USERS: User[] = [
     email: 'cliente1@gmail.com',
     username: 'juanperez',
     phone: '+541145678901',
-    first_name: 'Juan',
-    last_name: 'Pérez',
+    firstName: 'Juan',
+    lastName: 'Pérez',
     role: UserRole.CUSTOMER,
-    is_active: true,
-    created_at: '2024-02-01T10:00:00.000Z',
-    updated_at: '2024-02-01T10:00:00.000Z'
+    isActive: true,
+    createdAt: '2024-02-01T10:00:00.000Z',
+    updatedAt: '2024-02-01T10:00:00.000Z'
   },
   {
     id: 'user-005',
     email: 'cliente2@gmail.com',
     username: 'analopez',
     phone: '+541145678902',
-    first_name: 'Ana',
-    last_name: 'López',
+    firstName: 'Ana',
+    lastName: 'López',
     role: UserRole.CUSTOMER,
-    is_active: true,
-    created_at: '2024-02-05T10:00:00.000Z',
-    updated_at: '2024-02-05T10:00:00.000Z'
+    isActive: true,
+    createdAt: '2024-02-05T10:00:00.000Z',
+    updatedAt: '2024-02-05T10:00:00.000Z'
   },
   {
     id: 'user-006',
     email: 'cliente3@gmail.com',
     username: 'pedromartinez',
     phone: '+541145678903',
-    first_name: 'Pedro',
-    last_name: 'Martínez',
+    firstName: 'Pedro',
+    lastName: 'Martínez',
     role: UserRole.CUSTOMER,
-    is_active: true,
-    created_at: '2024-02-10T10:00:00.000Z',
-    updated_at: '2024-02-10T10:00:00.000Z'
+    isActive: true,
+    createdAt: '2024-02-10T10:00:00.000Z',
+    updatedAt: '2024-02-10T10:00:00.000Z'
   },
   {
     id: 'user-007',
     email: 'cliente4@gmail.com',
     username: 'lauragarcia',
     phone: '+541145678904',
-    first_name: 'Laura',
-    last_name: 'García',
+    firstName: 'Laura',
+    lastName: 'García',
     role: UserRole.CUSTOMER,
-    is_active: true,
-    created_at: '2024-02-15T10:00:00.000Z',
-    updated_at: '2024-02-15T10:00:00.000Z'
+    isActive: true,
+    createdAt: '2024-02-15T10:00:00.000Z',
+    updatedAt: '2024-02-15T10:00:00.000Z'
   },
   {
     id: 'user-008',
     email: 'cliente5@gmail.com',
     username: 'carlosrodriguez',
     phone: '+541145678905',
-    first_name: 'Carlos',
-    last_name: 'Rodríguez',
+    firstName: 'Carlos',
+    lastName: 'Rodríguez',
     role: UserRole.CUSTOMER,
-    is_active: true,
-    created_at: '2024-02-20T10:00:00.000Z',
-    updated_at: '2024-02-20T10:00:00.000Z'
+    isActive: true,
+    createdAt: '2024-02-20T10:00:00.000Z',
+    updatedAt: '2024-02-20T10:00:00.000Z'
   },
   {
     id: 'user-009',
     email: 'cliente6@gmail.com',
     username: 'sofiahernandez',
     phone: '+541145678906',
-    first_name: 'Sofía',
-    last_name: 'Hernández',
+    firstName: 'Sofía',
+    lastName: 'Hernández',
     role: UserRole.CUSTOMER,
-    is_active: true,
-    created_at: '2024-02-25T10:00:00.000Z',
-    updated_at: '2024-02-25T10:00:00.000Z'
+    isActive: true,
+    createdAt: '2024-02-25T10:00:00.000Z',
+    updatedAt: '2024-02-25T10:00:00.000Z'
   }
 ];
 
