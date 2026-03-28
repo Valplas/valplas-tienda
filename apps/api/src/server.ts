@@ -58,7 +58,15 @@ app.use(
   })
 );
 app.use(morgan('dev'));
-app.use(express.json({ limit: '10mb' }));
+app.use(
+  express.json({
+    limit: '10mb',
+    verify: (req, _res, buf) => {
+      // Guardar rawBody para verificación HMAC del webhook de WhatsApp
+      (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+    }
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());
@@ -98,7 +106,10 @@ import orderRoutes from './modules/orders/order.routes.js';
 import userRoutes from './modules/users/user.routes.js';
 import accountingRoutes from './modules/accounting/accounting.routes.js';
 import catalogRoutes from './modules/catalog/catalog.routes.js';
+import cron from 'node-cron';
 import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.js';
+import whatsappRoutes from './modules/whatsapp/whatsapp.routes.js';
+import { deleteExpiredSessions } from './modules/whatsapp/session.repository.js';
 
 // Montar rutas
 app.use('/api/auth', authRoutes);
@@ -113,6 +124,9 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/accounting', accountingRoutes);
 app.use('/api/catalog', catalogRoutes);
+
+// WhatsApp webhook (sin prefijo /api — Meta llama directamente)
+app.use('/webhooks/whatsapp', whatsappRoutes);
 
 // Swagger documentation
 app.use(
@@ -145,6 +159,12 @@ app.use((req, res) => {
 // Programar jobs en background
 scheduleTokenCleanup();
 console.log('🕒 Job programado: limpieza de tokens a las 3:00 AM ART (06:00 UTC)');
+
+// Limpiar sesiones WhatsApp expiradas — todos los días a las 4:00 AM ART (07:00 UTC)
+cron.schedule('0 7 * * *', async () => {
+  const deleted = await deleteExpiredSessions();
+  console.log(`🧹 WhatsApp sessions limpiadas: ${deleted}`);
+});
 
 // Iniciar servidor
 const server = app.listen(PORT, () => {

@@ -55,6 +55,20 @@ export const env = {
   GOOGLE_CALLBACK_URL: getEnv(
     'GOOGLE_CALLBACK_URL',
     'http://localhost:3001/api/auth/google/callback'
+  ),
+
+  // WhatsApp Bot (Meta Cloud API)
+  WHATSAPP_PHONE_NUMBER_ID: getEnv('WHATSAPP_PHONE_NUMBER_ID', ''),
+  WHATSAPP_ACCESS_TOKEN: getEnv('WHATSAPP_ACCESS_TOKEN', ''),
+  WHATSAPP_APP_SECRET: getEnv('WHATSAPP_APP_SECRET', ''),
+  WHATSAPP_VERIFY_TOKEN: getEnv('WHATSAPP_VERIFY_TOKEN', ''),
+  ADMIN_WHATSAPP_NUMBER: getEnv('ADMIN_WHATSAPP_NUMBER', ''),
+
+  // Mercado Pago
+  MERCADOPAGO_ACCESS_TOKEN: getEnv('MERCADOPAGO_ACCESS_TOKEN', ''),
+  MERCADOPAGO_NOTIFICATION_URL: getEnv(
+    'MERCADOPAGO_NOTIFICATION_URL',
+    'https://api.valplas.net/api/orders/webhook/mp'
   )
 } as const;
 
