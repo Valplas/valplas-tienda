@@ -1,3 +1,5 @@
+export const revalidate = 300; // Revalidar cada 5 minutos
+
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
