@@ -2,12 +2,21 @@ import { query } from '../../infrastructure/database/client.js';
 import type { User } from '@valplas/shared/types';
 import type { RegisterData } from './auth.types.js';
 
+const USER_COLUMNS = `
+  id, email, username, phone,
+  first_name AS "firstName", last_name AS "lastName",
+  role, is_active AS "isActive",
+  email_verified AS "emailVerified", phone_verified AS "phoneVerified",
+  password_hash, google_id AS "googleId",
+  last_login_at AS "lastLoginAt", created_at AS "createdAt", updated_at AS "updatedAt"
+`;
+
 /**
  * Buscar usuario por email
  */
 export async function findUserByEmail(email: string): Promise<User | null> {
   const result = await query<User>(
-    `SELECT * FROM users
+    `SELECT ${USER_COLUMNS} FROM users
      WHERE email = $1
        AND deleted_at IS NULL
      LIMIT 1`,
@@ -22,7 +31,7 @@ export async function findUserByEmail(email: string): Promise<User | null> {
  */
 export async function findUserByUsername(username: string): Promise<User | null> {
   const result = await query<User>(
-    `SELECT * FROM users
+    `SELECT ${USER_COLUMNS} FROM users
      WHERE username = $1
        AND deleted_at IS NULL
      LIMIT 1`,
@@ -37,7 +46,7 @@ export async function findUserByUsername(username: string): Promise<User | null>
  */
 export async function findUserByEmailOrUsername(emailOrUsername: string): Promise<User | null> {
   const result = await query<User>(
-    `SELECT * FROM users
+    `SELECT ${USER_COLUMNS} FROM users
      WHERE (email = $1 OR username = $1)
        AND deleted_at IS NULL
      LIMIT 1`,
@@ -52,7 +61,7 @@ export async function findUserByEmailOrUsername(emailOrUsername: string): Promis
  */
 export async function findUserById(id: string): Promise<User | null> {
   const result = await query<User>(
-    `SELECT * FROM users
+    `SELECT ${USER_COLUMNS} FROM users
      WHERE id = $1
        AND deleted_at IS NULL
      LIMIT 1`,
@@ -67,7 +76,7 @@ export async function findUserById(id: string): Promise<User | null> {
  */
 export async function findUserByPhone(phone: string): Promise<User | null> {
   const result = await query<User>(
-    `SELECT * FROM users
+    `SELECT ${USER_COLUMNS} FROM users
      WHERE phone = $1
        AND deleted_at IS NULL
      LIMIT 1`,
@@ -93,7 +102,7 @@ export async function createUser(data: RegisterData & { passwordHash: string }):
       is_active
     )
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    RETURNING *`,
+    RETURNING ${USER_COLUMNS}`,
     [
       data.email,
       data.username,
@@ -126,8 +135,7 @@ export async function updateLastLogin(userId: string): Promise<void> {
  */
 export async function findUserByGoogleId(googleId: string): Promise<User | null> {
   const result = await query<User>(
-    `SELECT id, email, username, phone, first_name, last_name, role, is_active, created_at, updated_at
-     FROM users
+    `SELECT ${USER_COLUMNS} FROM users
      WHERE google_id = $1
        AND deleted_at IS NULL
      LIMIT 1`,
@@ -158,7 +166,7 @@ export async function createOAuthUser(data: {
   const result = await query<User>(
     `INSERT INTO users (email, first_name, last_name, google_id, role, is_active)
      VALUES ($1, $2, $3, $4, 'customer', true)
-     RETURNING id, email, username, phone, first_name, last_name, role, is_active, created_at, updated_at`,
+     RETURNING ${USER_COLUMNS}`,
     [data.email, data.firstName, data.lastName, data.googleId]
   );
   return result.rows[0];
