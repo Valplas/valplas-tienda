@@ -207,7 +207,7 @@ export default function AdminProductsPage() {
         accessorKey: 'name',
         header: 'Nombre',
         cell: ({ row }) => (
-          <div className="max-w-[300px]">
+          <div className="max-w-75">
             <p className="font-medium truncate">{row.original.name}</p>
             <p className="text-xs text-muted-foreground truncate">{row.original.description}</p>
           </div>
@@ -303,7 +303,7 @@ export default function AdminProductsPage() {
           <Button variant="outline" asChild>
             <Link href="/admin/productos/asignar-precios">
               <Tags className="mr-2 h-4 w-4" />
-              Asignar precios en bulk
+              Asignar a todos
             </Link>
           </Button>
           <Button asChild>
@@ -319,7 +319,7 @@ export default function AdminProductsPage() {
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">Ordenar por:</span>
         <Select value={sortBy} onValueChange={(value) => setSortBy(value as AdminProductSort)}>
-          <SelectTrigger className="w-[220px]">
+          <SelectTrigger className="w-55">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
