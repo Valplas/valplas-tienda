@@ -81,7 +81,21 @@ export async function getDefaultAddress(): Promise<Address> {
  * Create new address
  */
 export async function createAddress(data: CreateAddressInput): Promise<Address> {
-  const response = await post<Address>('/addresses', data);
+  const response = await post<Address>('/addresses', {
+    alias: data.alias,
+    street: data.street,
+    street_number: data.streetNumber,
+    floor: data.floor,
+    apartment: data.apartment,
+    city: data.city,
+    province: data.province,
+    postcode: data.postcode,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    place_id: data.placeId,
+    notes: data.notes,
+    is_default: data.isDefault
+  });
 
   if (response.success && response.data) {
     return response.data;
@@ -94,7 +108,22 @@ export async function createAddress(data: CreateAddressInput): Promise<Address> 
  * Update address
  */
 export async function updateAddress(id: string, data: UpdateAddressInput): Promise<Address> {
-  const response = await patch<Address>(`/addresses/${id}`, data);
+  const response = await patch<Address>(`/addresses/${id}`, {
+    alias: data.alias,
+    street: data.street,
+    street_number: data.streetNumber,
+    floor: data.floor,
+    apartment: data.apartment,
+    city: data.city,
+    province: data.province,
+    postcode: data.postcode,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    place_id: data.placeId,
+    notes: data.notes,
+    is_default: data.isDefault,
+    is_active: data.isActive
+  });
 
   if (response.success && response.data) {
     return response.data;
@@ -121,7 +150,21 @@ export async function adminCreateUserAddress(
   userId: string,
   data: CreateAddressInput
 ): Promise<Address> {
-  const response = await post<Address>(`/addresses/admin/user/${userId}`, data);
+  const response = await post<Address>(`/addresses/admin/user/${userId}`, {
+    alias: data.alias,
+    street: data.street,
+    street_number: data.streetNumber,
+    floor: data.floor,
+    apartment: data.apartment,
+    city: data.city,
+    province: data.province,
+    postcode: data.postcode,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    place_id: data.placeId,
+    notes: data.notes,
+    is_default: data.isDefault
+  });
   if (response.success && response.data) return response.data;
   throw new Error(response.error?.message || 'Error al crear dirección');
 }
