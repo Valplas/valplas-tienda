@@ -296,8 +296,14 @@ export async function createAdminOrder(
 
     const availableStock = product.stock - product.reservedStock;
 
-    const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
-    const bundleSizeSnapshot = tier.minQuantity;
+    // Admin orders bypass tier requirement — default bundle size to 1 if no tier exists
+    let bundleSizeSnapshot = 1;
+    try {
+      const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
+      bundleSizeSnapshot = tier.minQuantity;
+    } catch {
+      // No tier configured for this product+price list, treat as unit sale
+    }
     const realQuantity = item.quantity * bundleSizeSnapshot;
 
     if (availableStock < realQuantity) {
@@ -372,8 +378,14 @@ export async function updateAdminOrder(
     if (!product || !product.isActive) {
       throw new Error(`Producto ${item.product_id} no encontrado o inactivo`);
     }
-    const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
-    const bundleSizeSnapshot = tier.minQuantity;
+    // Admin orders bypass tier requirement — default bundle size to 1 if no tier exists
+    let bundleSizeSnapshot = 1;
+    try {
+      const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
+      bundleSizeSnapshot = tier.minQuantity;
+    } catch {
+      // No tier configured for this product+price list, treat as unit sale
+    }
     const realQuantity = item.quantity * bundleSizeSnapshot;
     const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
     enrichedItems.push({
