@@ -196,7 +196,17 @@ export async function adminCreateOrder(data: {
   notes?: string;
   paymentMethod?: string;
 }): Promise<Order> {
-  const res = await post<Order>('/orders/admin/create', data);
+  const res = await post<Order>('/orders/admin/create', {
+    user_id: data.userId,
+    shipping_address_id: data.shippingAddressId,
+    items: data.items.map((item) => ({
+      product_id: item.productId,
+      price_list_id: item.priceListId,
+      quantity: item.quantity
+    })),
+    notes: data.notes,
+    payment_method: data.paymentMethod
+  });
   if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear pedido');
   return res.data;
 }
@@ -214,7 +224,14 @@ export async function adminUpdateOrder(
     items: AdminUpdateOrderItem[];
   }
 ): Promise<Order> {
-  const res = await patch<Order>(`/orders/admin/${id}`, data);
+  const res = await patch<Order>(`/orders/admin/${id}`, {
+    shipping_address_id: data.shippingAddressId,
+    items: data.items.map((item) => ({
+      product_id: item.productId,
+      price_list_id: item.priceListId,
+      quantity: item.quantity
+    }))
+  });
   if (!res.success || !res.data)
     throw new Error(res.error?.message ?? 'Error al actualizar pedido');
   return res.data;

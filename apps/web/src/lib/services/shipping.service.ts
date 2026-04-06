@@ -57,5 +57,8 @@ export async function getShippingZones(): Promise<ApiResponse<ShippingZone[]>> {
 export async function quoteShipping(
   request: ShippingQuoteRequest
 ): Promise<ApiResponse<ShippingQuote>> {
-  return post<ShippingQuote>('/shipping/quote', request);
+  return post<ShippingQuote>('/shipping/quote', {
+    postcode: request.postalCode,
+    cart_total: request.cartTotal
+  });
 }

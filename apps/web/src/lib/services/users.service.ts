@@ -79,7 +79,16 @@ export interface CreateAdminUserData {
 }
 
 export async function createAdminUser(data: CreateAdminUserData): Promise<AdminUser> {
-  const res = await post<AdminUser>('/users', data);
+  const res = await post<AdminUser>('/users', {
+    email: data.email,
+    username: data.username,
+    password: data.password,
+    phone: data.phone,
+    first_name: data.firstName,
+    last_name: data.lastName,
+    role: data.role,
+    is_active: data.isActive
+  });
   if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear usuario');
   return res.data;
 }
@@ -95,7 +104,15 @@ export interface UpdateAdminUserData {
 }
 
 export async function updateAdminUser(id: string, data: UpdateAdminUserData): Promise<AdminUser> {
-  const res = await patch<AdminUser>(`/users/${id}`, data);
+  const res = await patch<AdminUser>(`/users/${id}`, {
+    email: data.email,
+    username: data.username,
+    phone: data.phone,
+    first_name: data.firstName,
+    last_name: data.lastName,
+    role: data.role,
+    is_active: data.isActive
+  });
   if (!res.success || !res.data)
     throw new Error(res.error?.message ?? 'Error al actualizar usuario');
   return res.data;

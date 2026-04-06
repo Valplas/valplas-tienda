@@ -5,6 +5,7 @@ import type { AuthenticatedUser } from '../auth/auth.types.js';
 import type { OrderStatus } from './order.types.js';
 import * as orderDomain from './order.domain.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
+import { logger } from '../../infrastructure/logger/index.js';
 
 /**
  * Get current user's orders
@@ -171,9 +172,27 @@ export async function cancelOrder(req: Request, res: Response, next: NextFunctio
 export async function createAdminOrder(req: Request, res: Response, next: NextFunction) {
   try {
     const adminId = (req.user as AuthenticatedUser).userId;
+
+    logger.info('Admin creating order', {
+      adminId,
+      body: req.body
+    });
+
     const order = await orderDomain.createAdminOrder(adminId, req.body);
+
+    logger.info('Admin order created successfully', {
+      adminId,
+      orderId: order.id,
+      orderNumber: order.order_number
+    });
+
     return res.status(201).json(ApiResponse.success(order));
   } catch (error) {
+    logger.error('Failed to create admin order', {
+      adminId: (req.user as AuthenticatedUser | undefined)?.userId,
+      body: req.body,
+      error: error instanceof Error ? error.message : String(error)
+    });
     next(error);
   }
 }
