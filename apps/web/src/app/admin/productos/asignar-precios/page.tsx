@@ -169,9 +169,9 @@ export default function BulkPriceAssignmentPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Asignar precios en bulk</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Asignar a todos</h1>
           <p className="text-muted-foreground mt-1">
-            Asigná tiers de precio a múltiples productos de una vez
+            Asigná listas de precio a múltiples productos de una vez
           </p>
         </div>
       </div>
@@ -304,12 +304,12 @@ export default function BulkPriceAssignmentPage() {
 
             <Button type="button" variant="outline" size="sm" onClick={addRow} className="gap-2">
               <Plus className="h-4 w-4" />
-              Agregar tier
+              Agregar lista de precios
             </Button>
           </div>
 
           <LoadingButton loading={isPreviewing} onClick={handlePreview} className="gap-2">
-            Ver preview
+            Ver vista previa
           </LoadingButton>
         </div>
       ) : (
