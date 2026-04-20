@@ -24,7 +24,7 @@ export function ProductGallery({ images, productName, className }: ProductGaller
   return (
     <div className={cn('space-y-4', className)}>
       {/* Main Image */}
-      <div className="relative aspect-square overflow-hidden rounded-lg border bg-muted">
+      <div className="relative aspect-[3/4] overflow-hidden rounded-lg border bg-muted sm:aspect-square">
         <Image
           src={imageList[selectedIndex]}
           alt={`${productName} - imagen ${selectedIndex + 1}`}

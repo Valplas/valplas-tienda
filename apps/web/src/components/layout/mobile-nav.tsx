@@ -53,7 +53,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-80 p-0">
+      <SheetContent side="left" className="w-[min(20rem,85vw)] p-0">
         <SheetHeader className="border-b p-6">
           <SheetTitle>Menú</SheetTitle>
           <SheetDescription className="sr-only">Navegación principal</SheetDescription>

@@ -10,7 +10,7 @@ export function Footer() {
   return (
     <footer className="border-t bg-muted/40">
       <div className="container mx-auto px-4 py-8 md:py-12">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-6 sm:gap-8 lg:grid-cols-4">
           {/* Company Info */}
           <div>
             <h3 className="mb-4 text-lg font-semibold">Valplas</h3>

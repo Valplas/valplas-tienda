@@ -34,7 +34,7 @@ export default async function Home() {
     <main className="container mx-auto px-4 py-4 space-y-6">
       {/* Hero Section */}
       <section className="text-center space-y-2 py-4">
-        <h1 className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">Valplas</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-4xl">Valplas</h1>
         <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
           Distribuidora de Artículos Plásticos, Productos de Limpieza y Electrodomésticos
         </p>
@@ -52,7 +52,7 @@ export default async function Home() {
       {categories.length > 0 && (
         <section className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight">Categorías</h2>
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Categorías</h2>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {categories.map((category) => (
@@ -76,7 +76,7 @@ export default async function Home() {
       {featuredProducts.length > 0 && (
         <section className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight">Productos Destacados</h2>
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Productos Destacados</h2>
             <Button asChild variant="ghost">
               <Link href="/productos">
                 Ver todos

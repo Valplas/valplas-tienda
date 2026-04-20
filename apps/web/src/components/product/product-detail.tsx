@@ -66,7 +66,7 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
       </Breadcrumb>
 
       {/* Product Info Grid */}
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-2">
         {/* Gallery */}
         <ProductGallery images={product.images} productName={product.name} />
 
@@ -86,7 +86,9 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
 
           {/* Name */}
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
+              {product.name}
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground">SKU: {product.sku}</p>
           </div>
 
@@ -94,7 +96,7 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
           {!hasTiers && (
             <div className="space-y-1">
               <div className="flex items-baseline gap-3">
-                <p className="text-3xl font-bold">{formatPrice(product.basePrice)}</p>
+                <p className="text-2xl font-bold sm:text-3xl">{formatPrice(product.basePrice)}</p>
               </div>
             </div>
           )}
