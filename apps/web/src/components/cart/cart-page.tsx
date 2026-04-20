@@ -26,7 +26,7 @@ export function CartPage() {
   }
 
   return (
-    <div className="container max-w-6xl py-8">
+    <div className="container max-w-6xl px-4 py-4 sm:py-8">
       {/* Back button */}
       <Button asChild variant="ghost" className="mb-4">
         <Link href="/productos">
@@ -35,7 +35,7 @@ export function CartPage() {
         </Link>
       </Button>
 
-      <h1 className="text-2xl font-bold mb-6">
+      <h1 className="text-xl font-bold mb-4 sm:text-2xl sm:mb-6">
         Carrito de compras {itemCount > 0 && `(${itemCount} productos)`}
       </h1>
 

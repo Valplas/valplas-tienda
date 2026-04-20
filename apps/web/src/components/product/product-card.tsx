@@ -67,7 +67,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
     <Card className={cn('flex flex-col overflow-hidden', className)}>
       {/* Imagen */}
       <Link href={`/productos/${product.slug}`} className="block">
-        <div className="relative aspect-square overflow-hidden bg-muted">
+        <div className="relative aspect-[3/4] overflow-hidden bg-muted sm:aspect-square">
           {product.imageUrl ? (
             <Image
               src={product.imageUrl}
@@ -96,7 +96,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
         </div>
       </Link>
 
-      <CardContent className="flex flex-1 flex-col gap-2 p-3">
+      <CardContent className="flex flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3">
         {/* Nombre */}
         <Link href={`/productos/${product.slug}`}>
           <h3 className="line-clamp-2 text-sm font-semibold leading-tight hover:text-primary">
@@ -107,7 +107,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
         {/* Stock + SKU */}
         <div className="flex items-center gap-2">
           <StockBadge stock={product.availableStock} />
-          <span className="text-xs text-muted-foreground">SKU {product.sku}</span>
+          <span className="hidden text-xs text-muted-foreground sm:inline">SKU {product.sku}</span>
         </div>
 
         {/* Precios */}
@@ -153,7 +153,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
       </CardContent>
 
       {/* Footer: contador + carrito */}
-      <CardFooter className="gap-2 p-3 pt-0">
+      <CardFooter className="gap-1.5 p-2 pt-0 sm:gap-2 sm:p-3">
         <div className="flex items-center gap-1 rounded border">
           <button
             onClick={handleDecrement}

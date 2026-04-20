@@ -84,7 +84,7 @@ export default function OrdersListPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mis Pedidos</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Mis Pedidos</h1>
           <p className="mt-2 text-muted-foreground">
             Historial completo de tus pedidos ({orders.length})
           </p>
@@ -144,8 +144,8 @@ export default function OrdersListPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Número</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Items</TableHead>
+                    <TableHead className="hidden sm:table-cell">Fecha</TableHead>
+                    <TableHead className="hidden md:table-cell">Items</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
@@ -155,8 +155,10 @@ export default function OrdersListPage() {
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                      <TableCell>{formatDate(order.createdAt)}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {formatDate(order.createdAt)}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <span className="text-muted-foreground">
                           {order.items.length} {order.items.length === 1 ? 'producto' : 'productos'}
                         </span>
@@ -168,8 +170,8 @@ export default function OrdersListPage() {
                       <TableCell className="text-right">
                         <Button asChild variant="ghost" size="sm">
                           <Link href={`/cuenta/pedidos/${order.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Ver Detalles
+                            <Eye className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Ver Detalles</span>
                           </Link>
                         </Button>
                       </TableCell>

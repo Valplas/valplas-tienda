@@ -90,8 +90,8 @@ export function CheckoutPage({ isAuthenticated, userId, savedAddresses = [] }: C
   };
 
   return (
-    <div className="container max-w-4xl py-8">
-      <h1 className="text-2xl font-bold mb-2">Checkout</h1>
+    <div className="container max-w-4xl px-4 py-4 sm:py-8">
+      <h1 className="text-xl font-bold mb-2 sm:text-2xl">Checkout</h1>
       <p className="text-muted-foreground mb-6">Completá tu compra en 3 simples pasos</p>
 
       {/* Stepper */}
