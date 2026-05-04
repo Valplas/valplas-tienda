@@ -147,7 +147,28 @@ export async function findProducts(
           ) ORDER BY pi.display_order
         ) FILTER (WHERE pi.id IS NOT NULL),
         '[]'
-      ) as images
+      ) as images,
+      COALESCE(
+        (SELECT json_agg(
+          json_build_object(
+            'priceListId', ppt.price_list_id,
+            'priceListName', pl.name,
+            'minQuantity', ppt.min_quantity,
+            'unitPrice', TRUNC(
+              (CASE WHEN p.cost_price > 0 THEN p.cost_price ELSE p.base_price END)
+              * (1 + pl.margin / 100)
+              * 100
+            ) / 100
+          ) ORDER BY pl.name ASC
+        )
+        FROM product_price_tiers ppt
+        JOIN price_lists pl ON pl.id = ppt.price_list_id
+        WHERE ppt.product_id = p.id
+          AND ppt.is_active = true
+          AND pl.is_active = true
+          AND pl.deleted_at IS NULL),
+        '[]'
+      ) as price_tiers
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN brands b ON p.brand_id = b.id
@@ -466,6 +487,7 @@ function transformProductRow(row: Record<string, unknown>): ProductWithDetails {
     isFeatured: row.is_featured,
     isActive: row.is_active,
     images: (row.images as ProductWithDetails['images']) || [],
+    priceTiers: (row.price_tiers as ProductWithDetails['priceTiers']) || [],
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
     deletedAt: (row.deleted_at as string | null) ?? null

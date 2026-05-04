@@ -43,6 +43,12 @@ export interface ProductWithDetails extends Omit<Product, 'categoryId' | 'brandI
     displayOrder: number;
     isPrimary: boolean;
   }>;
+  priceTiers: Array<{
+    priceListId: string;
+    priceListName: string;
+    minQuantity: number;
+    unitPrice: number;
+  }>;
 }
 
 /**

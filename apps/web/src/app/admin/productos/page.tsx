@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DeleteConfirmModal } from '@/components/ui/delete-confirm-modal';
 import { Product } from '@/types';
 import {
@@ -50,42 +51,33 @@ export default function AdminProductsPage() {
   const [sortBy, setSortBy] = React.useState<AdminProductSort>('name_asc');
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [productToDelete, setProductToDelete] = React.useState<Product | null>(null);
+  const [reloadKey, setReloadKey] = React.useState(0);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
-  const isMountedRef = React.useRef(false);
 
+  // Load page 1 whenever search, sort, or reloadKey changes
   React.useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+    let cancelled = false;
+    setIsLoading(true);
+    setPage(1);
+    setHasMore(true);
 
-  const loadProducts = React.useCallback(
-    async (searchTerm: string) => {
-      setIsLoading(true);
-      setPage(1);
-      setHasMore(true);
-      try {
-        const result = await getAdminProducts({
-          page: 1,
-          limit: PAGE_SIZE,
-          search: searchTerm || undefined,
-          sort: sortBy
-        });
-        if (!isMountedRef.current) return;
+    getAdminProducts({ page: 1, limit: PAGE_SIZE, search: search || undefined, sort: sortBy })
+      .then((result) => {
+        if (cancelled) return;
         setProducts(result.products);
         setHasMore(result.products.length === PAGE_SIZE);
-      } catch {
-        if (!isMountedRef.current) return;
-        toast.error('Error al cargar productos');
-      } finally {
-        if (isMountedRef.current) {
-          setIsLoading(false);
-        }
-      }
-    },
-    [sortBy]
-  );
+      })
+      .catch(() => {
+        if (!cancelled) toast.error('Error al cargar productos');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [search, sortBy, reloadKey]);
 
   const loadMore = React.useCallback(
     async (nextPage: number) => {
@@ -97,26 +89,18 @@ export default function AdminProductsPage() {
           search: search || undefined,
           sort: sortBy
         });
-        if (!isMountedRef.current) return;
         setProducts((prev) => [...prev, ...result.products]);
         setHasMore(result.products.length === PAGE_SIZE);
         setPage(nextPage);
       } catch {
-        if (!isMountedRef.current) return;
         setHasMore(false);
         toast.error('Error al cargar más productos');
       } finally {
-        if (isMountedRef.current) {
-          setIsLoadingMore(false);
-        }
+        setIsLoadingMore(false);
       }
     },
     [search, sortBy]
   );
-
-  React.useEffect(() => {
-    loadProducts(search);
-  }, [loadProducts, search]);
 
   const handleSearch = React.useCallback((value: string) => {
     setSearch(value);
@@ -144,18 +128,17 @@ export default function AdminProductsPage() {
     };
   }, [hasMore, isLoadingMore, isLoading, page, loadMore]);
 
-  const handleDeleteProduct = async (product: Product) => {
+  const handleDeleteProduct = (product: Product) => {
     setProductToDelete(product);
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = async () => {
     if (!productToDelete) return;
-
     try {
       await deleteProduct(productToDelete.id);
       toast.success('Producto eliminado correctamente');
-      loadProducts(search);
+      setReloadKey((k) => k + 1);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar producto');
     }
@@ -168,7 +151,7 @@ export default function AdminProductsPage() {
     try {
       await Promise.all(ids.map((id) => deleteProduct(id)));
       toast.success(`${ids.length} producto(s) eliminado(s) correctamente`);
-      loadProducts(search);
+      setReloadKey((k) => k + 1);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al eliminar productos');
     }
@@ -224,11 +207,63 @@ export default function AdminProductsPage() {
         cell: ({ row }) => row.original.brand?.name || '-'
       },
       {
-        accessorKey: 'basePrice',
-        header: 'Precio',
+        accessorKey: 'costPrice',
+        header: '$ Costo',
         cell: ({ row }) => (
-          <span className="font-medium">{formatCurrency(row.original.basePrice)}</span>
+          <span className="font-medium">{formatCurrency(row.original.costPrice)}</span>
         )
+      },
+      {
+        id: 'salePrice',
+        header: '$ Venta',
+        cell: ({ row }) => {
+          const tiers = row.original.tiers ?? [];
+          if (tiers.length === 0) {
+            return <span className="text-muted-foreground">-</span>;
+          }
+          if (tiers.length === 1) {
+            return (
+              <div>
+                <p className="font-medium">{formatCurrency(tiers[0].unitPrice)}</p>
+                <p className="text-xs text-muted-foreground truncate max-w-28">
+                  {tiers[0].priceListName}
+                </p>
+              </div>
+            );
+          }
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-default">
+                    <p className="font-medium">
+                      {formatCurrency(tiers[0].unitPrice)}{' '}
+                      <span className="text-muted-foreground">...</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">{tiers.length} listas</p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="left"
+                  className="max-w-xs bg-popover text-popover-foreground border shadow-md"
+                >
+                  <div className="space-y-1 text-sm">
+                    {tiers.map((tier) => (
+                      <div
+                        key={`${tier.priceListId}-${tier.minQuantity}`}
+                        className="flex justify-between gap-6"
+                      >
+                        <span className="text-muted-foreground">{tier.priceListName}</span>
+                        <span className="font-medium">{formatCurrency(tier.unitPrice)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        },
+        enableSorting: false
       },
       {
         accessorKey: 'availableStock',
