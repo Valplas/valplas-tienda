@@ -1,6 +1,7 @@
 // apps/api/src/modules/orders/order.domain.ts
 
 import * as orderRepository from './order.repository.js';
+import { createOrderPreference } from '../../infrastructure/external/mercadopago.js';
 import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
 import { findProductById } from '../products/product.repository.js';
@@ -90,7 +91,7 @@ export async function getOrderByNumber(
 export async function createOrder(
   userId: string,
   data: CreateOrderInput
-): Promise<OrderWithDetails> {
+): Promise<{ order: OrderWithDetails; paymentUrl?: string }> {
   // Validate address belongs to user and is active
   const address = await addressRepository.findAddressById(data.shipping_address_id);
   if (!address || address.user_id !== userId || !address.is_active) {
@@ -172,7 +173,19 @@ export async function createOrder(
     throw new Error('Error al crear orden');
   }
 
-  return orderWithDetails;
+  let paymentUrl: string | undefined;
+  if (data.payment_method === 'mercadopago') {
+    paymentUrl = await createOrderPreference({
+      orderNumber: orderWithDetails.order_number,
+      items: orderWithDetails.items.map((item) => ({
+        title: item.product_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price
+      }))
+    });
+  }
+
+  return { order: orderWithDetails, paymentUrl };
 }
 
 /**
