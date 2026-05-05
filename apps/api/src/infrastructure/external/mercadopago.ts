@@ -4,14 +4,23 @@ import { env } from '../../env.js';
 const client = new MercadoPagoConfig({ accessToken: env.MP_ACCESS_TOKEN });
 
 interface PreferenceItem {
+  id: string;
   title: string;
+  description?: string;
   quantity: number;
   unit_price: number;
+}
+
+interface PreferencePayer {
+  email: string;
+  name?: string;
+  surname?: string;
 }
 
 export interface OrderPreferenceInput {
   orderNumber: string;
   items: PreferenceItem[];
+  payer?: PreferencePayer;
 }
 
 export async function createOrderPreference(input: OrderPreferenceInput): Promise<string> {
@@ -19,13 +28,18 @@ export async function createOrderPreference(input: OrderPreferenceInput): Promis
   const response = await preference.create({
     body: {
       external_reference: input.orderNumber,
-      items: input.items.map((item, i) => ({
-        id: String(i + 1),
+      statement_descriptor: 'VALPLAS',
+      items: input.items.map((item) => ({
+        id: item.id,
         title: item.title,
+        description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
         currency_id: 'ARS'
       })),
+      payer: input.payer
+        ? { email: input.payer.email, name: input.payer.name, surname: input.payer.surname }
+        : undefined,
       notification_url: `${env.API_URL}/api/payments/webhook`,
       back_urls: {
         success: `${env.FRONTEND_URL}/cuenta/pedidos`,

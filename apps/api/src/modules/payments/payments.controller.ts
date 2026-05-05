@@ -12,6 +12,8 @@ function verifySignature(xSignature: string, xRequestId: string, dataId: string)
   const ts = parts.find((p) => p.startsWith('ts='))?.split('=')[1];
   const v1 = parts.find((p) => p.startsWith('v1='))?.split('=')[1];
   if (!ts || !v1) return false;
+  // Replay protection: reject notifications older than 5 minutes
+  if (Math.abs(Date.now() - parseInt(ts, 10)) > 5 * 60 * 1000) return false;
   const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
   const computed = createHmac('sha256', env.MP_WEBHOOK_SECRET).update(manifest).digest('hex');
   return computed === v1;
@@ -33,7 +35,9 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
       return res.status(200).json({ received: true });
     }
 
-    const dataId = String(data.id);
+    // MP docs: use query param data.id (lowercase) for signature manifest, not body
+    const queryDataId = req.query['data.id'] as string | undefined;
+    const dataId = (queryDataId ?? String(data.id)).toLowerCase();
 
     if (env.NODE_ENV !== 'development') {
       if (!xSignature || !xRequestId || !verifySignature(xSignature, xRequestId, dataId)) {

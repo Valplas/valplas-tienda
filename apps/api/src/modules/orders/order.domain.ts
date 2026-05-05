@@ -178,10 +178,19 @@ export async function createOrder(
     paymentUrl = await createOrderPreference({
       orderNumber: orderWithDetails.order_number,
       items: orderWithDetails.items.map((item) => ({
+        id: item.product_id,
         title: item.product_name,
+        description: item.product_sku,
         quantity: item.quantity,
         unit_price: item.unit_price
-      }))
+      })),
+      payer: orderWithDetails.user?.email
+        ? {
+            email: orderWithDetails.user.email,
+            name: orderWithDetails.user.first_name ?? undefined,
+            surname: orderWithDetails.user.last_name ?? undefined
+          }
+        : undefined
     });
   }
 
