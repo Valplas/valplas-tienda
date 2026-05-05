@@ -198,6 +198,7 @@ export interface ShippingRate {
 }
 
 export interface ShippingOption {
+  carrierId: string;
   carrierName: string;
   cost: number;
   estimatedDays: number;

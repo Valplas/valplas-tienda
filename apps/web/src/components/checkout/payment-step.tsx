@@ -47,7 +47,6 @@ export function PaymentStep({
   const total = subtotal + shippingCost;
 
   const handlePayment = async () => {
-    // Check authentication
     if (!isAuthenticated) {
       toast.error('Debés iniciar sesión para continuar');
       return;
@@ -61,20 +60,24 @@ export function PaymentStep({
     setIsProcessing(true);
 
     try {
-      // Create order
-      // TODO: ShippingStep should pass carrier_id and zone_id instead of just carrier_name
       const orderData = {
         shippingAddressId: shippingAddress.id,
-        shippingZoneId: 'temp-zone-id', // TODO: Get from shipping step
-        carrierId: 'temp-carrier-id', // TODO: Get from shipping step
-        paymentMethod: 'mercadopago' as const
+        carrierId: shippingOption.carrierId,
+        paymentMethod: 'mercadopago' as const,
+        items: items
+          .filter((item) => item.productId)
+          .map((item) => ({ productId: item.productId, quantity: item.quantity }))
       };
 
       const response = await createOrder(orderData);
 
       if (response.success && response.data) {
-        toast.success('¡Pedido creado exitosamente!');
-        router.push(`/confirmacion/${response.data.order.id}`);
+        if (response.data.paymentUrl) {
+          window.location.href = response.data.paymentUrl;
+        } else {
+          toast.success('¡Pedido creado exitosamente!');
+          router.push('/cuenta/pedidos');
+        }
       } else {
         throw new Error(response.error?.message || 'Error al crear el pedido');
       }
