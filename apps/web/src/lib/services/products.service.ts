@@ -80,6 +80,12 @@ interface RawProduct {
   brandId?: string;
   availableStock?: number;
   images?: Array<{ url: string; alt?: string }>;
+  priceTiers?: Array<{
+    priceListId: string;
+    priceListName: string;
+    minQuantity: number;
+    unitPrice: number;
+  }>;
   [key: string]: unknown;
 }
 
@@ -109,7 +115,8 @@ export function normalizeProduct(raw: RawProduct): Product {
     length: (raw.length as number | null) ?? null,
     height: (raw.height as number | null) ?? null,
     origin: (raw.origin as string | null) ?? null,
-    isFeatured: (raw.isFeatured as boolean) ?? false
+    isFeatured: (raw.isFeatured as boolean) ?? false,
+    tiers: raw.priceTiers ?? []
   } as unknown as Product;
 }
 

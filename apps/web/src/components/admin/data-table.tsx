@@ -91,7 +91,10 @@ export function DataTable<TData>({
     getRowId: getRowId ? (row) => getRowId(row) : undefined
   });
 
-  const selectedRows = table.getFilteredSelectedRowModel().rows.map((row) => row.original);
+  const selectedRows = React.useMemo(
+    () => (getRowId ? data.filter((row) => rowSelection[getRowId(row)] === true) : []),
+    [rowSelection, data, getRowId]
+  );
 
   // Keep a stable ref to table.getColumn so it doesn't need to be a dep in the effect
   const tableRef = React.useRef(table);
