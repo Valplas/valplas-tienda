@@ -55,7 +55,11 @@ export const env = {
   GOOGLE_CALLBACK_URL: getEnv(
     'GOOGLE_CALLBACK_URL',
     'http://localhost:3001/api/auth/google/callback'
-  )
+  ),
+
+  // Mercado Pago
+  MP_ACCESS_TOKEN: requireEnv('MP_ACCESS_TOKEN'),
+  MP_WEBHOOK_SECRET: requireEnv('MP_WEBHOOK_SECRET')
 } as const;
 
 /**
