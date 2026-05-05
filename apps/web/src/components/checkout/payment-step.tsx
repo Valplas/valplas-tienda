@@ -218,6 +218,15 @@ export function PaymentStep({
                 </>
               )}
             </Button>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <img
+                src="https://imgmp.mlstatic.com/org-img/banners/ar/medios/120X60.jpg"
+                alt="Mercado Pago - Medios de pago"
+                width={120}
+                height={60}
+                className="rounded"
+              />
+            </div>
             <p className="text-xs text-muted-foreground text-center mt-3">
               Al confirmar, aceptás nuestros términos y condiciones
             </p>

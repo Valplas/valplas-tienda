@@ -7,6 +7,7 @@ interface PreferenceItem {
   id: string;
   title: string;
   description?: string;
+  category_id?: string;
   quantity: number;
   unit_price: number;
 }
@@ -15,6 +16,11 @@ interface PreferencePayer {
   email: string;
   name?: string;
   surname?: string;
+  address?: {
+    zip_code?: string;
+    street_name?: string;
+    street_number?: string;
+  };
 }
 
 export interface OrderPreferenceInput {
@@ -33,18 +39,24 @@ export async function createOrderPreference(input: OrderPreferenceInput): Promis
         id: item.id,
         title: item.title,
         description: item.description,
+        category_id: item.category_id ?? 'others',
         quantity: item.quantity,
         unit_price: item.unit_price,
         currency_id: 'ARS'
       })),
       payer: input.payer
-        ? { email: input.payer.email, name: input.payer.name, surname: input.payer.surname }
+        ? {
+            email: input.payer.email,
+            name: input.payer.name,
+            surname: input.payer.surname,
+            address: input.payer.address
+          }
         : undefined,
       notification_url: `${env.API_URL}/api/payments/webhook`,
       back_urls: {
-        success: `${env.FRONTEND_URL}/cuenta/pedidos`,
-        failure: `${env.FRONTEND_URL}/cuenta/pedidos`,
-        pending: `${env.FRONTEND_URL}/cuenta/pedidos`
+        success: `${env.FRONTEND_URL}/checkout/resultado`,
+        failure: `${env.FRONTEND_URL}/checkout/resultado`,
+        pending: `${env.FRONTEND_URL}/checkout/resultado`
       },
       auto_return: 'approved'
     }

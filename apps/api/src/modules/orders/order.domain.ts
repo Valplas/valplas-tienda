@@ -188,7 +188,12 @@ export async function createOrder(
         ? {
             email: orderWithDetails.user.email,
             name: orderWithDetails.user.first_name ?? undefined,
-            surname: orderWithDetails.user.last_name ?? undefined
+            surname: orderWithDetails.user.last_name ?? undefined,
+            address: {
+              zip_code: orderWithDetails.shipping_postcode,
+              street_name: orderWithDetails.shipping_street,
+              street_number: orderWithDetails.shipping_street_number
+            }
           }
         : undefined
     });
