@@ -4,7 +4,7 @@ import * as orderRepository from './order.repository.js';
 import { createOrderPreference } from '../../infrastructure/external/mercadopago.js';
 import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
-import { findProductById } from '../products/product.repository.js';
+import { findProductById, findProductsByIds } from '../products/product.repository.js';
 import { calculatePrice } from '../price-lists/price-list.service.js';
 import { getTierByProductAndPriceList } from '../products/price-tiers/price-tier.service.js';
 import { VALID_STATUS_TRANSITIONS } from './order.types.js';
@@ -104,12 +104,16 @@ export async function createOrder(
     throw new Error('Transportista inválido');
   }
 
-  // Validate items and calculate totals
+  // Validate items and calculate totals.
+  // Batch lookup (WHERE id = ANY) en lugar de un query por ítem para evitar N+1.
   let subtotal = 0;
   const itemsWithPrices = [];
 
+  const products = await findProductsByIds(data.items.map((i) => i.product_id));
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
   for (const item of data.items) {
-    const product = await findProductById(item.product_id);
+    const product = productMap.get(item.product_id);
 
     if (!product) {
       throw new Error(`Producto ${item.product_id} no encontrado`);
@@ -189,6 +193,8 @@ export async function createOrder(
             email: orderWithDetails.user.email,
             name: orderWithDetails.user.first_name ?? undefined,
             surname: orderWithDetails.user.last_name ?? undefined,
+            phone: orderWithDetails.user.phone ?? undefined,
+            identification: data.payer_identification,
             address: {
               zip_code: orderWithDetails.shipping_postcode,
               street_name: orderWithDetails.shipping_street,
