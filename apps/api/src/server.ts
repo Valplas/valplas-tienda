@@ -19,47 +19,39 @@ const app = express();
 const PORT = env.PORT;
 
 // Middleware globales
-console.log('🔧 CORS Debug - Allowed origins:', env.ALLOWED_ORIGINS);
 app.use(helmet());
+
+// Matchers de orígenes permitidos para CORS.
+// Los patrones con wildcard (ej: https://*.vercel.app) solo matchean UN label de
+// subdominio ([^.]+) y nunca un punto, para evitar bypass tipo https://a.b.dominio.com.
+// IMPORTANTE: con `credentials: true`, un wildcard amplio (ej: *.vercel.app) permite que
+// cualquier deploy de terceros en ese dominio lea respuestas autenticadas. Preferí dominios
+// explícitos en ALLOWED_ORIGINS para producción.
+const allowedOriginMatchers: Array<string | RegExp> = env.ALLOWED_ORIGINS.map((allowed) => {
+  if (!allowed.includes('*')) return allowed;
+  const escaped = allowed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '[^.]+');
+  return new RegExp(`^${escaped}$`);
+});
+
+const isOriginAllowed = (origin: string): boolean =>
+  allowedOriginMatchers.some((matcher) =>
+    typeof matcher === 'string' ? matcher === origin : matcher.test(origin)
+  );
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permitir requests sin origin (mobile apps, Postman, etc.)
+      // Permitir requests sin origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
-
-      console.log('🔍 CORS - Checking origin:', origin);
-
-      // Verificar si el origin está en la lista de permitidos
-      const isAllowed = env.ALLOWED_ORIGINS.some((allowedOrigin) => {
-        // Soporte para wildcards (*.vercel.app)
-        if (allowedOrigin.includes('*')) {
-          const pattern = allowedOrigin.replace(/\*/g, '.*');
-          const regex = new RegExp(`^${pattern}$`);
-          const matches = regex.test(origin);
-          console.log(
-            `  🔸 Testing wildcard: "${allowedOrigin}" → pattern: "${pattern}" → matches: ${matches}`
-          );
-          return matches;
-        }
-        const matches = allowedOrigin === origin;
-        console.log(`  🔸 Testing exact: "${allowedOrigin}" → matches: ${matches}`);
-        return matches;
-      });
-
-      if (isAllowed) {
-        console.log('✅ CORS allowed for:', origin);
-        callback(null, true);
-      } else {
-        console.warn(`❌ CORS blocked origin: ${origin}`);
-        console.warn('   Configured origins:', env.ALLOWED_ORIGINS);
-        callback(new Error('Not allowed by CORS'));
-      }
+      if (isOriginAllowed(origin)) return callback(null, true);
+      console.warn(`CORS blocked origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS'));
     },
     credentials: true
   })
 );
 app.use(morgan('dev'));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());

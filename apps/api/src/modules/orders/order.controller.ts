@@ -175,7 +175,8 @@ export async function createAdminOrder(req: Request, res: Response, next: NextFu
 
     logger.info('Admin creating order', {
       adminId,
-      body: req.body
+      userId: req.body?.user_id,
+      itemCount: Array.isArray(req.body?.items) ? req.body.items.length : 0
     });
 
     const order = await orderDomain.createAdminOrder(adminId, req.body);
