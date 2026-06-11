@@ -89,23 +89,25 @@ export async function handleOAuthCallback(req: Request, res: Response, next: Nex
 
     const expiresInDays = Math.round(tokens.expires_in / 86400);
 
-    logger.info('=== MP OAUTH TOKENS — GUARDAR EN RAILWAY INMEDIATAMENTE ===');
-    logger.info(`MP_ACCESS_TOKEN=${tokens.access_token}`);
-    logger.info(`MP_REFRESH_TOKEN=${tokens.refresh_token}`);
-    logger.info(`user_id=${tokens.user_id}`);
-    logger.info(`expires_in=${tokens.expires_in}s (~${expiresInDays} días)`);
-    logger.info('============================================================');
+    // No loggear los tokens (secrets en logs). Se muestran una sola vez en la
+    // respuesta HTML, ya protegida por la verificación de state, para copiarlos a Railway.
+    logger.info(
+      `MP OAuth: tokens recibidos (user_id=${tokens.user_id}, expira en ~${expiresInDays} días)`
+    );
 
     return res.status(200).send(`
 <!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><title>MercadoPago vinculado</title></head>
-<body style="font-family:sans-serif;padding:2rem;max-width:600px;margin:0 auto">
+<body style="font-family:sans-serif;padding:2rem;max-width:640px;margin:0 auto">
   <h2>✅ Cuenta vinculada exitosamente</h2>
-  <p>La cuenta de MercadoPago fue autorizada correctamente.</p>
+  <p><strong>Copiá estos valores ahora</strong> y guardalos en las variables de entorno de Railway. No se vuelven a mostrar.</p>
+  <p style="margin-bottom:0.25rem"><code>MP_ACCESS_TOKEN</code></p>
+  <pre style="background:#f4f4f5;padding:0.75rem;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all">${tokens.access_token}</pre>
+  <p style="margin-bottom:0.25rem"><code>MP_REFRESH_TOKEN</code></p>
+  <pre style="background:#f4f4f5;padding:0.75rem;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all">${tokens.refresh_token}</pre>
   <ol>
-    <li>Revisá los <strong>logs del servidor en Railway</strong> para copiar el <code>MP_ACCESS_TOKEN</code> y <code>MP_REFRESH_TOKEN</code>.</li>
-    <li>Actualizá esas variables de entorno en Railway.</li>
+    <li>Pegá ambos valores en las variables de entorno de Railway.</li>
     <li>Reiniciá el servicio.</li>
   </ol>
   <hr>
