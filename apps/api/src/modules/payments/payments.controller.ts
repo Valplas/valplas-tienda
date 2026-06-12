@@ -95,6 +95,12 @@ export async function handleOAuthCallback(req: Request, res: Response, next: Nex
       `MP OAuth: tokens recibidos (user_id=${tokens.user_id}, expira en ~${expiresInDays} días)`
     );
 
+    // La respuesta contiene los tokens una sola vez: no cachear (proxies/browser)
+    // y no filtrar el state de la URL vía Referer.
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+
     return res.status(200).send(`
 <!DOCTYPE html>
 <html lang="es">
