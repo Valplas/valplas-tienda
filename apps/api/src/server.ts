@@ -18,8 +18,25 @@ validateEnv();
 const app = express();
 const PORT = env.PORT;
 
+// Detrás de Railway/Cloudflare hay 1 proxy. Sin esto, express-rate-limit agrupa todo el
+// tráfico bajo la IP del proxy (rate limit global) y req.ip/logs registran la IP del proxy
+// en lugar de la del cliente. Valor numérico (no `true`) para no confiar ciegamente en
+// X-Forwarded-For. Ver NC-01 (auditoría ISO 27001).
+app.set('trust proxy', 1);
+
 // Middleware globales
-app.use(helmet());
+// helmet() ya aplica una CSP por defecto razonable (script-src 'self', object-src 'none',
+// HSTS, etc.). Endurecemos frame-ancestors a 'none': la API nunca debe embeberse en un
+// iframe (anti-clickjacking). Ver OBS-18.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        'frame-ancestors': ["'none'"]
+      }
+    }
+  })
+);
 
 // Matchers de orígenes permitidos para CORS.
 // Los patrones con wildcard (ej: https://*.vercel.app) solo matchean UN label de

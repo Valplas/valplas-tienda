@@ -51,6 +51,10 @@ export const env = {
 
   // Autenticación
   JWT_SECRET: requireEnv('JWT_SECRET'),
+  // Secreto separado para firmar/verificar refresh tokens (defensa en profundidad).
+  // Si no se define, cae a JWT_SECRET por compatibilidad. Al establecer un valor distinto
+  // se invalidan los refresh tokens previos (los usuarios deben reloguear). Ver OBS-15.
+  JWT_REFRESH_SECRET: getEnv('JWT_REFRESH_SECRET') || requireEnv('JWT_SECRET'),
   JWT_EXPIRES_IN: getEnv('JWT_EXPIRES_IN', '15m'),
   JWT_REFRESH_EXPIRES_IN: getEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
 

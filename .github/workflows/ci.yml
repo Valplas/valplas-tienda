@@ -159,7 +159,6 @@ jobs:
       - name: Audit dependencies
         run: |
           echo "🔍 Auditando dependencias..."
-          # Bun no tiene npm audit built-in aún, pero podemos usar npm
-          npm audit --audit-level=moderate || true
-          echo "✅ Auditoría completada"
-        continue-on-error: true
+          # bun audit sale con código != 0 si hay vulnerabilidades → bloquea el merge.
+          # (npm audit no funciona en este repo: usa bun.lock, no package-lock.json). Ver NC-07.
+          bun audit

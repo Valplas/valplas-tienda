@@ -1,12 +1,14 @@
 import bcrypt from 'bcryptjs';
 import { query } from './client.js';
 import { logger } from '../logger/index.js';
+import { assertSeedAllowed, resolveSeedPassword } from './seed-utils.js';
 
 /**
  * Seed database with initial data for development/testing
  */
 export async function seedDatabase(): Promise<void> {
   try {
+    assertSeedAllowed();
     logger.info('Starting database seeding...');
 
     // 1. Create users
@@ -45,7 +47,7 @@ export async function seedDatabase(): Promise<void> {
 async function seedUsers(): Promise<void> {
   logger.info('Seeding users...');
 
-  const passwordHash = await bcrypt.hash('Test1234', 12);
+  const passwordHash = await bcrypt.hash(resolveSeedPassword(), 12);
 
   const users = [
     {

@@ -5,6 +5,17 @@
 import { z } from 'zod';
 
 /**
+ * Política de contraseñas — debe coincidir con el backend (auth.validator.ts). Ver OBS-19.
+ */
+const strongPassword = z
+  .string()
+  .min(12, 'Mínimo 12 caracteres')
+  .regex(/[A-Z]/, 'Debe contener una mayúscula')
+  .regex(/[a-z]/, 'Debe contener una minúscula')
+  .regex(/[0-9]/, 'Debe contener un número')
+  .regex(/[^A-Za-z0-9]/, 'Debe contener un carácter especial');
+
+/**
  * Login Schema
  */
 export const loginSchema = z.object({
@@ -34,11 +45,7 @@ export const registerSchema = z
       .regex(/^\+54\d{10,11}$/, 'Teléfono inválido (ej: +5491122334455)')
       .optional()
       .or(z.literal('')),
-    password: z
-      .string()
-      .min(8, 'Mínimo 8 caracteres')
-      .regex(/[A-Z]/, 'Debe contener una mayúscula')
-      .regex(/[0-9]/, 'Debe contener un número'),
+    password: strongPassword,
     confirmPassword: z.string()
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -62,11 +69,7 @@ export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
  */
 export const resetPasswordSchema = z
   .object({
-    password: z
-      .string()
-      .min(8, 'Mínimo 8 caracteres')
-      .regex(/[A-Z]/, 'Debe contener una mayúscula')
-      .regex(/[0-9]/, 'Debe contener un número'),
+    password: strongPassword,
     confirmPassword: z.string()
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -82,11 +85,7 @@ export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Ingresá tu contraseña actual'),
-    newPassword: z
-      .string()
-      .min(8, 'Mínimo 8 caracteres')
-      .regex(/[A-Z]/, 'Debe contener una mayúscula')
-      .regex(/[0-9]/, 'Debe contener un número'),
+    newPassword: strongPassword,
     confirmPassword: z.string()
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
