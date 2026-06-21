@@ -10,6 +10,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { formatPrice } from '@/lib/formatters';
 import { Address, ShippingOption, CartItem } from '@/types';
@@ -41,6 +43,7 @@ export function PaymentStep({
 }: PaymentStepProps) {
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [dni, setDni] = useState('');
 
   const isFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD;
   const shippingCost = isFreeShipping ? 0 : shippingOption.cost;
@@ -66,7 +69,8 @@ export function PaymentStep({
         paymentMethod: 'mercadopago' as const,
         items: items
           .filter((item) => item.productId)
-          .map((item) => ({ productId: item.productId, quantity: item.quantity }))
+          .map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        payerIdentification: dni.trim() ? { type: 'DNI', number: dni.trim() } : undefined
       };
 
       const response = await createOrder(orderData);
@@ -197,6 +201,27 @@ export function PaymentStep({
               </Button>
               <Button variant="ghost">Continuar como invitado</Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* DNI para mejora de aprobación */}
+      {isAuthenticated && (
+        <Card>
+          <CardContent className="p-6 space-y-3">
+            <Label htmlFor="dni" className="text-sm font-medium">
+              DNI (opcional — mejora la aprobación del pago)
+            </Label>
+            <Input
+              id="dni"
+              type="text"
+              inputMode="numeric"
+              placeholder="Ej: 30123456"
+              value={dni}
+              onChange={(e) => setDni(e.target.value.replace(/\D/g, ''))}
+              maxLength={11}
+              disabled={isProcessing}
+            />
           </CardContent>
         </Card>
       )}

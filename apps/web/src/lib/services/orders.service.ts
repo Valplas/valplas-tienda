@@ -72,6 +72,7 @@ export interface CreateOrderRequest {
   paymentMethod: 'mercadopago';
   notes?: string;
   items: Array<{ productId: string; quantity: number }>;
+  payerIdentification?: { type: string; number: string };
 }
 
 export interface CreateOrderResponse {
@@ -93,7 +94,8 @@ export async function createOrder(
     items: request.items.map((item) => ({
       product_id: item.productId,
       quantity: item.quantity
-    }))
+    })),
+    payer_identification: request.payerIdentification
   });
 }
 

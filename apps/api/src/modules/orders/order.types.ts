@@ -87,6 +87,7 @@ export interface CreateOrderInput {
   payment_method: string;
   notes?: string;
   items: CreateOrderItemInput[];
+  payer_identification?: { type: string; number: string };
 }
 
 export interface CreateAdminOrderInput {
