@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -62,7 +62,7 @@ function StatusText({ status }: { status: MPStatus | null }) {
   );
 }
 
-export default function CheckoutResultadoPage() {
+function CheckoutResultadoContent() {
   const searchParams = useSearchParams();
   const status = (searchParams.get('collection_status') ??
     searchParams.get('status')) as MPStatus | null;
@@ -147,5 +147,19 @@ export default function CheckoutResultadoPage() {
         </p>
       )}
     </div>
+  );
+}
+
+export default function CheckoutResultadoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container max-w-lg py-16 flex justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <CheckoutResultadoContent />
+    </Suspense>
   );
 }
