@@ -181,6 +181,7 @@ export async function createOrder(
   if (data.payment_method === 'mercadopago') {
     paymentUrl = await createOrderPreference({
       orderNumber: orderWithDetails.order_number,
+      shippingCost,
       items: orderWithDetails.items.map((item) => ({
         id: item.product_id,
         title: item.product_name,

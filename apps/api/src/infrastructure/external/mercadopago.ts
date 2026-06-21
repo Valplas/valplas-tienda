@@ -16,6 +16,8 @@ interface PreferencePayer {
   email: string;
   name?: string;
   surname?: string;
+  phone?: string;
+  identification?: { type: string; number: string };
   address?: {
     zip_code?: string;
     street_name?: string;
@@ -26,6 +28,8 @@ interface PreferencePayer {
 export interface OrderPreferenceInput {
   orderNumber: string;
   items: PreferenceItem[];
+  /** Costo de envío en la misma unidad que items[].unit_price. Se cobra como `shipments.cost`. */
+  shippingCost?: number;
   payer?: PreferencePayer;
 }
 
@@ -49,9 +53,15 @@ export async function createOrderPreference(input: OrderPreferenceInput): Promis
             email: input.payer.email,
             name: input.payer.name,
             surname: input.payer.surname,
+            phone: input.payer.phone ? { number: input.payer.phone } : undefined,
+            identification: input.payer.identification,
             address: input.payer.address
           }
         : undefined,
+      shipments:
+        input.shippingCost && input.shippingCost > 0
+          ? { cost: input.shippingCost, mode: 'not_specified' }
+          : undefined,
       notification_url: `${env.API_URL}/api/payments/webhook`,
       back_urls: {
         success: `${env.FRONTEND_URL}/checkout/resultado`,
