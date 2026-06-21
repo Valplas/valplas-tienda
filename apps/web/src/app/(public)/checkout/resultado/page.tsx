@@ -72,10 +72,9 @@ export default function CheckoutResultadoPage() {
   const [loading, setLoading] = useState(!!orderNumber);
 
   useEffect(() => {
-    if (!orderNumber) {
-      setLoading(false);
-      return;
-    }
+    // loading ya inicializa en !!orderNumber, así que cuando no hay orderNumber
+    // ya vale false. No hace falta setState síncrono dentro del effect.
+    if (!orderNumber) return;
     getOrderByNumber(orderNumber)
       .then(setOrder)
       .catch(() => setOrder(null))
