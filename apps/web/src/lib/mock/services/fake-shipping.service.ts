@@ -106,6 +106,7 @@ export async function fake_getShippingOptions(
 
     // Crear opción de envío
     const option: ShippingOption = {
+      carrierId: applicableRate.id,
       carrierName: applicableRate.carrierName,
       cost: applicableRate.cost,
       estimatedDays: applicableRate.estimatedDays

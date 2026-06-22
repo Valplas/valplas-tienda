@@ -4,6 +4,7 @@
 
 export * from './product-card';
 export * from './product-grid';
+export * from './products-browser';
 export * from './product-detail';
 export * from './product-gallery';
 export * from './product-filters';

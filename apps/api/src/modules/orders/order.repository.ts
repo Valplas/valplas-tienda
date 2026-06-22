@@ -1,5 +1,6 @@
 // apps/api/src/modules/orders/order.repository.ts
 
+import type { PoolClient } from 'pg';
 import { query, transaction } from '../../infrastructure/database/client.js';
 import type {
   Order,
@@ -20,19 +21,27 @@ import type { User } from '../users/user.types.js';
  * VLP = customer web order, ADM = admin/owner created order
  * Counter is yearly (resets each year). Example: VLP-20260311-000001
  */
-export async function generateOrderNumber(prefix: 'VLP' | 'ADM'): Promise<string> {
+export async function generateOrderNumber(
+  prefix: 'VLP' | 'ADM',
+  client: PoolClient
+): Promise<string> {
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const year = dateStr.slice(0, 4);
+  const year = parseInt(dateStr.slice(0, 4), 10);
 
-  // Global yearly counter across all prefixes (VLP + ADM)
-  const result = await query<{ count: string }>(
-    'SELECT COUNT(*) as count FROM orders WHERE EXTRACT(YEAR FROM created_at) = $1',
+  // Contador atómico anual (compartido entre prefijos VLP + ADM). El
+  // INSERT ... ON CONFLICT DO UPDATE serializa las inserciones concurrentes y
+  // devuelve un valor único, evitando el race del COUNT(*) que generaba
+  // order_number duplicados (ver migración 035).
+  const result = await client.query<{ last_value: number }>(
+    `INSERT INTO order_number_counters (year, last_value)
+     VALUES ($1, 1)
+     ON CONFLICT (year) DO UPDATE SET last_value = order_number_counters.last_value + 1
+     RETURNING last_value`,
     [year]
   );
 
-  const count = parseInt(result.rows[0].count, 10);
-  const sequence = (count + 1).toString().padStart(6, '0');
+  const sequence = result.rows[0].last_value.toString().padStart(6, '0');
 
   return `${prefix}-${dateStr}-${sequence}`;
 }
@@ -279,7 +288,7 @@ export async function createOrder(
 ): Promise<Order> {
   return transaction(async (client) => {
     // Generate order number
-    const orderNumber = await generateOrderNumber('VLP');
+    const orderNumber = await generateOrderNumber('VLP', client);
 
     // Create order
     const orderResult = await client.query<Order>(
@@ -364,7 +373,7 @@ export async function createAdminOrder(
   }
 ): Promise<Order> {
   return transaction(async (client) => {
-    const orderNumber = await generateOrderNumber('ADM');
+    const orderNumber = await generateOrderNumber('ADM', client);
 
     const orderResult = await client.query<Order>(
       `INSERT INTO orders (

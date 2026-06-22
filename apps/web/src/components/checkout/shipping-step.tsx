@@ -45,9 +45,10 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
       if (response.success && response.data) {
         // Map service rates to ShippingOptions
         const mappedOptions: ShippingOption[] = response.data.rates.map((rate) => ({
+          carrierId: rate.carrier.id,
           carrierName: rate.carrier.name,
           cost: rate.cost,
-          estimatedDays: parseInt(rate.estimatedDays.split('-')[0]) // Parse "3-5 días" -> 3
+          estimatedDays: parseInt(rate.estimatedDays.split('-')[0])
         }));
 
         setOptions(mappedOptions);
@@ -109,9 +110,9 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
       {/* Shipping Options */}
       {!loading && !error && options.length > 0 && (
         <RadioGroup
-          value={selectedOption?.carrierName}
+          value={selectedOption?.carrierId}
           onValueChange={(value) => {
-            const option = options.find((opt) => opt.carrierName === value);
+            const option = options.find((opt) => opt.carrierId === value);
             if (option) setSelectedOption(option);
           }}
         >
@@ -120,13 +121,9 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
               const displayCost = isFreeShipping ? 0 : option.cost;
 
               return (
-                <div key={option.carrierName} className="flex items-start space-x-3">
-                  <RadioGroupItem
-                    value={option.carrierName}
-                    id={option.carrierName}
-                    className="mt-1"
-                  />
-                  <Label htmlFor={option.carrierName} className="flex-1 cursor-pointer">
+                <div key={option.carrierId} className="flex items-start space-x-3">
+                  <RadioGroupItem value={option.carrierId} id={option.carrierId} className="mt-1" />
+                  <Label htmlFor={option.carrierId} className="flex-1 cursor-pointer">
                     <Card className="hover:border-primary transition-colors">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">

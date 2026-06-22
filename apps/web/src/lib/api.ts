@@ -22,20 +22,44 @@ export interface ApiResponse<T> {
 export interface FetchOptions extends RequestInit {
   silentErrors?: boolean; // No loggear errores en consola
   skipAuthRedirect?: boolean; // No redirigir en caso de 401 (ej: initialize al cargar la app)
+  /** Interno: marca un reintento post-refresh para no reintentar en bucle */
+  _isRetry?: boolean;
 }
 
-// Previene múltiples refreshes simultáneos.
-// Limitación conocida: requests concurrentes que reciben 401 mientras
-// isRefreshing === true fallan inmediatamente en lugar de esperar el refresh.
-// Solución completa requiere una promise queue — fuera del alcance del MVP.
-let isRefreshing = false;
+// Dedup de refreshes concurrentes: todas las requests que reciben 401 esperan el
+// MISMO refresh en lugar de disparar uno cada una (evita rotaciones de token en carrera).
+let refreshPromise: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+function handleSessionExpired() {
+  if (typeof window === 'undefined') return;
+  // Redirigir a login UNA sola vez (el guard de pathname evita loops de recarga)
+  if (!window.location.pathname.startsWith('/login')) {
+    const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/login?redirect=${redirect}`;
+  }
+}
 
 /**
  * Cliente HTTP para llamadas a la API
  */
 async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<ApiResponse<T>> {
   const url = `${API_URL}${endpoint}`;
-  const { silentErrors, skipAuthRedirect, ...fetchOptions } = options || {};
+  const { silentErrors, skipAuthRedirect, _isRetry, ...fetchOptions } = options || {};
 
   const res = await fetch(url, {
     ...fetchOptions,
@@ -46,40 +70,30 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<Ap
     credentials: 'include'
   });
 
-  if (!res.ok) {
-    // 401: intentar refresh, pero no si ya estamos refreshing o si el endpoint ES refresh
-    if (res.status === 401 && !isRefreshing && !endpoint.includes('/auth/refresh')) {
-      isRefreshing = true;
-
-      try {
-        const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include'
-        });
-
-        isRefreshing = false;
-
-        if (refreshRes.ok) {
-          // Token renovado — reintentar el request original
-          return fetchApi<T>(endpoint, options);
-        }
-      } catch {
-        isRefreshing = false;
-      }
-
-      // Refresh falló — redirigir a la tienda (salvo que el caller lo omita)
-      if (!skipAuthRedirect && typeof window !== 'undefined' && window.location.pathname !== '/') {
-        window.location.href = '/';
-        return Promise.reject(new Error('Sesión expirada'));
-      }
-    }
-
-    const errorData = await res.json().catch(() => ({}));
-    if (!silentErrors) console.error('API Error:', errorData);
-    throw new Error((errorData as ApiResponse<unknown>).error?.message || 'Error de conexión');
+  if (res.ok) {
+    return res.json();
   }
 
-  return res.json();
+  // 401: intentar refresh UNA sola vez. Si ya es un reintento, o si el endpoint ES
+  // /auth/refresh, no se reintenta — esto corta cualquier loop de refresh/retry.
+  if (res.status === 401 && !_isRetry && !endpoint.includes('/auth/refresh')) {
+    const refreshed = await refreshSession();
+
+    if (refreshed) {
+      // Token renovado — reintentar el request original exactamente una vez
+      return fetchApi<T>(endpoint, { ...options, _isRetry: true });
+    }
+
+    // Refresh falló — la sesión expiró de verdad
+    if (!skipAuthRedirect) {
+      handleSessionExpired();
+      return Promise.reject(new Error('Sesión expirada'));
+    }
+  }
+
+  const errorData = await res.json().catch(() => ({}));
+  if (!silentErrors) console.error('API Error:', errorData);
+  throw new Error((errorData as ApiResponse<unknown>).error?.message || 'Error de conexión');
 }
 
 /**

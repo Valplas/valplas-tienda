@@ -68,10 +68,11 @@ export interface Order {
 
 export interface CreateOrderRequest {
   shippingAddressId: string;
-  shippingZoneId: string;
   carrierId: string;
   paymentMethod: 'mercadopago';
   notes?: string;
+  items: Array<{ productId: string; quantity: number }>;
+  payerIdentification?: { type: string; number: string };
 }
 
 export interface CreateOrderResponse {
@@ -85,7 +86,17 @@ export interface CreateOrderResponse {
 export async function createOrder(
   request: CreateOrderRequest
 ): Promise<ApiResponse<CreateOrderResponse>> {
-  return post<CreateOrderResponse>('/orders', request);
+  return post<CreateOrderResponse>('/orders', {
+    shipping_address_id: request.shippingAddressId,
+    shipping_carrier_id: request.carrierId,
+    payment_method: request.paymentMethod,
+    notes: request.notes,
+    items: request.items.map((item) => ({
+      product_id: item.productId,
+      quantity: item.quantity
+    })),
+    payer_identification: request.payerIdentification
+  });
 }
 
 /**

@@ -222,6 +222,42 @@ export async function findProductById(id: string): Promise<ProductWithDetails | 
 }
 
 /**
+ * Buscar varios productos por IDs en un solo query (batch, evita N+1)
+ */
+export async function findProductsByIds(ids: string[]): Promise<ProductWithDetails[]> {
+  if (ids.length === 0) return [];
+
+  const result = await query(
+    `SELECT
+      p.*,
+      c.name as category_name,
+      b.name as brand_name,
+      (p.stock - p.reserved_stock) as available_stock,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', pi.id,
+            'url', pi.url,
+            'altText', pi.alt_text,
+            'displayOrder', pi.display_order,
+            'isPrimary', pi.is_primary
+          ) ORDER BY pi.display_order
+        ) FILTER (WHERE pi.id IS NOT NULL),
+        '[]'
+      ) as images
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN brands b ON p.brand_id = b.id
+    LEFT JOIN product_images pi ON p.id = pi.product_id
+    WHERE p.id = ANY($1) AND p.deleted_at IS NULL
+    GROUP BY p.id, c.id, b.id`,
+    [ids]
+  );
+
+  return result.rows.map(transformProductRow);
+}
+
+/**
  * Buscar producto por slug
  */
 export async function findProductBySlug(slug: string): Promise<ProductWithDetails | null> {
