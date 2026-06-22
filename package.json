@@ -30,16 +30,16 @@
     "check-secrets": "node scripts/check-secrets.js"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
+    "@eslint/js": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
-    "concurrently": "^9.2.3",
-    "eslint": "^9.39.4",
-    "globals": "^15.15.0",
+    "concurrently": "^10.0.3",
+    "eslint": "^10.5.0",
+    "globals": "^17.6.0",
     "husky": "^9.1.7",
-    "lint-staged": "^15.5.2",
+    "lint-staged": "^17.0.8",
     "prettier": "^3.8.4",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
