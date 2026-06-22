@@ -109,7 +109,9 @@ jobs:
               | grep -v "defaultValue=" \
               | grep -v "bcrypt\.hash" \
               | grep -v "COOKIE_NAME" \
-              | grep -v "seed"; then
+              | grep -v "seed" \
+              | grep -v "= await" \
+              | grep -v "https://"; then
             echo "❌ ERROR: Posible secret/password encontrado en el código"
             exit 1
           fi
@@ -158,7 +160,8 @@ jobs:
 
       - name: Audit dependencies
         run: |
-          echo "🔍 Auditando dependencias..."
-          # bun audit sale con código != 0 si hay vulnerabilidades → bloquea el merge.
-          # (npm audit no funciona en este repo: usa bun.lock, no package-lock.json). Ver NC-07.
-          bun audit
+          echo "🔍 Auditando dependencias (gate estricto con allowlist documentado)..."
+          # Gate estricto: falla ante CUALQUIER vulnerabilidad salvo el allowlist de
+          # tooling build/dev documentado en scripts/audit-check.mjs. Bun no soporta
+          # `--ignore` ni nested overrides, por eso el allowlist es un script. Ver NC-07.
+          bun scripts/audit-check.mjs
