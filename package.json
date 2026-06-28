@@ -63,6 +63,9 @@
     "dompurify": "3.4.11",
     "vite": "7.3.5",
     "yaml": "2.9.0",
+    "swagger-jsdoc": {
+      "yaml": "2.0.0-1"
+    },
     "rollup": "4.62.2",
     "flatted": "3.4.2",
     "postcss": "8.5.15",
