@@ -199,7 +199,6 @@ export function PaymentStep({
               <Button asChild variant="outline">
                 <Link href="/auth/registro">Registrarme</Link>
               </Button>
-              <Button variant="ghost">Continuar como invitado</Button>
             </div>
           </CardContent>
         </Card>

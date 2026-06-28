@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/stores/cart-store';
+import { useAuthStore } from '@/stores/auth-store';
 import { CheckoutStepper } from './checkout-stepper';
 import { AddressStep } from './address-step';
 import { ShippingStep } from './shipping-step';
@@ -19,14 +20,14 @@ import { AddressFormData } from '@/lib/validations/checkout';
 const STEPS = ['Dirección', 'Envío', 'Pago'];
 
 interface CheckoutPageProps {
-  isAuthenticated: boolean;
-  userId?: string;
   savedAddresses?: Address[];
 }
 
-export function CheckoutPage({ isAuthenticated, userId, savedAddresses = [] }: CheckoutPageProps) {
+export function CheckoutPage({ savedAddresses = [] }: CheckoutPageProps) {
   const router = useRouter();
   const { items, itemCount, subtotal } = useCartStore();
+  const { isAuthenticated, user } = useAuthStore();
+  const userId = user?.id;
   const [currentStep, setCurrentStep] = useState(1);
   const [shippingAddress, setShippingAddress] = useState<Address | AddressFormData | null>(null);
   const [shippingOption, setShippingOption] = useState<ShippingOption | null>(null);
