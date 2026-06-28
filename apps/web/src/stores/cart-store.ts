@@ -5,13 +5,16 @@
 
 import { create } from 'zustand';
 import { CartState, CartActions } from '@/types/cart.types';
+import type { Product } from '@/types';
 import { getCart, addToCart, updateCartItem, removeFromCart, clearCart } from '@/services';
 import type { Cart as ServiceCart } from '@/services';
 
 type CartStore = CartState & CartActions;
 
 /**
- * Convierte el Cart del servicio al formato del frontend
+ * Convierte el Cart del servicio al formato del frontend.
+ * El backend devuelve items "planos" (name, imageUrl, pricePerBundle, etc.);
+ * los componentes leen item.product.{...}, así que armamos ese objeto.
  */
 function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
   // Manejar caso donde items es undefined o null
@@ -20,7 +23,18 @@ function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
   return {
     items: items.map((item) => ({
       productId: item.productId,
-      quantity: item.quantity
+      quantity: item.quantity,
+      product: {
+        id: item.productId,
+        name: item.name,
+        slug: item.slug,
+        imageUrl: item.imageUrl,
+        basePrice: item.basePrice,
+        // subtotal del backend = pricePerBundle * quantity → finalPrice = pricePerBundle
+        finalPrice: item.pricePerBundle ?? item.basePrice,
+        availableStock: item.availableStock,
+        unit: ''
+      } as Product
     })),
     subtotal: serviceCart?.subtotal || 0,
     updatedAt: new Date().toISOString()
