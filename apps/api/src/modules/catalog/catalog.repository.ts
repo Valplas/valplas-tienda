@@ -3,6 +3,7 @@ import { query } from '../../infrastructure/database/client.js';
 export interface PriceTier {
   min_quantity: number;
   unit_price: number;
+  price_list_id: string;
 }
 
 export interface PublicProduct {
@@ -130,10 +131,12 @@ export async function findPublicProducts(
     product_id: string;
     min_quantity: number;
     unit_price: number;
+    price_list_id: string;
   }>(
     `SELECT
       ppt.product_id,
       ppt.min_quantity,
+      ppt.price_list_id,
       ROUND(p.cost_price::numeric * (1 + pl.margin / 100))::integer AS unit_price
     FROM product_price_tiers ppt
     JOIN products p ON p.id = ppt.product_id
@@ -153,7 +156,8 @@ export async function findPublicProducts(
     }
     tiersByProduct.get(row.product_id)!.push({
       min_quantity: row.min_quantity,
-      unit_price: row.unit_price
+      unit_price: row.unit_price,
+      price_list_id: row.price_list_id
     });
   }
 
