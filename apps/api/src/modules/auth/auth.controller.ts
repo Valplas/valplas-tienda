@@ -13,11 +13,18 @@ const ACCESS_TOKEN_COOKIE_NAME = 'accessToken';
 const REFRESH_TOKEN_MAX_AGE = ms(env.JWT_REFRESH_EXPIRES_IN as StringValue);
 const ACCESS_TOKEN_MAX_AGE = ms(env.JWT_EXPIRES_IN as StringValue);
 
+// Cookies cross-site (frontend y API en dominios distintos, ej: Vercel + Railway) requieren
+// SameSite=None; Secure, o el browser no las manda en los fetch a la API. Se activa en
+// producción o explícitamente con COOKIE_CROSS_SITE=true — necesario en deploys HTTPS que
+// corren con NODE_ENV=development (el deploy dev usa esa var para otra lógica).
+const USE_CROSS_SITE_COOKIES = env.IS_PRODUCTION || env.COOKIE_CROSS_SITE;
+const COOKIE_SAME_SITE: 'none' | 'lax' = USE_CROSS_SITE_COOKIES ? 'none' : 'lax';
+
 // Cookie options para refresh token
 const getCookieOptions = () => ({
   httpOnly: true,
-  secure: env.IS_PRODUCTION, // HTTPS en producción
-  sameSite: (env.IS_PRODUCTION ? 'none' : 'lax') as 'none' | 'lax',
+  secure: USE_CROSS_SITE_COOKIES, // Secure obligatorio cuando SameSite=None
+  sameSite: COOKIE_SAME_SITE,
   maxAge: REFRESH_TOKEN_MAX_AGE,
   path: '/'
 });
@@ -25,8 +32,8 @@ const getCookieOptions = () => ({
 // Cookie options para access token
 const getAccessTokenCookieOptions = () => ({
   httpOnly: true,
-  secure: env.IS_PRODUCTION,
-  sameSite: (env.IS_PRODUCTION ? 'none' : 'lax') as 'none' | 'lax',
+  secure: USE_CROSS_SITE_COOKIES,
+  sameSite: COOKIE_SAME_SITE,
   maxAge: ACCESS_TOKEN_MAX_AGE,
   path: '/'
 });
