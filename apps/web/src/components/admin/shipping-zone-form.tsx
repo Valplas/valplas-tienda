@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { ShippingZone } from '@/types';
+import { Loader2 } from 'lucide-react';
+import type { AdminZone } from '@/lib/services/shipping-admin.service';
 
 interface ShippingZoneFormProps {
-  zone?: ShippingZone;
+  zone?: AdminZone;
   onSubmit: (data: ShippingZoneFormData) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
@@ -29,14 +30,14 @@ export function ShippingZoneForm({ zone, onSubmit, onCancel, isLoading }: Shippi
     defaultValues: zone
       ? {
           name: zone.name,
-          description: '',
-          postcodes: zone.postcodes.join(', '),
+          provinces: zone.provinces.join(', '),
+          excludedPostcodes: zone.excludedPostcodes.join(', '),
           isActive: zone.isActive
         }
       : {
           name: '',
-          description: '',
-          postcodes: '',
+          provinces: '',
+          excludedPostcodes: '',
           isActive: true
         }
   });
@@ -50,49 +51,49 @@ export function ShippingZoneForm({ zone, onSubmit, onCancel, isLoading }: Shippi
         <Label htmlFor="name">
           Nombre de la Zona <span className="text-red-500">*</span>
         </Label>
-        <Input
-          id="name"
-          {...register('name')}
-          placeholder="Ej: Zona Norte GBA"
-          disabled={isLoading}
-        />
+        <Input id="name" {...register('name')} placeholder="Ej: Nacional" disabled={isLoading} />
         {errors.name && (
           <p className="text-sm text-red-500 absolute bottom-0">{errors.name.message}</p>
         )}
       </div>
 
-      {/* Description */}
+      {/* Provinces */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="description">Descripción</Label>
+        <Label htmlFor="provinces">
+          Provincias <span className="text-red-500">*</span>
+        </Label>
         <Textarea
-          id="description"
-          {...register('description')}
-          placeholder="Descripción opcional de la zona"
+          id="provinces"
+          {...register('provinces')}
+          placeholder="Ej: CABA, Buenos Aires, Córdoba"
           disabled={isLoading}
           rows={2}
         />
-        {errors.description && (
-          <p className="text-sm text-red-500 absolute bottom-0">{errors.description.message}</p>
-        )}
-      </div>
-
-      {/* Postcodes */}
-      <div className="space-y-2 relative pb-5">
-        <Label htmlFor="postcodes">
-          Códigos Postales <span className="text-red-500">*</span>
-        </Label>
-        <Textarea
-          id="postcodes"
-          {...register('postcodes')}
-          placeholder="Ej: 1602, 1603, 1605"
-          disabled={isLoading}
-          rows={3}
-        />
-        {errors.postcodes && (
-          <p className="text-sm text-red-500 absolute bottom-0">{errors.postcodes.message}</p>
+        {errors.provinces && (
+          <p className="text-sm text-red-500 absolute bottom-0">{errors.provinces.message}</p>
         )}
         <p className="text-xs text-muted-foreground">
-          Ingresá códigos postales de 4 dígitos, separados por comas
+          Provincias que cubre esta zona, separadas por comas
+        </p>
+      </div>
+
+      {/* Excluded postcodes */}
+      <div className="space-y-2 relative pb-5">
+        <Label htmlFor="excludedPostcodes">Códigos Postales Excluidos</Label>
+        <Textarea
+          id="excludedPostcodes"
+          {...register('excludedPostcodes')}
+          placeholder="Ej: 1602, 1603"
+          disabled={isLoading}
+          rows={2}
+        />
+        {errors.excludedPostcodes && (
+          <p className="text-sm text-red-500 absolute bottom-0">
+            {errors.excludedPostcodes.message}
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          CP de 4 dígitos donde NO se entrega, separados por comas (opcional)
         </p>
       </div>
 
@@ -115,6 +116,7 @@ export function ShippingZoneForm({ zone, onSubmit, onCancel, isLoading }: Shippi
           Cancelar
         </Button>
         <Button type="submit" disabled={isLoading}>
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
           {isLoading ? 'Guardando...' : zone ? 'Actualizar' : 'Crear'}
         </Button>
       </div>

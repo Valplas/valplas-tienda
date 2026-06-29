@@ -4,8 +4,10 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRequireAuth } from '@/hooks/use-require-auth';
 import { UserRole } from '@/types';
+import type { Product } from '@/types';
 import { Package, ShoppingCart, AlertTriangle, DollarSign } from 'lucide-react';
 import { StatsCard } from '@/components/admin/stats-card';
+import { OrderStatusBadge } from '@/components/admin/order-status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,60 +19,84 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { MOCK_PRODUCTS } from '@/lib/mock/data/products';
-import { MOCK_ORDERS } from '@/lib/mock/data/orders';
-import { OrderStatus } from '@/types';
+import { getAdminProducts, getAdminOrders, type Order } from '@/services';
 import { formatCurrency } from '@/lib/utils';
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 
 dayjs.locale('es');
 
-const orderStatusLabels: Record<
-  OrderStatus,
-  { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }
-> = {
-  [OrderStatus.PENDING]: { label: 'Pendiente', variant: 'outline' },
-  [OrderStatus.PROCESSING]: { label: 'Procesando', variant: 'secondary' },
-  [OrderStatus.SHIPPED]: { label: 'Enviado', variant: 'default' },
-  [OrderStatus.DELIVERED]: { label: 'Entregado', variant: 'default' },
-  [OrderStatus.CANCELLED]: { label: 'Cancelado', variant: 'destructive' }
-};
+// Estados que cuentan como "pendientes" (operativos, sin terminar)
+const PENDING_STATUSES = new Set([
+  'pending_payment',
+  'payment_confirmed',
+  'processing',
+  'ready_to_ship'
+]);
+// Estados que NO suman a las ventas del mes
+const NON_REVENUE_STATUSES = new Set(['cancelled', 'refunded', 'payment_failed', 'failed']);
 
 export default function AdminDashboardPage() {
-  const { user, isLoading } = useRequireAuth({
+  const { user, isLoading: authLoading } = useRequireAuth({
     allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
   });
-  if (isLoading || !user) return null;
 
-  // Calculate stats
-  const activeProducts = MOCK_PRODUCTS.filter((p) => p.isActive && !p.deletedAt).length;
-  const totalOrders = MOCK_ORDERS.length;
-  const pendingOrders = MOCK_ORDERS.filter(
-    (o) => o.status === OrderStatus.PENDING || o.status === OrderStatus.PROCESSING
-  ).length;
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [orders, setOrders] = React.useState<Order[]>([]);
+  const [totalOrders, setTotalOrders] = React.useState(0);
+  const [loading, setLoading] = React.useState(true);
 
-  // Calculate revenue for current month
+  React.useEffect(() => {
+    if (authLoading || !user) return;
+    let cancelled = false;
+    setLoading(true);
+    // Recursos independientes → Promise.all permitido
+    Promise.all([
+      getAdminProducts({ page: 1, limit: 500 }),
+      getAdminOrders({ page: 1, limit: 500 })
+    ])
+      .then(([p, o]) => {
+        if (cancelled) return;
+        setProducts(p.products as Product[]);
+        setOrders(o.orders);
+        setTotalOrders(o.total);
+      })
+      .catch(() => {
+        if (!cancelled) return;
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user]);
+
+  const activeProducts = products.filter((p) => p.isActive && !p.deletedAt).length;
+  const pendingOrders = orders.filter((o) => PENDING_STATUSES.has(o.status)).length;
+
   const currentMonth = dayjs().month();
   const currentYear = dayjs().year();
-  const monthRevenue = MOCK_ORDERS.filter((o) => {
-    const orderDate = dayjs(o.createdAt);
-    return (
-      orderDate.month() === currentMonth &&
-      orderDate.year() === currentYear &&
-      o.status !== OrderStatus.CANCELLED
-    );
-  }).reduce((sum, o) => sum + o.total, 0);
+  const monthRevenue = orders
+    .filter((o) => {
+      const d = dayjs(o.createdAt);
+      return (
+        d.month() === currentMonth &&
+        d.year() === currentYear &&
+        !NON_REVENUE_STATUSES.has(o.status)
+      );
+    })
+    .reduce((sum, o) => sum + (o.total ?? 0), 0);
 
-  // Recent orders (last 10)
-  const recentOrders = [...MOCK_ORDERS]
+  const recentOrders = [...orders]
     .sort((a, b) => dayjs(b.createdAt).unix() - dayjs(a.createdAt).unix())
     .slice(0, 10);
 
-  // Low stock products (stock < 10)
-  const lowStockProducts = MOCK_PRODUCTS.filter(
-    (p) => p.isActive && !p.deletedAt && p.availableStock < 10
-  ).slice(0, 5);
+  const lowStockProducts = products
+    .filter((p) => p.isActive && !p.deletedAt && (p.availableStock ?? 0) < 10)
+    .slice(0, 5);
+
+  if (authLoading || !user) return null;
 
   return (
     <div className="space-y-6">
@@ -84,22 +110,27 @@ export default function AdminDashboardPage() {
 
       {/* Stats cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard title="Productos Activos" value={activeProducts} icon={Package} variant="info" />
+        <StatsCard
+          title="Productos Activos"
+          value={loading ? '—' : activeProducts}
+          icon={Package}
+          variant="info"
+        />
         <StatsCard
           title="Total Pedidos"
-          value={totalOrders}
+          value={loading ? '—' : totalOrders}
           icon={ShoppingCart}
           variant="default"
         />
         <StatsCard
           title="Pedidos Pendientes"
-          value={pendingOrders}
+          value={loading ? '—' : pendingOrders}
           icon={AlertTriangle}
           variant={pendingOrders > 0 ? 'warning' : 'success'}
         />
         <StatsCard
           title="Ventas del Mes"
-          value={formatCurrency(monthRevenue)}
+          value={loading ? '—' : formatCurrency(monthRevenue)}
           icon={DollarSign}
           variant="success"
         />
@@ -126,30 +157,31 @@ export default function AdminDashboardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recentOrders.length === 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                        Cargando...
+                      </TableCell>
+                    </TableRow>
+                  ) : recentOrders.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                         No hay pedidos recientes
                       </TableCell>
                     </TableRow>
                   ) : (
-                    recentOrders.map((order) => {
-                      const statusInfo = orderStatusLabels[order.status];
-                      return (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                          <TableCell>
-                            {order.user ? `${order.user.firstName} ${order.user.lastName}` : '-'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(order.total)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
+                    recentOrders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                        <TableCell>
+                          {order.user ? `${order.user.firstName} ${order.user.lastName}` : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <OrderStatusBadge status={order.status} />
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(order.total)}</TableCell>
+                      </TableRow>
+                    ))
                   )}
                 </TableBody>
               </Table>
@@ -166,7 +198,9 @@ export default function AdminDashboardPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            {lowStockProducts.length === 0 ? (
+            {loading ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Cargando...</p>
+            ) : lowStockProducts.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 Todos los productos tienen stock suficiente
               </p>
@@ -182,8 +216,10 @@ export default function AdminDashboardPage() {
                       <p className="text-xs text-muted-foreground">{product.sku}</p>
                     </div>
                     <div className="ml-4 flex items-center gap-2">
-                      <Badge variant={product.availableStock === 0 ? 'destructive' : 'secondary'}>
-                        Stock: {product.availableStock}
+                      <Badge
+                        variant={(product.availableStock ?? 0) === 0 ? 'destructive' : 'secondary'}
+                      >
+                        Stock: {product.availableStock ?? 0}
                       </Badge>
                     </div>
                   </div>

@@ -379,13 +379,14 @@ export async function findRatesByZoneAndAmount(
   zoneId: string,
   amount: number
 ): Promise<ShippingRate[]> {
+  // max_amount NO es un tope que excluye: es el umbral de envío gratis.
+  // La tarifa aplica desde su min_amount hacia arriba, sin límite superior.
   const result = await query<ShippingRate>(
     `SELECT * FROM shipping_rates
      WHERE zone_id = $1
        AND is_active = true
        AND deleted_at IS NULL
        AND min_amount <= $2
-       AND (max_amount IS NULL OR max_amount >= $2)
      ORDER BY price ASC`,
     [zoneId, amount]
   );
