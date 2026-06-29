@@ -87,6 +87,22 @@ export async function findZoneByPostcode(postcode: string): Promise<ShippingZone
   return null;
 }
 
+/**
+ * Todas las zonas activas que sirven este código postal (no lo excluyen).
+ * Se usa para cotizar/crear pedido sin depender de "la primera zona": si hay
+ * varias zonas activas, juntamos las tarifas de todas las que sirven el CP.
+ */
+export async function findZonesByPostcode(postcode: string): Promise<ShippingZone[]> {
+  const result = await query(
+    'SELECT * FROM shipping_zones WHERE is_active = true AND deleted_at IS NULL',
+    []
+  );
+
+  return result.rows.filter(
+    (zone) => !(zone.excluded_postcodes && zone.excluded_postcodes.includes(postcode))
+  ) as ShippingZone[];
+}
+
 export async function createZone(data: CreateShippingZoneInput): Promise<ShippingZone> {
   const result = await query<ShippingZone>(
     `INSERT INTO shipping_zones (name, provinces, excluded_postcodes, is_active)
@@ -391,6 +407,29 @@ export async function findRatesByZoneAndAmount(
        AND min_amount <= $2::numeric
      ORDER BY price ASC`,
     [zoneId, amount]
+  );
+
+  return result.rows;
+}
+
+/**
+ * Tarifas activas de un conjunto de zonas que aplican al monto dado.
+ * min_amount <= amount (sin tope: max_amount es umbral de envío gratis, no límite).
+ */
+export async function findRatesByZonesAndAmount(
+  zoneIds: string[],
+  amount: number
+): Promise<ShippingRate[]> {
+  if (zoneIds.length === 0) return [];
+
+  const result = await query<ShippingRate>(
+    `SELECT * FROM shipping_rates
+     WHERE zone_id = ANY($1)
+       AND is_active = true
+       AND deleted_at IS NULL
+       AND min_amount <= $2::numeric
+     ORDER BY price ASC`,
+    [zoneIds, amount]
   );
 
   return result.rows;
