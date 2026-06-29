@@ -1,6 +1,6 @@
 // apps/web/src/lib/services/shipping.service.ts
 
-import { get, post } from '../api';
+import { get } from '../api';
 import type { ApiResponse } from '../api';
 
 export interface ShippingZone {
@@ -57,8 +57,9 @@ export async function getShippingZones(): Promise<ApiResponse<ShippingZone[]>> {
 export async function quoteShipping(
   request: ShippingQuoteRequest
 ): Promise<ApiResponse<ShippingQuote>> {
-  return post<ShippingQuote>('/shipping/quote', {
+  const params = new URLSearchParams({
     postcode: request.postalCode,
-    cart_total: request.cartTotal
+    cart_total: String(request.cartTotal)
   });
+  return get<ShippingQuote>(`/shipping/quote?${params.toString()}`);
 }
