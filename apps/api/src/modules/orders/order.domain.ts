@@ -142,20 +142,25 @@ export async function createOrder(
     });
   }
 
-  // Get shipping cost
-  const zone = await shippingRepository.findZoneByPostcode(address.postcode);
-  if (!zone) {
+  // Get shipping cost — mismas zonas/tarifas que la cotización pública
+  const zones = await shippingRepository.findZonesByPostcode(address.postcode);
+  if (zones.length === 0) {
     throw new Error('No hay envíos disponibles para este código postal');
   }
 
-  const rates = await shippingRepository.findRatesByZoneAndAmount(zone.id, subtotal);
+  const rates = await shippingRepository.findRatesByZonesAndAmount(
+    zones.map((z) => z.id),
+    subtotal
+  );
   const selectedRate = rates.find((r) => r.carrier_id === data.shipping_carrier_id);
 
   if (!selectedRate) {
     throw new Error('Tarifa de envío no encontrada para este transportista');
   }
 
-  const shippingCost = selectedRate.price;
+  // max_amount = umbral de envío gratis (igual que en la cotización)
+  const isFreeShipping = selectedRate.max_amount != null && subtotal >= selectedRate.max_amount;
+  const shippingCost = isFreeShipping ? 0 : selectedRate.price;
   const total = subtotal + shippingCost;
 
   // Create order
