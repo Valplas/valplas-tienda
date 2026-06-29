@@ -381,12 +381,14 @@ export async function findRatesByZoneAndAmount(
 ): Promise<ShippingRate[]> {
   // max_amount NO es un tope que excluye: es el umbral de envío gratis.
   // La tarifa aplica desde su min_amount hacia arriba, sin límite superior.
+  // $2::numeric — cart_total puede traer decimales (ej 16727.7) y min_amount es INTEGER;
+  // sin el cast Postgres falla al parsear el decimal como integer.
   const result = await query<ShippingRate>(
     `SELECT * FROM shipping_rates
      WHERE zone_id = $1
        AND is_active = true
        AND deleted_at IS NULL
-       AND min_amount <= $2
+       AND min_amount <= $2::numeric
      ORDER BY price ASC`,
     [zoneId, amount]
   );
