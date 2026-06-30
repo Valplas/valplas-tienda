@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,8 +15,9 @@ import { FormField } from '@/components/ui/form-field';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { GoogleAuthButton } from '@/components/auth/google-auth-button';
 
-export default function RegistroPage() {
+function RegistroForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
 
   const register_action = useAuthStore((state) => state.register);
@@ -52,8 +53,8 @@ export default function RegistroPage() {
       });
 
       toast.success('Cuenta creada exitosamente');
-      // Auto-login y redirigir a cuenta
-      router.push('/cuenta');
+      // Auto-login y redirigir (respeta ?redirect=, default a cuenta)
+      router.push(searchParams.get('redirect') || '/cuenta');
     } catch (error: any) {
       toast.error(error?.message || 'Error al crear la cuenta. Intentá de nuevo.');
       console.error('Register error:', error);
@@ -189,5 +190,15 @@ export default function RegistroPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegistroPage() {
+  return (
+    <Suspense
+      fallback={<div className="min-h-screen flex items-center justify-center">Cargando...</div>}
+    >
+      <RegistroForm />
+    </Suspense>
   );
 }

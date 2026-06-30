@@ -194,10 +194,10 @@ export function PaymentStep({
             <p className="font-medium mb-3">Creá una cuenta o iniciá sesión para continuar</p>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button asChild variant="default">
-                <Link href="/auth/login">Iniciar sesión</Link>
+                <Link href="/login?redirect=/checkout">Iniciar sesión</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/auth/registro">Registrarme</Link>
+                <Link href="/registro?redirect=/checkout">Registrarme</Link>
               </Button>
             </div>
           </CardContent>
