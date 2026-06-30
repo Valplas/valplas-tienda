@@ -30,8 +30,6 @@ interface PaymentStepProps {
   onBack: () => void;
 }
 
-const FREE_SHIPPING_THRESHOLD = 10000;
-
 export function PaymentStep({
   items,
   shippingAddress,
@@ -45,8 +43,8 @@ export function PaymentStep({
   const [isProcessing, setIsProcessing] = useState(false);
   const [dni, setDni] = useState('');
 
-  const isFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD;
-  const shippingCost = isFreeShipping ? 0 : shippingOption.cost;
+  // El costo del envío ya viene resuelto desde la cotización (0 = gratis).
+  const shippingCost = shippingOption.cost;
   const total = subtotal + shippingCost;
 
   const handlePayment = async () => {
@@ -172,7 +170,7 @@ export function PaymentStep({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Envío</span>
-              {isFreeShipping ? (
+              {shippingCost === 0 ? (
                 <span className="font-medium text-green-600">Gratis</span>
               ) : (
                 <span className="font-medium">{formatPrice(shippingCost)}</span>
