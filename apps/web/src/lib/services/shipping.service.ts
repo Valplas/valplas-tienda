@@ -30,18 +30,14 @@ export interface ShippingQuoteRequest {
   cartTotal: number;
 }
 
+// El backend devuelve un array plano de cotizaciones (una por tarifa/carrier).
 export interface ShippingQuote {
-  zone: ShippingZone;
-  rates: Array<{
-    carrier: {
-      id: string;
-      name: string;
-      code: string;
-    };
-    cost: number;
-    estimatedDays: string;
-    isFreeShipping: boolean;
-  }>;
+  carrierId: string;
+  carrierName: string;
+  carrierLogo: string | null;
+  price: number;
+  estimatedDays: string;
+  zoneName: string;
 }
 
 /**
@@ -56,10 +52,10 @@ export async function getShippingZones(): Promise<ApiResponse<ShippingZone[]>> {
  */
 export async function quoteShipping(
   request: ShippingQuoteRequest
-): Promise<ApiResponse<ShippingQuote>> {
+): Promise<ApiResponse<ShippingQuote[]>> {
   const params = new URLSearchParams({
     postcode: request.postalCode,
     cart_total: String(request.cartTotal)
   });
-  return get<ShippingQuote>(`/shipping/quote?${params.toString()}`);
+  return get<ShippingQuote[]>(`/shipping/quote?${params.toString()}`);
 }
