@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 import { registerSchema, type RegisterFormData } from '@/lib/validations/auth';
 import { useAuthStore } from '@/stores/auth-store';
+import { safeRedirect } from '@/lib/utils';
 
 import { FormField } from '@/components/ui/form-field';
 import { LoadingButton } from '@/components/ui/loading-button';
@@ -53,8 +54,8 @@ function RegistroForm() {
       });
 
       toast.success('Cuenta creada exitosamente');
-      // Auto-login y redirigir (respeta ?redirect=, default a cuenta)
-      router.push(searchParams.get('redirect') || '/cuenta');
+      // Auto-login y redirigir (respeta ?redirect= same-origin, default a cuenta)
+      router.push(safeRedirect(searchParams.get('redirect'), '/cuenta'));
     } catch (error: any) {
       toast.error(error?.message || 'Error al crear la cuenta. Intentá de nuevo.');
       console.error('Register error:', error);

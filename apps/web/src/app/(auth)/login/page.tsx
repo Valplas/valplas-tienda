@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 
 import { loginSchema, type LoginFormData } from '@/lib/validations/auth';
 import { useAuthStore } from '@/stores/auth-store';
+import { safeRedirect } from '@/lib/utils';
 
 import { FormField } from '@/components/ui/form-field';
 import { LoadingButton } from '@/components/ui/loading-button';
@@ -48,16 +49,10 @@ function LoginForm() {
 
       toast.success('Sesión iniciada correctamente');
 
-      // Redirigir según el rol del usuario
+      // Redirigir según el rol del usuario (redirect same-origin, default por rol)
       const userRole = session.user.role;
-      let redirectTo = searchParams.get('redirect');
-
-      // Si no hay redirect específico, determinar por rol
-      if (!redirectTo) {
-        redirectTo = userRole === 'admin' || userRole === 'owner' ? '/admin' : '/cuenta';
-      }
-
-      router.push(redirectTo);
+      const roleDefault = userRole === 'admin' || userRole === 'owner' ? '/admin' : '/cuenta';
+      router.push(safeRedirect(searchParams.get('redirect'), roleDefault));
     } catch (error: any) {
       toast.error(error?.message || 'Error al iniciar sesión. Intentá de nuevo.');
       console.error('Login error:', error);
