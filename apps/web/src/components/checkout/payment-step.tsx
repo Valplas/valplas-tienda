@@ -30,8 +30,6 @@ interface PaymentStepProps {
   onBack: () => void;
 }
 
-const FREE_SHIPPING_THRESHOLD = 10000;
-
 export function PaymentStep({
   items,
   shippingAddress,
@@ -45,8 +43,8 @@ export function PaymentStep({
   const [isProcessing, setIsProcessing] = useState(false);
   const [dni, setDni] = useState('');
 
-  const isFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD;
-  const shippingCost = isFreeShipping ? 0 : shippingOption.cost;
+  // El costo del envío ya viene resuelto desde la cotización (0 = gratis).
+  const shippingCost = shippingOption.cost;
   const total = subtotal + shippingCost;
 
   const handlePayment = async () => {
@@ -172,7 +170,7 @@ export function PaymentStep({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Envío</span>
-              {isFreeShipping ? (
+              {shippingCost === 0 ? (
                 <span className="font-medium text-green-600">Gratis</span>
               ) : (
                 <span className="font-medium">{formatPrice(shippingCost)}</span>
@@ -194,10 +192,10 @@ export function PaymentStep({
             <p className="font-medium mb-3">Creá una cuenta o iniciá sesión para continuar</p>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button asChild variant="default">
-                <Link href="/auth/login">Iniciar sesión</Link>
+                <Link href="/login?redirect=/checkout">Iniciar sesión</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/auth/registro">Registrarme</Link>
+                <Link href="/registro?redirect=/checkout">Registrarme</Link>
               </Button>
             </div>
           </CardContent>
