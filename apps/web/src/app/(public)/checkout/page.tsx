@@ -12,6 +12,6 @@ export const metadata: Metadata = {
 };
 
 export default function CheckoutPageRoute() {
-  // El estado de auth vive en el store del cliente (useAuthStore).
-  return <CheckoutPage savedAddresses={[]} />;
+  // Auth y direcciones se resuelven en el cliente (useAuthStore + API).
+  return <CheckoutPage />;
 }

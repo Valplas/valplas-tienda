@@ -7,14 +7,14 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { formatPrice } from '@/lib/formatters';
-import { Address, ShippingOption, CartItem } from '@/types';
+import { ShippingOption, CartItem } from '@/types';
+import { type Address } from '@/lib/services/addresses.service';
 import { Loader2, CreditCard } from 'lucide-react';
 import { createOrder } from '@/services';
 import { useRouter } from 'next/navigation';
@@ -134,7 +134,7 @@ export function PaymentStep({
           </CardHeader>
           <CardContent>
             <div className="text-sm space-y-1">
-              <div className="font-medium">{shippingAddress.label}</div>
+              <div className="font-medium">{shippingAddress.alias}</div>
               <div>
                 {shippingAddress.street} {shippingAddress.streetNumber}
                 {shippingAddress.floor && `, Piso ${shippingAddress.floor}`}
@@ -184,23 +184,6 @@ export function PaymentStep({
           </div>
         </CardContent>
       </Card>
-
-      {/* Authentication Check */}
-      {!isAuthenticated && (
-        <Card className="border-yellow-500 bg-yellow-50">
-          <CardContent className="p-6">
-            <p className="font-medium mb-3">Creá una cuenta o iniciá sesión para continuar</p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button asChild variant="default">
-                <Link href="/login?redirect=/checkout">Iniciar sesión</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/registro?redirect=/checkout">Registrarme</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* DNI para mejora de aprobación */}
       {isAuthenticated && (
