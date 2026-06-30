@@ -1,49 +1,133 @@
 /**
  * Address Step Component
- * Step 1: Shipping address selection/entry
+ * Step 1: Selección / alta / edición de la dirección de envío.
+ * Persiste contra la API (createAddress / updateAddress) y entrega al
+ * siguiente paso una Address con id real (UUID), requerido por la orden.
  */
 
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { addressSchema, AddressFormData } from '@/lib/validations/checkout';
+import { Loader2, Pencil, Plus } from 'lucide-react';
+import { toast } from 'sonner';
+import { addressSchema, AddressFormData, ARGENTINA_PROVINCES } from '@/lib/validations/checkout';
+import {
+  createAddress,
+  updateAddress,
+  type Address,
+  type CreateAddressInput
+} from '@/lib/services/addresses.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent } from '@/components/ui/card';
-import { Address } from '@/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 
 interface AddressStepProps {
   savedAddresses?: Address[];
-  onNext: (address: Address | AddressFormData) => void;
+  /** Recibe siempre una Address persistida (con id real). */
+  onNext: (address: Address) => void;
+  /** Se notifica al crear/editar para refrescar la lista en el padre. */
+  onAddressSaved?: (address: Address) => void;
   onBack?: () => void;
 }
 
-export function AddressStep({ savedAddresses = [], onNext, onBack }: AddressStepProps) {
-  const [useNewAddress, setUseNewAddress] = useState(savedAddresses.length === 0);
+type Mode = 'list' | 'form';
+
+function formToInput(data: AddressFormData): CreateAddressInput {
+  return {
+    alias: data.label,
+    street: data.street,
+    streetNumber: data.streetNumber,
+    floor: data.floor || undefined,
+    apartment: data.apartment || undefined,
+    city: data.city,
+    province: data.province,
+    postcode: data.postcode
+  };
+}
+
+export function AddressStep({
+  savedAddresses = [],
+  onNext,
+  onAddressSaved,
+  onBack
+}: AddressStepProps) {
+  const [mode, setMode] = useState<Mode>(savedAddresses.length === 0 ? 'form' : 'list');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     savedAddresses.length > 0 ? savedAddresses[0].id : null
   );
+  const [saving, setSaving] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting }
+    control,
+    reset,
+    formState: { errors }
   } = useForm<AddressFormData>({
     resolver: zodResolver(addressSchema)
   });
 
-  const handleNext = () => {
-    if (useNewAddress) {
-      handleSubmit(onNext)();
-    } else {
-      const selectedAddress = savedAddresses.find((addr) => addr.id === selectedAddressId);
-      if (selectedAddress) {
-        onNext(selectedAddress);
-      }
+  const openNewForm = () => {
+    setEditingId(null);
+    reset({
+      label: '',
+      street: '',
+      streetNumber: '',
+      floor: '',
+      apartment: '',
+      city: '',
+      province: undefined,
+      postcode: ''
+    });
+    setMode('form');
+  };
+
+  const openEditForm = (address: Address) => {
+    setEditingId(address.id);
+    reset({
+      label: address.alias,
+      street: address.street,
+      streetNumber: address.streetNumber,
+      floor: address.floor ?? '',
+      apartment: address.apartment ?? '',
+      city: address.city,
+      province: address.province as AddressFormData['province'],
+      postcode: address.postcode
+    });
+    setMode('form');
+  };
+
+  const onSubmitForm = async (data: AddressFormData) => {
+    setSaving(true);
+    try {
+      const input = formToInput(data);
+      const saved = editingId ? await updateAddress(editingId, input) : await createAddress(input);
+      onAddressSaved?.(saved);
+      toast.success(editingId ? 'Dirección actualizada' : 'Dirección guardada');
+      onNext(saved);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error al guardar la dirección');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleContinueWithSaved = () => {
+    const selected = savedAddresses.find((addr) => addr.id === selectedAddressId);
+    if (selected) {
+      onNext(selected);
     }
   };
 
@@ -56,59 +140,63 @@ export function AddressStep({ savedAddresses = [], onNext, onBack }: AddressStep
         </p>
       </div>
 
-      {/* Saved Addresses */}
-      {savedAddresses.length > 0 && (
+      {/* Lista de direcciones guardadas */}
+      {mode === 'list' && (
         <div className="space-y-4">
-          <RadioGroup value={useNewAddress ? 'new' : selectedAddressId || ''}>
+          <RadioGroup value={selectedAddressId || ''}>
             {savedAddresses.map((address) => (
               <div key={address.id} className="flex items-start space-x-3">
                 <RadioGroupItem
                   value={address.id}
                   id={address.id}
-                  onClick={() => {
-                    setUseNewAddress(false);
-                    setSelectedAddressId(address.id);
-                  }}
+                  onClick={() => setSelectedAddressId(address.id)}
+                  className="mt-4"
                 />
                 <Label htmlFor={address.id} className="flex-1 cursor-pointer">
                   <Card className="hover:border-primary transition-colors">
                     <CardContent className="p-4">
-                      <div className="font-medium">{address.label}</div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {address.street} {address.streetNumber}
-                        {address.floor && `, Piso ${address.floor}`}
-                        {address.apartment && ` Dpto ${address.apartment}`}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {address.city}, {address.province} (CP {address.postcode})
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-medium">{address.alias}</div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {address.street} {address.streetNumber}
+                            {address.floor && `, Piso ${address.floor}`}
+                            {address.apartment && ` Dpto ${address.apartment}`}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {address.city}, {address.province} (CP {address.postcode})
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            openEditForm(address);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Editar
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
                 </Label>
               </div>
             ))}
-
-            {/* New Address Option */}
-            <div className="flex items-start space-x-3">
-              <RadioGroupItem
-                value="new"
-                id="new"
-                onClick={() => {
-                  setUseNewAddress(true);
-                  setSelectedAddressId(null);
-                }}
-              />
-              <Label htmlFor="new" className="flex-1 cursor-pointer font-medium">
-                Usar una nueva dirección
-              </Label>
-            </div>
           </RadioGroup>
+
+          <Button type="button" variant="outline" onClick={openNewForm} className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
+            Agregar nueva dirección
+          </Button>
         </div>
       )}
 
-      {/* New Address Form */}
-      {useNewAddress && (
-        <form onSubmit={handleSubmit(onNext)} className="space-y-4">
+      {/* Formulario nueva / edición */}
+      {mode === 'form' && (
+        <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
           <div>
             <Label htmlFor="label">Nombre para la dirección *</Label>
             <Input
@@ -163,12 +251,27 @@ export function AddressStep({ savedAddresses = [], onNext, onBack }: AddressStep
             </div>
             <div>
               <Label htmlFor="province">Provincia *</Label>
-              <Input
-                id="province"
-                placeholder="CABA"
-                {...register('province')}
-                error={errors.province?.message}
+              <Controller
+                control={control}
+                name="province"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="province">
+                      <SelectValue placeholder="Seleccioná la provincia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ARGENTINA_PROVINCES.map((prov) => (
+                        <SelectItem key={prov} value={prov}>
+                          {prov}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
+              {errors.province?.message && (
+                <p className="text-sm text-destructive mt-1">{errors.province.message}</p>
+              )}
             </div>
           </div>
 
@@ -177,30 +280,60 @@ export function AddressStep({ savedAddresses = [], onNext, onBack }: AddressStep
             <Input
               id="postcode"
               placeholder="1414"
-              maxLength={4}
+              maxLength={8}
               {...register('postcode')}
               error={errors.postcode?.message}
             />
           </div>
+
+          <div className="flex gap-2 pt-2">
+            {savedAddresses.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setEditingId(null);
+                  setMode('list');
+                }}
+                disabled={saving}
+              >
+                Cancelar
+              </Button>
+            )}
+            <Button type="submit" disabled={saving} className="ml-auto">
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {saving ? 'Guardando...' : editingId ? 'Guardar y continuar' : 'Guardar y continuar'}
+            </Button>
+          </div>
         </form>
       )}
 
-      {/* Actions */}
-      <div className="flex justify-between pt-4">
-        {onBack && (
+      {/* Acciones (solo en modo lista; el form tiene su propio submit) */}
+      {mode === 'list' && (
+        <div className="flex justify-between pt-4">
+          {onBack && (
+            <Button type="button" variant="outline" onClick={onBack}>
+              Volver
+            </Button>
+          )}
+          <Button
+            type="button"
+            onClick={handleContinueWithSaved}
+            disabled={!selectedAddressId}
+            className="ml-auto"
+          >
+            Continuar
+          </Button>
+        </div>
+      )}
+
+      {mode === 'form' && onBack && savedAddresses.length === 0 && (
+        <div className="flex justify-start">
           <Button type="button" variant="outline" onClick={onBack}>
             Volver
           </Button>
-        )}
-        <Button
-          type="button"
-          onClick={handleNext}
-          disabled={isSubmitting || (!useNewAddress && !selectedAddressId)}
-          className="ml-auto"
-        >
-          Continuar
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
