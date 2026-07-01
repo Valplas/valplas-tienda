@@ -163,7 +163,7 @@ export async function createOrder(
   const shippingCost = isFreeShipping ? 0 : selectedRate.price;
   const total = subtotal + shippingCost;
 
-  // Create order
+  // Create order — snapshot de envío desde la dirección validada (columnas NOT NULL)
   const order = await orderRepository.createOrder(
     userId,
     {
@@ -172,7 +172,17 @@ export async function createOrder(
     },
     subtotal,
     shippingCost,
-    total
+    total,
+    {
+      shipping_street: address.street,
+      shipping_street_number: address.street_number,
+      shipping_floor: address.floor ?? null,
+      shipping_apartment: address.apartment ?? null,
+      shipping_city: address.city,
+      shipping_province: address.province,
+      shipping_postcode: address.postcode,
+      carrier_name: carrier.name
+    }
   );
 
   // Return with details
