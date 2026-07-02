@@ -118,6 +118,7 @@ export interface UpdateAdminOrderInput {
 export interface CreateOrderItemInput {
   product_id: string;
   quantity: number;
+  price_list_id?: string;
 }
 
 export interface UpdateOrderStatusInput {

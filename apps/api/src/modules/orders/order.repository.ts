@@ -342,19 +342,29 @@ export async function createOrder(
 
     const order = orderResult.rows[0];
 
-    // Create order items
+    // Create order items — enriquecidos en el dominio con snapshot de producto,
+    // precio por bulto y cantidades (bultos vs unidades reales).
     for (const item of data.items) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const itemWithPrice = item as any; // Items are enriched in domain layer with unit_price and subtotal
+      const it = item as any;
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
-         VALUES ($1, $2, $3, $4, $5)`,
+        `INSERT INTO order_items (
+          order_id, product_id, product_name, product_sku,
+          quantity, real_quantity, bundle_size_snapshot,
+          unit_price, subtotal, price_list_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           order.id,
-          itemWithPrice.product_id,
-          itemWithPrice.quantity,
-          itemWithPrice.unit_price,
-          itemWithPrice.subtotal
+          it.product_id,
+          it.product_name,
+          it.product_sku,
+          it.quantity,
+          it.real_quantity,
+          it.bundle_size_snapshot,
+          it.unit_price,
+          it.subtotal,
+          it.price_list_id ?? null
         ]
       );
     }

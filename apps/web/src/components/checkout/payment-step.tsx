@@ -67,7 +67,11 @@ export function PaymentStep({
         paymentMethod: 'mercadopago' as const,
         items: items
           .filter((item) => item.productId)
-          .map((item) => ({ productId: item.productId, quantity: item.quantity })),
+          .map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            priceListId: item.priceListId
+          })),
         payerIdentification: dni.trim() ? { type: 'DNI', number: dni.trim() } : undefined
       };
 

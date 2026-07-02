@@ -18,7 +18,9 @@ const PAYMENT_METHODS = ['mercadopago', 'cash', 'bank_transfer'] as const;
 
 export const createOrderItemSchema = z.object({
   product_id: z.string().uuid(),
-  quantity: z.number().int().min(1)
+  quantity: z.number().int().min(1),
+  // Lista de precios del tier elegido (bulto). Opcional: sin tier = unidad suelta.
+  price_list_id: z.string().uuid().optional()
 });
 
 export const createOrderSchema = z.object({
