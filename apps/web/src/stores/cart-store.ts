@@ -24,6 +24,8 @@ function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
     items: items.map((item) => ({
       productId: item.productId,
       quantity: item.quantity,
+      priceListId: item.priceListId,
+      minQuantity: item.minQuantity,
       product: {
         id: item.productId,
         name: item.name,
