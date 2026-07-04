@@ -21,13 +21,35 @@ export interface PublicProduct {
   tiers: PriceTier[];
 }
 
+export type CatalogSort =
+  | 'featured'
+  | 'price_asc'
+  | 'price_desc'
+  | 'name_asc'
+  | 'name_desc'
+  | 'newest';
+
 export interface CatalogFilters {
   search?: string;
   category_id?: string;
   brand_id?: string;
+  min_price?: number;
+  max_price?: number;
+  sort?: CatalogSort;
   page?: number;
   limit?: number;
 }
+
+// Mapea la opción de orden a su cláusula SQL. Whitelist estricta: evita
+// inyección y valores inválidos caen a 'featured'.
+const ORDER_BY_CLAUSE: Record<CatalogSort, string> = {
+  featured: 'p.is_featured DESC, p.name ASC',
+  price_asc: 'p.base_price ASC, p.name ASC',
+  price_desc: 'p.base_price DESC, p.name ASC',
+  name_asc: 'p.name ASC',
+  name_desc: 'p.name DESC',
+  newest: 'p.created_at DESC'
+};
 
 /**
  * Obtener productos públicos con tiers de precio calculados en DB.
@@ -36,7 +58,16 @@ export interface CatalogFilters {
 export async function findPublicProducts(
   filters: CatalogFilters
 ): Promise<{ products: PublicProduct[]; total: number }> {
-  const { search, category_id, brand_id, page = 1, limit = 20 } = filters;
+  const {
+    search,
+    category_id,
+    brand_id,
+    min_price,
+    max_price,
+    sort,
+    page = 1,
+    limit = 20
+  } = filters;
   const offset = (page - 1) * limit;
   const conditions: string[] = [
     'p.deleted_at IS NULL',
@@ -66,7 +97,20 @@ export async function findPublicProducts(
     paramIndex++;
   }
 
+  if (min_price !== undefined) {
+    conditions.push(`p.base_price >= $${paramIndex}`);
+    filterParams.push(min_price);
+    paramIndex++;
+  }
+
+  if (max_price !== undefined) {
+    conditions.push(`p.base_price <= $${paramIndex}`);
+    filterParams.push(max_price);
+    paramIndex++;
+  }
+
   const where = conditions.join(' AND ');
+  const orderBy = ORDER_BY_CLAUSE[sort ?? 'featured'] ?? ORDER_BY_CLAUSE.featured;
 
   const productsQuery = `
     SELECT
@@ -91,7 +135,7 @@ export async function findPublicProducts(
     LEFT JOIN categories c ON c.id = p.category_id
     LEFT JOIN brands b ON b.id = p.brand_id
     WHERE ${where}
-    ORDER BY p.name ASC
+    ORDER BY ${orderBy}
     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
   `;
   const paginationParams = [...filterParams, limit, offset];

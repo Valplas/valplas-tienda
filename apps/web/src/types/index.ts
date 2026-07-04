@@ -313,6 +313,9 @@ export interface CatalogFilters {
   search?: string;
   categoryId?: string;
   brandId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: import('./filter.types').SortOption;
   page?: number;
   limit?: number;
 }
