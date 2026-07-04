@@ -6,6 +6,7 @@ import { Loader2, SlidersHorizontal } from 'lucide-react';
 import type { ProductPublic, CatalogFilters } from '@/types';
 import { ProductGrid } from './product-grid';
 import { ProductFilters } from './product-filters';
+import { ProductSort } from './product-sort';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
@@ -48,6 +49,9 @@ export function ProductsBrowser({
   const search = useFilterStore((state) => state.search);
   const categoryId = useFilterStore((state) => state.categoryId);
   const brandId = useFilterStore((state) => state.brandId);
+  const minPrice = useFilterStore((state) => state.minPrice);
+  const maxPrice = useFilterStore((state) => state.maxPrice);
+  const sortBy = useFilterStore((state) => state.sortBy);
   const setCategoryId = useFilterStore((state) => state.setCategoryId);
   const setBrandId = useFilterStore((state) => state.setBrandId);
 
@@ -68,6 +72,9 @@ export function ProductsBrowser({
           search: search || undefined,
           categoryId: categoryId || undefined,
           brandId: brandId || undefined,
+          minPrice: minPrice ?? undefined,
+          maxPrice: maxPrice ?? undefined,
+          sortBy,
           page,
           limit: ITEMS_PER_PAGE
         };
@@ -91,7 +98,7 @@ export function ProductsBrowser({
         setIsLoading(false);
       }
     },
-    [search, categoryId, brandId]
+    [search, categoryId, brandId, minPrice, maxPrice, sortBy]
   );
 
   // El primer render usa los productos provistos por el servidor; solo se refetchea
@@ -123,17 +130,28 @@ export function ProductsBrowser({
             </p>
           </div>
 
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm" className="lg:hidden">
-                <SlidersHorizontal className="mr-2 h-4 w-4" />
-                Filtros
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-full overflow-y-auto sm:max-w-md">
-              <ProductFilters />
-            </SheetContent>
-          </Sheet>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:block">
+              <ProductSort />
+            </div>
+
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="lg:hidden">
+                  <SlidersHorizontal className="mr-2 h-4 w-4" />
+                  Filtros
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-full overflow-y-auto sm:max-w-md">
+                <ProductFilters />
+              </SheetContent>
+            </Sheet>
+          </div>
+        </div>
+
+        {/* Sort en mobile — el dropdown del header se oculta en pantallas chicas */}
+        <div className="sm:hidden">
+          <ProductSort />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
