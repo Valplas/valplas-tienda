@@ -161,6 +161,39 @@ describe('MP webhook: verificación de firma', () => {
     expect(res.statusCode).toBe(200);
     expect(fetchPayment).not.toHaveBeenCalled();
   });
+
+  it('rechaza notificación de pago sin data.id en query (campo firmado obligatorio)', async () => {
+    // El data.id del query param es el campo que MP firma en el manifest.
+    // Aceptar un id alternativo del body desacoplaría la firma del pago
+    // consultado — el id del body NUNCA debe usarse para el fetch.
+    const ts = Date.now();
+    const req = {
+      headers: {
+        'x-signature': sign('', ts, 'req-abc'),
+        'x-request-id': 'req-abc'
+      },
+      query: {},
+      body: { type: 'payment', data: { id: DATA_ID } }
+    } as unknown as Request;
+    const res = buildRes();
+
+    await handleWebhook(req, res, next);
+
+    expect(res.statusCode).toBe(400);
+    expect(fetchPayment).not.toHaveBeenCalled();
+  });
+
+  it('responde 200 si el pago notificado no existe en MP (simulador con id fake)', async () => {
+    vi.mocked(fetchPayment).mockRejectedValue(
+      Object.assign(new Error('Payment not found'), { status: 404 })
+    );
+    const res = buildRes();
+
+    await handleWebhook(buildReq(), res, next);
+
+    expect(res.statusCode).toBe(200);
+    expect(orderRepository.updateOrderStatus).not.toHaveBeenCalled();
+  });
 });
 
 describe('MP webhook: mapeo de estados', () => {

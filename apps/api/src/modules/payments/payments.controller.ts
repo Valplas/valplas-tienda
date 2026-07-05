@@ -148,16 +148,34 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
       return res.status(200).json({ received: true });
     }
 
-    // MP docs: use query param data.id (lowercase) for signature manifest, not body
+    // El data.id del QUERY param es el campo que MP firma en el manifest.
+    // Se usa ese mismo valor para verificar la firma Y consultar el pago —
+    // nunca el id del body, que no está cubierto por la firma. Las
+    // notificaciones reales de pago siempre traen el query param.
     const queryDataId = req.query['data.id'] as string | undefined;
-    const dataId = (queryDataId ?? String(data.id)).toLowerCase();
+    if (!queryDataId) {
+      logger.warn('MP webhook: missing data.id query param');
+      return res.status(400).json({ error: 'Missing data.id' });
+    }
+    const paymentId = queryDataId.toLowerCase();
 
-    if (!xSignature || !verifySignature(xSignature, xRequestId, dataId)) {
+    if (!xSignature || !verifySignature(xSignature, xRequestId, paymentId)) {
       logger.warn('MP webhook: invalid or missing signature');
       return res.status(400).json({ error: 'Invalid signature' });
     }
 
-    const payment = await fetchPayment(dataId);
+    let payment;
+    try {
+      payment = await fetchPayment(paymentId);
+    } catch (error) {
+      // Pago inexistente (ej: simulador del panel con id fake): nada que
+      // procesar, 200 para que MP no reintente. Otros errores → 5xx (retry).
+      if ((error as { status?: number }).status === 404) {
+        logger.warn(`MP webhook: payment ${paymentId} no existe en MP — notificación ignorada`);
+        return res.status(200).json({ received: true });
+      }
+      throw error;
+    }
 
     if (!payment.external_reference) {
       return res.status(200).json({ received: true });
@@ -173,7 +191,7 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
     if (newStatus && VALID_STATUS_TRANSITIONS[order.status].includes(newStatus)) {
       await orderRepository.updateOrderStatus(
         order.id,
-        { status: newStatus, payment_id: dataId, notes: `MP payment ${payment.status}` },
+        { status: newStatus, payment_id: paymentId, notes: `MP payment ${payment.status}` },
         order.user_id
       );
       logger.info(`MP webhook: order ${order.order_number} → ${newStatus}`);
@@ -181,7 +199,7 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
       // Transición no permitida (ej: refund de una orden ya en preparación):
       // no se pisa el estado, pero queda registrado para revisión manual.
       logger.warn(
-        `MP webhook: transición inválida ${order.status} → ${newStatus} para orden ${order.order_number} (payment ${dataId})`
+        `MP webhook: transición inválida ${order.status} → ${newStatus} para orden ${order.order_number} (payment ${paymentId})`
       );
     }
 
