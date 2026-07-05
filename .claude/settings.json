@@ -6,6 +6,18 @@
   },
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"RECORDATORIO OBLIGATORIO (Context7): Antes de cualquier tarea de desarrollo, usar mcp__plugin_context7_context7__resolve-library-id + mcp__plugin_context7_context7__query-docs para consultar la documentacion actualizada de las librerias involucradas (Next.js, Express, Zod, shadcn/ui, etc.). Esto es especialmente importante al reanudar una sesion existente.\"}}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
@@ -18,7 +30,5 @@
       }
     ]
   },
-  "enabledMcpjsonServers": ["supabase-db", "filesystem", "github"],
-  "enableAllProjectMcpServers": true,
   "description": "Claude Code hooks para Valplas - Ejecuta verificaciones automáticas después de editar/crear archivos"
 }

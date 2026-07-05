@@ -9,7 +9,34 @@
       "mcp__plugin_context7_context7__resolve-library-id",
       "mcp__plugin_context7_context7__query-docs",
       "Skill(code-review:code-review)",
-      "mcp__github__add_issue_comment"
+      "mcp__github__add_issue_comment",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__mercadopago__application_list",
+      "mcp__mercadopago__quality_checklist",
+      "mcp__mercadopago__search_documentation",
+      "mcp__mercadopago__create_test_user",
+      "mcp__mercadopago__save_webhook",
+      "mcp__mercadopago__get_credentials",
+      "mcp__supabase-db__execute_sql",
+      "mcp__mercadopago__notifications_history",
+      "mcp__mercadopago__add_money_test_user"
+    ],
+    "deny": [
+      "Bash(git push:*)"
+    ],
+    "ask": [
+      "Read(.env*)",
+      "Read(.git/**)",
+      "Bash(rm -rf:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase-db",
+    "filesystem",
+    "github",
+    "vercel",
+    "mercadopago"
+  ]
 }
