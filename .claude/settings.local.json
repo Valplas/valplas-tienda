@@ -16,9 +16,6 @@
       "mcp__mercadopago__quality_checklist",
       "mcp__mercadopago__search_documentation",
       "mcp__mercadopago__create_test_user",
-      "mcp__mercadopago__save_webhook",
-      "mcp__mercadopago__get_credentials",
-      "mcp__supabase-db__execute_sql",
       "mcp__mercadopago__notifications_history",
       "mcp__mercadopago__add_money_test_user"
     ],
@@ -28,10 +25,13 @@
     "ask": [
       "Read(.env*)",
       "Read(.git/**)",
-      "Bash(rm -rf:*)"
+      "Bash(rm -rf:*)",
+      "mcp__supabase-db__execute_sql",
+      "mcp__mercadopago__get_credentials",
+      "mcp__mercadopago__save_webhook"
     ]
   },
-  "enableAllProjectMcpServers": true,
+  "enableAllProjectMcpServers": false,
   "enabledMcpjsonServers": [
     "supabase-db",
     "filesystem",
