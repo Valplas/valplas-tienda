@@ -4,6 +4,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import type { OrderStatus } from './order.types.js';
 import * as orderDomain from './order.domain.js';
+import { clearCartCookie } from '../cart/cart.service.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 import { logger } from '../../infrastructure/logger/index.js';
 
@@ -116,6 +117,10 @@ export async function createOrder(req: Request, res: Response, next: NextFunctio
   try {
     const userId = (req.user as AuthenticatedUser).userId;
     const order = await orderDomain.createOrder(userId, req.body);
+
+    // El carrito vive en una cookie HttpOnly: se vacía en esta misma respuesta
+    // para que el usuario no vuelva de MP con el carrito lleno (doble compra).
+    clearCartCookie(res);
 
     return res.status(201).json(ApiResponse.success(order));
   } catch (error) {

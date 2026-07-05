@@ -18,14 +18,24 @@ interface MPOAuthTokenResponse {
   message?: string;
 }
 
-function verifySignature(xSignature: string, xRequestId: string, dataId: string): boolean {
+function verifySignature(
+  xSignature: string,
+  xRequestId: string | undefined,
+  dataId: string
+): boolean {
   const parts = xSignature.split(',');
   const ts = parts.find((p) => p.startsWith('ts='))?.split('=')[1];
   const v1 = parts.find((p) => p.startsWith('v1='))?.split('=')[1];
   if (!ts || !v1) return false;
   // Replay protection: reject notifications older than 5 minutes
   if (Math.abs(Date.now() - parseInt(ts, 10)) > 5 * 60 * 1000) return false;
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+  // MP docs: si data.id o x-request-id no vienen en la notificación, se
+  // omiten del manifest antes de calcular el HMAC.
+  const manifestParts: string[] = [];
+  if (dataId) manifestParts.push(`id:${dataId}`);
+  if (xRequestId) manifestParts.push(`request-id:${xRequestId}`);
+  manifestParts.push(`ts:${ts}`);
+  const manifest = manifestParts.join(';') + ';';
   const computed = createHmac('sha256', env.MP_WEBHOOK_SECRET).update(manifest).digest('hex');
   // Comparación en tiempo constante para evitar timing attacks sobre la firma
   const computedBuf = Buffer.from(computed, 'hex');
@@ -37,6 +47,7 @@ function verifySignature(xSignature: string, xRequestId: string, dataId: string)
 function mapPaymentStatus(mpStatus: string): OrderStatus | null {
   if (mpStatus === 'approved') return 'payment_confirmed';
   if (mpStatus === 'rejected' || mpStatus === 'cancelled') return 'failed';
+  if (mpStatus === 'refunded' || mpStatus === 'charged_back') return 'refunded';
   return null;
 }
 
@@ -141,7 +152,7 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
     const queryDataId = req.query['data.id'] as string | undefined;
     const dataId = (queryDataId ?? String(data.id)).toLowerCase();
 
-    if (!xSignature || !xRequestId || !verifySignature(xSignature, xRequestId, dataId)) {
+    if (!xSignature || !verifySignature(xSignature, xRequestId, dataId)) {
       logger.warn('MP webhook: invalid or missing signature');
       return res.status(400).json({ error: 'Invalid signature' });
     }
@@ -166,6 +177,12 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
         order.user_id
       );
       logger.info(`MP webhook: order ${order.order_number} → ${newStatus}`);
+    } else if (newStatus) {
+      // Transición no permitida (ej: refund de una orden ya en preparación):
+      // no se pisa el estado, pero queda registrado para revisión manual.
+      logger.warn(
+        `MP webhook: transición inválida ${order.status} → ${newStatus} para orden ${order.order_number} (payment ${dataId})`
+      );
     }
 
     return res.status(200).json({ received: true });

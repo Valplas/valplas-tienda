@@ -207,6 +207,22 @@ export async function findOrderByNumber(orderNumber: string): Promise<Order | nu
 }
 
 /**
+ * Órdenes de MercadoPago pendientes de pago cuya preferencia ya expiró.
+ * Solo MP: las órdenes con otros medios de pago no se auto-cancelan.
+ */
+export async function findStalePendingPaymentOrders(olderThanHours: number): Promise<Order[]> {
+  const result = await query<Order>(
+    `SELECT * FROM orders
+     WHERE status = 'pending_payment'
+       AND payment_method = 'mercadopago'
+       AND created_at < NOW() - make_interval(hours => $1)`,
+    [olderThanHours]
+  );
+
+  return result.rows;
+}
+
+/**
  * Find order with full details
  */
 export async function findOrderWithDetails(id: string): Promise<OrderWithDetails | null> {
