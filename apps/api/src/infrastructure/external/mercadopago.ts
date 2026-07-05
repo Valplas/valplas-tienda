@@ -1,7 +1,17 @@
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
+import dayjs from 'dayjs';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { env } from '../../env.js';
+import { logger } from '../logger/index.js';
 
 const client = new MercadoPagoConfig({ accessToken: env.MP_ACCESS_TOKEN });
+
+/**
+ * Vida útil de la preferencia de pago. Pasado este plazo MP rechaza el pago,
+ * y el job cancel-stale-orders (con 1h de buffer) cancela la orden para
+ * liberar el stock reservado.
+ */
+export const PAYMENT_EXPIRATION_HOURS = 24;
 
 interface PreferenceItem {
   id: string;
@@ -33,7 +43,27 @@ export interface OrderPreferenceInput {
   payer?: PreferencePayer;
 }
 
+/**
+ * MP espera el teléfono como número nacional (sin código de país).
+ * Los teléfonos se almacenan en E.164 (+549...), así que se parsea y se
+ * envía el national number. Si no es parseable, se omite el campo.
+ */
+function toMpPhone(raw: string | undefined): { number: string } | undefined {
+  if (!raw) return undefined;
+  const parsed = parsePhoneNumberFromString(raw, 'AR');
+  if (!parsed || !parsed.isValid()) return undefined;
+  return { number: parsed.nationalNumber };
+}
+
 export async function createOrderPreference(input: OrderPreferenceInput): Promise<string> {
+  const notificationUrl = `${env.API_URL}/api/payments/webhook`;
+
+  if (/localhost|127\.0\.0\.1/.test(notificationUrl)) {
+    logger.warn(
+      `MP: notification_url (${notificationUrl}) apunta a localhost — MP no podrá entregar webhooks. Probá contra el deploy de develop o usá un túnel.`
+    );
+  }
+
   const preference = new Preference(client);
   const response = await preference.create({
     body: {
@@ -53,7 +83,7 @@ export async function createOrderPreference(input: OrderPreferenceInput): Promis
             email: input.payer.email,
             name: input.payer.name,
             surname: input.payer.surname,
-            phone: input.payer.phone ? { number: input.payer.phone } : undefined,
+            phone: toMpPhone(input.payer.phone),
             identification: input.payer.identification,
             address: input.payer.address
           }
@@ -62,13 +92,18 @@ export async function createOrderPreference(input: OrderPreferenceInput): Promis
         input.shippingCost && input.shippingCost > 0
           ? { cost: input.shippingCost, mode: 'not_specified' }
           : undefined,
-      notification_url: `${env.API_URL}/api/payments/webhook`,
+      notification_url: notificationUrl,
       back_urls: {
         success: `${env.FRONTEND_URL}/checkout/resultado`,
         failure: `${env.FRONTEND_URL}/checkout/resultado`,
         pending: `${env.FRONTEND_URL}/checkout/resultado`
       },
-      auto_return: 'approved'
+      auto_return: 'approved',
+      expires: true,
+      expiration_date_from: dayjs().format('YYYY-MM-DDTHH:mm:ss.SSSZ'),
+      expiration_date_to: dayjs()
+        .add(PAYMENT_EXPIRATION_HOURS, 'hour')
+        .format('YYYY-MM-DDTHH:mm:ss.SSSZ')
     }
   });
 

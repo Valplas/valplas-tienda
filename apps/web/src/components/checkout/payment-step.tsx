@@ -17,6 +17,7 @@ import { ShippingOption, CartItem } from '@/types';
 import { type Address } from '@/lib/services/addresses.service';
 import { Loader2, CreditCard } from 'lucide-react';
 import { createOrder } from '@/services';
+import { useCartStore } from '@/stores/cart-store';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -40,6 +41,7 @@ export function PaymentStep({
   onBack
 }: PaymentStepProps) {
   const router = useRouter();
+  const loadCart = useCartStore((state) => state.loadFromStorage);
   const [isProcessing, setIsProcessing] = useState(false);
   const [dni, setDni] = useState('');
 
@@ -78,9 +80,13 @@ export function PaymentStep({
       const response = await createOrder(orderData);
 
       if (response.success && response.data) {
+        // El backend ya vació la cookie del carrito al crear la orden.
         if (response.data.paymentUrl) {
+          // Redirect full-page a MP: el store en memoria se descarta solo.
           window.location.href = response.data.paymentUrl;
         } else {
+          // Navegación client-side: refrescar el store para que refleje el carrito vacío.
+          await loadCart();
           toast.success('¡Pedido creado exitosamente!');
           router.push('/cuenta/pedidos');
         }
