@@ -162,16 +162,14 @@ describe('MP webhook: verificación de firma', () => {
     expect(fetchPayment).not.toHaveBeenCalled();
   });
 
-  it('acepta notificación sin data.id en query: el manifest se firma sin id (simulador del panel)', async () => {
-    // MP firma el manifest solo con los valores presentes en la notificación.
-    // Si data.id no vino como query param, el término id: no forma parte del
-    // manifest, aunque el body sí traiga data.id (que se usa para el fetch).
-    mockPayment('approved');
-    mockOrder('pending_payment');
+  it('rechaza notificación de pago sin data.id en query (campo firmado obligatorio)', async () => {
+    // El data.id del query param es el campo que MP firma en el manifest.
+    // Aceptar un id alternativo del body desacoplaría la firma del pago
+    // consultado — el id del body NUNCA debe usarse para el fetch.
     const ts = Date.now();
     const req = {
       headers: {
-        'x-signature': sign('', ts, 'req-abc'), // manifest sin id:
+        'x-signature': sign('', ts, 'req-abc'),
         'x-request-id': 'req-abc'
       },
       query: {},
@@ -181,8 +179,8 @@ describe('MP webhook: verificación de firma', () => {
 
     await handleWebhook(req, res, next);
 
-    expect(res.statusCode).toBe(200);
-    expect(fetchPayment).toHaveBeenCalledWith(DATA_ID);
+    expect(res.statusCode).toBe(400);
+    expect(fetchPayment).not.toHaveBeenCalled();
   });
 
   it('responde 200 si el pago notificado no existe en MP (simulador con id fake)', async () => {
