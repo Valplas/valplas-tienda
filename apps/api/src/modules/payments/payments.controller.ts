@@ -26,9 +26,18 @@ function verifySignature(
   const parts = xSignature.split(',');
   const ts = parts.find((p) => p.startsWith('ts='))?.split('=')[1];
   const v1 = parts.find((p) => p.startsWith('v1='))?.split('=')[1];
-  if (!ts || !v1) return false;
+  if (!ts || !v1) {
+    logger.warn('MP webhook: x-signature malformado (faltan ts o v1)');
+    return false;
+  }
   // Replay protection: reject notifications older than 5 minutes
-  if (Math.abs(Date.now() - parseInt(ts, 10)) > 5 * 60 * 1000) return false;
+  const tsDeltaMs = Date.now() - parseInt(ts, 10);
+  if (Math.abs(tsDeltaMs) > 5 * 60 * 1000) {
+    logger.warn(
+      `MP webhook: ts fuera de la ventana anti-replay (delta ${Math.round(tsDeltaMs / 1000)}s) — si es el simulador del panel, manda un ts viejo`
+    );
+    return false;
+  }
   // MP docs: si data.id o x-request-id no vienen en la notificación, se
   // omiten del manifest antes de calcular el HMAC.
   const manifestParts: string[] = [];
@@ -40,8 +49,14 @@ function verifySignature(
   // Comparación en tiempo constante para evitar timing attacks sobre la firma
   const computedBuf = Buffer.from(computed, 'hex');
   const receivedBuf = Buffer.from(v1, 'hex');
-  if (computedBuf.length !== receivedBuf.length) return false;
-  return timingSafeEqual(computedBuf, receivedBuf);
+  const valid =
+    computedBuf.length === receivedBuf.length && timingSafeEqual(computedBuf, receivedBuf);
+  if (!valid) {
+    // Firma bien formada y ts vigente pero HMAC distinto → casi siempre
+    // MP_WEBHOOK_SECRET no coincide con el secret del webhook en el panel.
+    logger.warn('MP webhook: HMAC no coincide — revisar MP_WEBHOOK_SECRET vs secret del panel');
+  }
+  return valid;
 }
 
 function mapPaymentStatus(mpStatus: string): OrderStatus | null {
