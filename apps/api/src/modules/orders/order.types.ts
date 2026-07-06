@@ -45,6 +45,8 @@ export interface Order {
   created_at: Date;
   updated_at: Date;
   user?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'phone'> | null;
+  /** Presente cuando el listado se pide con includeItems (json_agg en el repo). */
+  items?: OrderItemWithProduct[];
 }
 
 export interface OrderItem {

@@ -160,7 +160,8 @@ export default function OrdersListPage() {
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <span className="text-muted-foreground">
-                          {order.items.length} {order.items.length === 1 ? 'producto' : 'productos'}
+                          {order.items?.length ?? 0}{' '}
+                          {(order.items?.length ?? 0) === 1 ? 'producto' : 'productos'}
                         </span>
                       </TableCell>
                       <TableCell className="font-semibold">{formatPrice(order.total)}</TableCell>

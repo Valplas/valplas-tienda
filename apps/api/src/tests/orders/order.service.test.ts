@@ -114,6 +114,19 @@ describe('Order Service', () => {
     });
   });
 
+  describe('getUserOrders', () => {
+    it('incluye los items de cada orden (la página Mis Pedidos los renderiza)', async () => {
+      await orderDomain.createOrder(userId, orderInput(2));
+
+      const result = await orderDomain.getUserOrders(userId, { page: 1, limit: 20 });
+
+      expect(result.orders.length).toBe(1);
+      expect(result.orders[0].items).toBeDefined();
+      expect(result.orders[0].items!.length).toBe(1);
+      expect(result.orders[0].items![0].quantity).toBe(2);
+    });
+  });
+
   describe('updateOrderStatus', () => {
     it('should transition to payment_confirmed and deduct stock', async () => {
       const { order } = await orderDomain.createOrder(userId, orderInput(2));
