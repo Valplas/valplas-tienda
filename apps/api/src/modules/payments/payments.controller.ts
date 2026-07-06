@@ -178,6 +178,13 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
     const manifestDataId = queryDataId?.toLowerCase() ?? '';
     const paymentId = (queryDataId ?? String(data.id)).toLowerCase();
 
+    // Los payment ids de MP son numéricos; el id termina en la URL del GET a
+    // la API, así que cualquier otro formato se descarta sin procesar.
+    if (!/^\d+$/.test(paymentId)) {
+      logger.warn(`MP webhook: data.id con formato inválido — notificación ignorada`);
+      return res.status(200).json({ received: true });
+    }
+
     if (!xSignature || !verifySignature(xSignature, xRequestId, manifestDataId)) {
       logger.warn('MP webhook: invalid or missing signature');
       return res.status(400).json({ error: 'Invalid signature' });

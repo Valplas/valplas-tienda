@@ -224,6 +224,24 @@ describe('MP webhook: verificación de firma', () => {
     expect(orderRepository.updateOrderStatus).toHaveBeenCalled();
   });
 
+  it('ignora body data.id con formato no numérico (defensa: va a la URL del fetch)', async () => {
+    const ts = Date.now();
+    const req = {
+      headers: {
+        'x-signature': sign('', ts, 'req-abc'),
+        'x-request-id': 'req-abc'
+      },
+      query: {},
+      body: { type: 'payment', data: { id: '../merchant_orders/1' } }
+    } as unknown as Request;
+    const res = buildRes();
+
+    await handleWebhook(req, res, next);
+
+    expect(res.statusCode).toBe(200);
+    expect(fetchPayment).not.toHaveBeenCalled();
+  });
+
   it('rechaza notificación sin query data.id si la firma no valida', async () => {
     const req = {
       headers: {
