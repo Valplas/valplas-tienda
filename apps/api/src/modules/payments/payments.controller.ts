@@ -26,9 +26,18 @@ function verifySignature(
   const parts = xSignature.split(',');
   const ts = parts.find((p) => p.startsWith('ts='))?.split('=')[1];
   const v1 = parts.find((p) => p.startsWith('v1='))?.split('=')[1];
-  if (!ts || !v1) return false;
+  if (!ts || !v1) {
+    logger.warn('MP webhook: x-signature malformado (faltan ts o v1)');
+    return false;
+  }
   // Replay protection: reject notifications older than 5 minutes
-  if (Math.abs(Date.now() - parseInt(ts, 10)) > 5 * 60 * 1000) return false;
+  const tsDeltaMs = Date.now() - parseInt(ts, 10);
+  if (Math.abs(tsDeltaMs) > 5 * 60 * 1000) {
+    logger.warn(
+      `MP webhook: ts fuera de la ventana anti-replay (delta ${Math.round(tsDeltaMs / 1000)}s) — si es el simulador del panel, manda un ts viejo`
+    );
+    return false;
+  }
   // MP docs: si data.id o x-request-id no vienen en la notificación, se
   // omiten del manifest antes de calcular el HMAC.
   const manifestParts: string[] = [];
@@ -40,8 +49,14 @@ function verifySignature(
   // Comparación en tiempo constante para evitar timing attacks sobre la firma
   const computedBuf = Buffer.from(computed, 'hex');
   const receivedBuf = Buffer.from(v1, 'hex');
-  if (computedBuf.length !== receivedBuf.length) return false;
-  return timingSafeEqual(computedBuf, receivedBuf);
+  const valid =
+    computedBuf.length === receivedBuf.length && timingSafeEqual(computedBuf, receivedBuf);
+  if (!valid) {
+    // Firma bien formada y ts vigente pero HMAC distinto → casi siempre
+    // MP_WEBHOOK_SECRET no coincide con el secret del webhook en el panel.
+    logger.warn('MP webhook: HMAC no coincide — revisar MP_WEBHOOK_SECRET vs secret del panel');
+  }
+  return valid;
 }
 
 function mapPaymentStatus(mpStatus: string): OrderStatus | null {
@@ -188,6 +203,16 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
     }
 
     const newStatus = mapPaymentStatus(payment.status ?? '');
+    // Estados desde los que un `approved` reintentado por MP es un duplicado
+    // esperado (la orden ya avanzó), no una transición inválida a loggear.
+    const alreadyPaidStatuses: OrderStatus[] = [
+      'payment_confirmed',
+      'processing',
+      'ready_to_ship',
+      'shipped',
+      'delivered'
+    ];
+
     if (newStatus && VALID_STATUS_TRANSITIONS[order.status].includes(newStatus)) {
       await orderRepository.updateOrderStatus(
         order.id,
@@ -195,6 +220,22 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
         order.user_id
       );
       logger.info(`MP webhook: order ${order.order_number} → ${newStatus}`);
+
+      // Pago confirmado → la orden entra en preparación sin paso manual del
+      // admin (decisión de negocio: el pago aprobado dispara el picking).
+      if (newStatus === 'payment_confirmed') {
+        await orderRepository.updateOrderStatus(
+          order.id,
+          {
+            status: 'processing',
+            notes: 'Preparación iniciada automáticamente al confirmarse el pago'
+          },
+          order.user_id
+        );
+        logger.info(`MP webhook: order ${order.order_number} → processing (auto)`);
+      }
+    } else if (newStatus === 'payment_confirmed' && alreadyPaidStatuses.includes(order.status)) {
+      // Reintento/duplicado de una notificación ya procesada: idempotente.
     } else if (newStatus) {
       // Transición no permitida (ej: refund de una orden ya en preparación):
       // no se pisa el estado, pero queda registrado para revisión manual.

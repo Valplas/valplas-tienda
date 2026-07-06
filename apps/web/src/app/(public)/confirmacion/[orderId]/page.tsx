@@ -1,22 +1,23 @@
 /**
  * Order Confirmation Page
  * /confirmacion/[orderId]
+ *
+ * Client component: el pedido se consulta con la sesión del browser
+ * (cookies HttpOnly). Como Server Component el fetch salía sin cookies
+ * → 401 → notFound() para cualquier usuario logueado.
  */
 
-import { Metadata } from 'next';
+'use client';
+
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { getOrderById } from '@/services';
+import type { Order } from '@/lib/services/orders.service';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Package } from 'lucide-react';
+import { CheckCircle2, Package, Loader2 } from 'lucide-react';
 import { formatPrice, formatDateTime } from '@/lib/formatters';
-
-export const metadata: Metadata = {
-  title: 'Pedido confirmado',
-  description: 'Tu pedido ha sido confirmado exitosamente'
-};
 
 interface OrderConfirmationPageProps {
   params: Promise<{
@@ -24,14 +25,52 @@ interface OrderConfirmationPageProps {
   }>;
 }
 
-export default async function OrderConfirmationPage({ params }: OrderConfirmationPageProps) {
-  const { orderId } = await params;
+const STATUS_LABELS: Record<string, string> = {
+  pending_payment: 'Pendiente de pago',
+  payment_confirmed: 'Pago confirmado',
+  processing: 'En preparación',
+  ready_to_ship: 'Listo para enviar',
+  shipped: 'Enviado',
+  in_transit: 'En tránsito',
+  delivered: 'Entregado',
+  cancelled: 'Cancelado',
+  failed: 'Pago fallido',
+  payment_failed: 'Pago fallido',
+  refunded: 'Reembolsado'
+};
 
-  let order;
-  try {
-    order = await getOrderById(orderId);
-  } catch {
-    notFound();
+export default function OrderConfirmationPage({ params }: OrderConfirmationPageProps) {
+  const { orderId } = use(params);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getOrderById(orderId)
+      .then(setOrder)
+      .catch(() => setOrder(null))
+      .finally(() => setLoading(false));
+  }, [orderId]);
+
+  if (loading) {
+    return (
+      <div className="container max-w-3xl py-16 flex justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="container max-w-3xl py-16 text-center space-y-4">
+        <h1 className="text-2xl font-bold">No encontramos este pedido</h1>
+        <p className="text-muted-foreground">
+          Verificá que estés logueado con la cuenta que hizo la compra.
+        </p>
+        <Button asChild>
+          <Link href="/cuenta/pedidos">Ir a mis pedidos</Link>
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -57,17 +96,7 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Estado:</span>
-              <div className="font-medium mt-1">
-                {order.status === 'pending_payment' && 'Pendiente de pago'}
-                {order.status === 'payment_confirmed' && 'Pago confirmado'}
-                {order.status === 'processing' && 'En preparación'}
-                {order.status === 'ready_to_ship' && 'Listo para enviar'}
-                {order.status === 'in_transit' && 'En tránsito'}
-                {order.status === 'delivered' && 'Entregado'}
-                {order.status === 'cancelled' && 'Cancelado'}
-                {order.status === 'payment_failed' && 'Pago fallido'}
-                {order.status === 'refunded' && 'Reembolsado'}
-              </div>
+              <div className="font-medium mt-1">{STATUS_LABELS[order.status] ?? order.status}</div>
             </div>
             <div>
               <span className="text-muted-foreground">Fecha:</span>
@@ -81,7 +110,7 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
           <div>
             <h3 className="font-medium mb-3">Productos</h3>
             <div className="space-y-2">
-              {order.items.map((item) => (
+              {(order.items ?? []).map((item) => (
                 <div key={item.productId} className="flex justify-between text-sm">
                   <div>
                     <div className="font-medium">{item.productName}</div>
@@ -149,9 +178,8 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button asChild size="lg">
-          <Link href="/">Ir a inicio</Link>
+          <Link href="/cuenta/pedidos">Ver mis pedidos</Link>
         </Button>
-        {/* TODO: Link to orders page when implemented */}
         <Button asChild variant="outline" size="lg">
           <Link href="/productos">Seguir comprando</Link>
         </Button>

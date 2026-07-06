@@ -25,7 +25,10 @@ import type {
 export async function getUserOrders(userId: string, filters: Omit<OrderFilters, 'user_id'>) {
   return orderRepository.findOrders({
     ...filters,
-    user_id: userId
+    user_id: userId,
+    // La vista "Mis pedidos" del cliente renderiza la cantidad de items de
+    // cada orden — sin esto el front recibe orders sin `items` y explota.
+    includeItems: true
   });
 }
 
