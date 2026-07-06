@@ -53,7 +53,7 @@ export default function OrderConfirmationPage({ params }: OrderConfirmationPageP
 
   if (loading) {
     return (
-      <div className="container max-w-3xl py-16 flex justify-center">
+      <div className="container mx-auto max-w-3xl py-16 flex justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -61,7 +61,7 @@ export default function OrderConfirmationPage({ params }: OrderConfirmationPageP
 
   if (!order) {
     return (
-      <div className="container max-w-3xl py-16 text-center space-y-4">
+      <div className="container mx-auto max-w-3xl py-16 text-center space-y-4">
         <h1 className="text-2xl font-bold">No encontramos este pedido</h1>
         <p className="text-muted-foreground">
           Verificá que estés logueado con la cuenta que hizo la compra.
@@ -74,7 +74,7 @@ export default function OrderConfirmationPage({ params }: OrderConfirmationPageP
   }
 
   return (
-    <div className="container max-w-3xl py-8">
+    <div className="container mx-auto max-w-3xl py-8">
       {/* Success Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
