@@ -149,6 +149,35 @@ describe('MP webhook: verificación de firma', () => {
     expect(fetchPayment).not.toHaveBeenCalled();
   });
 
+  it('acepta ts expresado en SEGUNDOS (el simulador del panel firma así)', async () => {
+    // MP es inconsistente con la unidad del ts (docs dicen ms, el simulador
+    // manda segundos). La ventana anti-replay debe normalizar la unidad;
+    // el HMAC usa el string crudo así que no se ve afectado.
+    mockPayment('approved');
+    mockOrder('pending_payment');
+    const tsSeconds = Math.floor(Date.now() / 1000);
+    const res = buildRes();
+
+    await handleWebhook(buildReq({ xSignature: sign(DATA_ID, tsSeconds, 'req-abc') }), res, next);
+
+    expect(res.statusCode).toBe(200);
+    expect(orderRepository.updateOrderStatus).toHaveBeenCalled();
+  });
+
+  it('rechaza replay también cuando el ts viejo viene en segundos', async () => {
+    const staleTsSeconds = Math.floor((Date.now() - 6 * 60 * 1000) / 1000);
+    const res = buildRes();
+
+    await handleWebhook(
+      buildReq({ xSignature: sign(DATA_ID, staleTsSeconds, 'req-abc') }),
+      res,
+      next
+    );
+
+    expect(res.statusCode).toBe(400);
+    expect(fetchPayment).not.toHaveBeenCalled();
+  });
+
   it('acepta notificación SIN x-request-id firmada con manifest sin request-id', async () => {
     // Las docs de MP indican: si un valor (data.id, x-request-id) no está presente,
     // se remueve del manifest antes de calcular el HMAC.
