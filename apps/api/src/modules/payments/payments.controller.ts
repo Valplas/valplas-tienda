@@ -203,6 +203,16 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
     }
 
     const newStatus = mapPaymentStatus(payment.status ?? '');
+    // Estados desde los que un `approved` reintentado por MP es un duplicado
+    // esperado (la orden ya avanzó), no una transición inválida a loggear.
+    const alreadyPaidStatuses: OrderStatus[] = [
+      'payment_confirmed',
+      'processing',
+      'ready_to_ship',
+      'shipped',
+      'delivered'
+    ];
+
     if (newStatus && VALID_STATUS_TRANSITIONS[order.status].includes(newStatus)) {
       await orderRepository.updateOrderStatus(
         order.id,
@@ -210,6 +220,22 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
         order.user_id
       );
       logger.info(`MP webhook: order ${order.order_number} → ${newStatus}`);
+
+      // Pago confirmado → la orden entra en preparación sin paso manual del
+      // admin (decisión de negocio: el pago aprobado dispara el picking).
+      if (newStatus === 'payment_confirmed') {
+        await orderRepository.updateOrderStatus(
+          order.id,
+          {
+            status: 'processing',
+            notes: 'Preparación iniciada automáticamente al confirmarse el pago'
+          },
+          order.user_id
+        );
+        logger.info(`MP webhook: order ${order.order_number} → processing (auto)`);
+      }
+    } else if (newStatus === 'payment_confirmed' && alreadyPaidStatuses.includes(order.status)) {
+      // Reintento/duplicado de una notificación ya procesada: idempotente.
     } else if (newStatus) {
       // Transición no permitida (ej: refund de una orden ya en preparación):
       // no se pisa el estado, pero queda registrado para revisión manual.

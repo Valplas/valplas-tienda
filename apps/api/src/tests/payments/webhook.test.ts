@@ -102,7 +102,7 @@ beforeEach(() => {
 });
 
 describe('MP webhook: verificación de firma', () => {
-  it('acepta una notificación con firma válida y confirma el pago aprobado', async () => {
+  it('acepta una notificación con firma válida, confirma el pago y arranca la preparación', async () => {
     mockPayment('approved');
     mockOrder('pending_payment');
     const res = buildRes();
@@ -110,9 +110,18 @@ describe('MP webhook: verificación de firma', () => {
     await handleWebhook(buildReq(), res, next);
 
     expect(res.statusCode).toBe(200);
-    expect(orderRepository.updateOrderStatus).toHaveBeenCalledWith(
+    expect(orderRepository.updateOrderStatus).toHaveBeenCalledTimes(2);
+    expect(orderRepository.updateOrderStatus).toHaveBeenNthCalledWith(
+      1,
       'order-1',
       expect.objectContaining({ status: 'payment_confirmed', payment_id: DATA_ID }),
+      'user-1'
+    );
+    // Pedido pago → pasa automáticamente a preparación (sin paso manual del admin)
+    expect(orderRepository.updateOrderStatus).toHaveBeenNthCalledWith(
+      2,
+      'order-1',
+      expect.objectContaining({ status: 'processing' }),
       'user-1'
     );
   });
@@ -271,5 +280,19 @@ describe('MP webhook: mapeo de estados', () => {
 
     expect(res.statusCode).toBe(200);
     expect(orderRepository.updateOrderStatus).not.toHaveBeenCalled();
+  });
+
+  it('reintento de approved sobre orden ya en preparación: sin update y sin warning', async () => {
+    // MP reintenta notificaciones; con el auto-processing la orden ya avanzó.
+    // No es una transición inválida a loggear — es un duplicado esperado.
+    mockPayment('approved');
+    mockOrder('processing');
+    const res = buildRes();
+
+    await handleWebhook(buildReq(), res, next);
+
+    expect(res.statusCode).toBe(200);
+    expect(orderRepository.updateOrderStatus).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 });
