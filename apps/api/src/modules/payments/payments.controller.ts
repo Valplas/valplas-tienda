@@ -168,18 +168,17 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
       return res.status(200).json({ received: true });
     }
 
-    // El data.id del QUERY param es el campo que MP firma en el manifest.
-    // Se usa ese mismo valor para verificar la firma Y consultar el pago —
-    // nunca el id del body, que no está cubierto por la firma. Las
-    // notificaciones reales de pago siempre traen el query param.
+    // El manifest de la firma usa el data.id del QUERY tal como lo mandó MP;
+    // cuando la notificación viene sin query param (formato real observado en
+    // el panel: payment.created sin ?data.id=), MP firma el manifest SIN el
+    // término id: — la autenticidad la siguen dando ts + request-id + secret.
+    // El id del body se usa entonces solo para consultar el pago: el estado
+    // aplicado sale siempre de la API de MP, nunca del body.
     const queryDataId = req.query['data.id'] as string | undefined;
-    if (!queryDataId) {
-      logger.warn('MP webhook: missing data.id query param');
-      return res.status(400).json({ error: 'Missing data.id' });
-    }
-    const paymentId = queryDataId.toLowerCase();
+    const manifestDataId = queryDataId?.toLowerCase() ?? '';
+    const paymentId = (queryDataId ?? String(data.id)).toLowerCase();
 
-    if (!xSignature || !verifySignature(xSignature, xRequestId, paymentId)) {
+    if (!xSignature || !verifySignature(xSignature, xRequestId, manifestDataId)) {
       logger.warn('MP webhook: invalid or missing signature');
       return res.status(400).json({ error: 'Invalid signature' });
     }
