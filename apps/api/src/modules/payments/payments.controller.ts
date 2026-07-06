@@ -30,11 +30,16 @@ function verifySignature(
     logger.warn('MP webhook: x-signature malformado (faltan ts o v1)');
     return false;
   }
-  // Replay protection: reject notifications older than 5 minutes
-  const tsDeltaMs = Date.now() - parseInt(ts, 10);
+  // Replay protection: reject notifications older than 5 minutes.
+  // MP es inconsistente con la unidad del ts (las docs dicen milisegundos,
+  // el simulador del panel firma con segundos): se normaliza SOLO para este
+  // chequeo — el HMAC del manifest usa el string crudo tal como vino.
+  const tsNum = parseInt(ts, 10);
+  const tsMs = tsNum < 1e12 ? tsNum * 1000 : tsNum;
+  const tsDeltaMs = Date.now() - tsMs;
   if (Math.abs(tsDeltaMs) > 5 * 60 * 1000) {
     logger.warn(
-      `MP webhook: ts fuera de la ventana anti-replay (delta ${Math.round(tsDeltaMs / 1000)}s) — si es el simulador del panel, manda un ts viejo`
+      `MP webhook: ts fuera de la ventana anti-replay (delta ${Math.round(tsDeltaMs / 1000)}s)`
     );
     return false;
   }
