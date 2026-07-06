@@ -200,14 +200,52 @@ describe('MP webhook: verificación de firma', () => {
     expect(fetchPayment).not.toHaveBeenCalled();
   });
 
-  it('rechaza notificación de pago sin data.id en query (campo firmado obligatorio)', async () => {
-    // El data.id del query param es el campo que MP firma en el manifest.
-    // Aceptar un id alternativo del body desacoplaría la firma del pago
-    // consultado — el id del body NUNCA debe usarse para el fetch.
+  it('procesa notificación real SIN data.id en query: manifest sin id, fetch con el id del body', async () => {
+    // Evidencia del panel de MP (2026-07-06): las notificaciones payment.created
+    // reales llegan SIN ?data.id= en la URL. En ese caso MP firma el manifest
+    // sin el término id: (docs oficiales) y el id viaja solo en el body.
+    mockPayment('approved');
+    mockOrder('pending_payment');
+    const ts = Date.now();
+    const req = {
+      headers: {
+        'x-signature': sign('', ts, 'req-abc'), // manifest sin id:
+        'x-request-id': 'req-abc'
+      },
+      query: {},
+      body: { type: 'payment', data: { id: DATA_ID } }
+    } as unknown as Request;
+    const res = buildRes();
+
+    await handleWebhook(req, res, next);
+
+    expect(res.statusCode).toBe(200);
+    expect(fetchPayment).toHaveBeenCalledWith(DATA_ID);
+    expect(orderRepository.updateOrderStatus).toHaveBeenCalled();
+  });
+
+  it('ignora body data.id con formato no numérico (defensa: va a la URL del fetch)', async () => {
     const ts = Date.now();
     const req = {
       headers: {
         'x-signature': sign('', ts, 'req-abc'),
+        'x-request-id': 'req-abc'
+      },
+      query: {},
+      body: { type: 'payment', data: { id: '../merchant_orders/1' } }
+    } as unknown as Request;
+    const res = buildRes();
+
+    await handleWebhook(req, res, next);
+
+    expect(res.statusCode).toBe(200);
+    expect(fetchPayment).not.toHaveBeenCalled();
+  });
+
+  it('rechaza notificación sin query data.id si la firma no valida', async () => {
+    const req = {
+      headers: {
+        'x-signature': `ts=${Date.now()},v1=${'0'.repeat(64)}`,
         'x-request-id': 'req-abc'
       },
       query: {},
