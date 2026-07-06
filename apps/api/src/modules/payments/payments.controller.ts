@@ -60,6 +60,12 @@ function verifySignature(
     // Firma bien formada y ts vigente pero HMAC distinto → casi siempre
     // MP_WEBHOOK_SECRET no coincide con el secret del webhook en el panel.
     logger.warn('MP webhook: HMAC no coincide — revisar MP_WEBHOOK_SECRET vs secret del panel');
+    // Diagnóstico temporal (activar con MP_WEBHOOK_DEBUG=true): el manifest y
+    // la firma recibida permiten verificar offline qué secret usó MP. La firma
+    // es un MAC de un mensaje ya entregado — no permite forjar otras.
+    if (process.env.MP_WEBHOOK_DEBUG === 'true') {
+      logger.warn(`MP webhook DEBUG: manifest="${manifest}" recibido ts=${ts} v1=${v1}`);
+    }
   }
   return valid;
 }
