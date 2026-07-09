@@ -77,8 +77,8 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
  * Login de usuario
  */
 export async function login(data: LoginData): Promise<AuthResponse> {
-  // Buscar usuario por email o username
-  const user = await authRepository.findUserByEmailOrUsername(data.emailOrUsername);
+  // Buscar usuario por email o username (incluye password_hash, solo para auth)
+  const user = await authRepository.findUserByEmailOrUsernameForAuth(data.emailOrUsername);
 
   if (!user) {
     throw new AppError('INVALID_CREDENTIALS', 'Credenciales inválidas', 401);
@@ -89,10 +89,8 @@ export async function login(data: LoginData): Promise<AuthResponse> {
     throw new AppError('USER_INACTIVE', 'Usuario inactivo. Contacta a soporte.', 403);
   }
 
-  // Comparar contraseña (la DB retorna password_hash en snake_case)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userWithPassword = user as any;
-  const isPasswordValid = await bcrypt.compare(data.password, userWithPassword.password_hash);
+  // Comparar contraseña
+  const isPasswordValid = await bcrypt.compare(data.password, user.password_hash);
 
   if (!isPasswordValid) {
     throw new AppError('INVALID_CREDENTIALS', 'Credenciales inválidas', 401);
@@ -110,8 +108,8 @@ export async function login(data: LoginData): Promise<AuthResponse> {
   const expiresAt = new Date(Date.now() + ms(env.JWT_REFRESH_EXPIRES_IN as StringValue));
   await refreshTokenRepository.saveRefreshToken(user.id, tokenHash, expiresAt);
 
-  // Remover password_hash del usuario
-  const { password_hash: _, ...userWithoutPassword } = userWithPassword;
+  // Remover password_hash del usuario antes de devolverlo
+  const { password_hash: _, ...userWithoutPassword } = user;
 
   return {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -146,7 +144,7 @@ export async function refreshAccessToken(
   refreshToken: string
 ): Promise<{ accessToken: string; newRefreshToken: string }> {
   try {
-    jwt.verify(refreshToken, env.JWT_SECRET);
+    jwt.verify(refreshToken, env.JWT_REFRESH_SECRET);
   } catch {
     throw new AppError('INVALID_TOKEN', 'Token inválido o expirado', 401);
   }
@@ -208,7 +206,7 @@ export function generateRefreshToken(userId: string): string {
     sessionId: randomUUID()
   };
 
-  return jwt.sign(payload, env.JWT_SECRET, {
+  return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN
   } as jwt.SignOptions);
 }

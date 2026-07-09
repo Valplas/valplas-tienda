@@ -2,16 +2,18 @@
 
 import { query, pool } from './client.js';
 import bcrypt from 'bcryptjs';
+import { assertSeedAllowed, resolveSeedPassword } from './seed-utils.js';
 
 const BCRYPT_ROUNDS = 12;
 
 async function seedComplete() {
   try {
+    assertSeedAllowed();
     console.log('🌱 Iniciando seed completo de base de datos...\n');
 
     // 1. USERS
     console.log('👥 Creando usuarios...');
-    const passwordHash = await bcrypt.hash('password123', BCRYPT_ROUNDS);
+    const passwordHash = await bcrypt.hash(resolveSeedPassword(), BCRYPT_ROUNDS);
 
     const users = await query(
       `
@@ -114,7 +116,7 @@ async function seedComplete() {
     }
 
     console.log('\n🎉 ¡Seed completado!\n');
-    console.log('👤 Usuarios de prueba (password: password123):');
+    console.log('👤 Usuarios de prueba (contraseña: ver SEED_PASSWORD o el log de arriba):');
     console.log('  • owner@valplas.net (Owner)');
     console.log('  • admin@valplas.net (Admin)');
     console.log('  • driver@valplas.net (Driver)');

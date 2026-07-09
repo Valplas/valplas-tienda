@@ -1,27 +1,39 @@
 import type { Request, Response, NextFunction } from 'express';
+import ms, { type StringValue } from 'ms';
 import * as authService from './auth.service.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
+import { env } from '../../env.js';
 
 const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
 const ACCESS_TOKEN_COOKIE_NAME = 'accessToken';
-const COOKIE_MAX_AGE = 30 * 60 * 1000; // 30 minutos en milisegundos
-const ACCESS_TOKEN_MAX_AGE = 15 * 60 * 1000; // 15 min en ms
+// maxAge derivado de la config de JWT para que la cookie no expire antes que el token.
+// Antes estaba hardcodeado a 30 min, lo que cerraba la sesión a los 30 min sin importar
+// JWT_REFRESH_EXPIRES_IN (p.ej. 7d) y disparaba el flujo de "sesión expirada".
+const REFRESH_TOKEN_MAX_AGE = ms(env.JWT_REFRESH_EXPIRES_IN as StringValue);
+const ACCESS_TOKEN_MAX_AGE = ms(env.JWT_EXPIRES_IN as StringValue);
+
+// Cookies cross-site (frontend y API en dominios distintos, ej: Vercel + Railway) requieren
+// SameSite=None; Secure, o el browser no las manda en los fetch a la API. Se activa en
+// producción o explícitamente con COOKIE_CROSS_SITE=true — necesario en deploys HTTPS que
+// corren con NODE_ENV=development (el deploy dev usa esa var para otra lógica).
+const USE_CROSS_SITE_COOKIES = env.IS_PRODUCTION || env.COOKIE_CROSS_SITE;
+const COOKIE_SAME_SITE: 'none' | 'lax' = USE_CROSS_SITE_COOKIES ? 'none' : 'lax';
 
 // Cookie options para refresh token
 const getCookieOptions = () => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production', // HTTPS en producción
-  sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax',
-  maxAge: COOKIE_MAX_AGE,
+  secure: USE_CROSS_SITE_COOKIES, // Secure obligatorio cuando SameSite=None
+  sameSite: COOKIE_SAME_SITE,
+  maxAge: REFRESH_TOKEN_MAX_AGE,
   path: '/'
 });
 
 // Cookie options para access token
 const getAccessTokenCookieOptions = () => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax',
+  secure: USE_CROSS_SITE_COOKIES,
+  sameSite: COOKIE_SAME_SITE,
   maxAge: ACCESS_TOKEN_MAX_AGE,
   path: '/'
 });

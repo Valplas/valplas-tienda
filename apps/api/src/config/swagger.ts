@@ -237,4 +237,15 @@ const options: swaggerJsdoc.Options = {
   apis: ['./src/modules/**/*.routes.ts', './src/modules/**/*.routes.js']
 };
 
-export const swaggerSpec = swaggerJsdoc(options);
+// swagger-jsdoc no debe poder tirar el server. Si la generación falla (ej:
+// incompatibilidad de deps), logueamos y devolvemos un spec mínimo en vez de crashear.
+function buildSwaggerSpec(): object {
+  try {
+    return swaggerJsdoc(options);
+  } catch (err) {
+    console.error('⚠️ No se pudo generar el spec de Swagger, /api/docs quedará vacío:', err);
+    return { ...options.definition, paths: {} };
+  }
+}
+
+export const swaggerSpec = buildSwaggerSpec();

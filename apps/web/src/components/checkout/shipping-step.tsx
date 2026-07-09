@@ -24,8 +24,6 @@ interface ShippingStepProps {
   onBack: () => void;
 }
 
-const FREE_SHIPPING_THRESHOLD = 10000;
-
 export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingStepProps) {
   const [options, setOptions] = useState<ShippingOption[]>([]);
   const [selectedOption, setSelectedOption] = useState<ShippingOption | null>(null);
@@ -43,11 +41,12 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
       });
 
       if (response.success && response.data) {
-        // Map service rates to ShippingOptions
-        const mappedOptions: ShippingOption[] = response.data.rates.map((rate) => ({
-          carrierName: rate.carrier.name,
-          cost: rate.cost,
-          estimatedDays: parseInt(rate.estimatedDays.split('-')[0]) // Parse "3-5 días" -> 3
+        // El backend devuelve un array plano de cotizaciones (una por carrier/tarifa).
+        const mappedOptions: ShippingOption[] = response.data.map((quote) => ({
+          carrierId: quote.carrierId,
+          carrierName: quote.carrierName,
+          cost: quote.price,
+          estimatedDays: parseInt(quote.estimatedDays.split('-')[0])
         }));
 
         setOptions(mappedOptions);
@@ -78,8 +77,6 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
     }
   };
 
-  const isFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD;
-
   return (
     <div className="space-y-6">
       <div>
@@ -109,24 +106,20 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
       {/* Shipping Options */}
       {!loading && !error && options.length > 0 && (
         <RadioGroup
-          value={selectedOption?.carrierName}
+          value={selectedOption?.carrierId}
           onValueChange={(value) => {
-            const option = options.find((opt) => opt.carrierName === value);
+            const option = options.find((opt) => opt.carrierId === value);
             if (option) setSelectedOption(option);
           }}
         >
           <div className="space-y-3">
             {options.map((option) => {
-              const displayCost = isFreeShipping ? 0 : option.cost;
+              const displayCost = option.cost;
 
               return (
-                <div key={option.carrierName} className="flex items-start space-x-3">
-                  <RadioGroupItem
-                    value={option.carrierName}
-                    id={option.carrierName}
-                    className="mt-1"
-                  />
-                  <Label htmlFor={option.carrierName} className="flex-1 cursor-pointer">
+                <div key={option.carrierId} className="flex items-start space-x-3">
+                  <RadioGroupItem value={option.carrierId} id={option.carrierId} className="mt-1" />
+                  <Label htmlFor={option.carrierId} className="flex-1 cursor-pointer">
                     <Card className="hover:border-primary transition-colors">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
@@ -143,9 +136,7 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
                             </div>
                           </div>
                           <div className="text-right">
-                            {isFreeShipping ? (
-                              <div className="font-semibold text-green-600">Gratis</div>
-                            ) : displayCost === 0 ? (
+                            {displayCost === 0 ? (
                               <div className="font-semibold text-green-600">Gratis</div>
                             ) : (
                               <div className="font-semibold">{formatPrice(displayCost)}</div>
@@ -163,7 +154,7 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
       )}
 
       {/* Free Shipping Badge */}
-      {!loading && !error && isFreeShipping && (
+      {!loading && !error && options.some((o) => o.cost === 0) && (
         <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-3 text-center">
           ¡Tu pedido califica para envío gratis!
         </div>

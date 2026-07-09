@@ -18,48 +18,57 @@ validateEnv();
 const app = express();
 const PORT = env.PORT;
 
+// Detrás de Railway/Cloudflare hay 1 proxy. Sin esto, express-rate-limit agrupa todo el
+// tráfico bajo la IP del proxy (rate limit global) y req.ip/logs registran la IP del proxy
+// en lugar de la del cliente. Valor numérico (no `true`) para no confiar ciegamente en
+// X-Forwarded-For. Ver NC-01 (auditoría ISO 27001).
+app.set('trust proxy', 1);
+
 // Middleware globales
-console.log('🔧 CORS Debug - Allowed origins:', env.ALLOWED_ORIGINS);
-app.use(helmet());
+// helmet() ya aplica una CSP por defecto razonable (script-src 'self', object-src 'none',
+// HSTS, etc.). Endurecemos frame-ancestors a 'none': la API nunca debe embeberse en un
+// iframe (anti-clickjacking). Ver OBS-18.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        'frame-ancestors': ["'none'"]
+      }
+    }
+  })
+);
+
+// Matchers de orígenes permitidos para CORS.
+// Los patrones con wildcard (ej: https://*.vercel.app) solo matchean UN label de
+// subdominio ([^.]+) y nunca un punto, para evitar bypass tipo https://a.b.dominio.com.
+// IMPORTANTE: con `credentials: true`, un wildcard amplio (ej: *.vercel.app) permite que
+// cualquier deploy de terceros en ese dominio lea respuestas autenticadas. Preferí dominios
+// explícitos en ALLOWED_ORIGINS para producción.
+const allowedOriginMatchers: Array<string | RegExp> = env.ALLOWED_ORIGINS.map((allowed) => {
+  if (!allowed.includes('*')) return allowed;
+  const escaped = allowed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '[^.]+');
+  return new RegExp(`^${escaped}$`);
+});
+
+const isOriginAllowed = (origin: string): boolean =>
+  allowedOriginMatchers.some((matcher) =>
+    typeof matcher === 'string' ? matcher === origin : matcher.test(origin)
+  );
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permitir requests sin origin (mobile apps, Postman, etc.)
+      // Permitir requests sin origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
-
-      console.log('🔍 CORS - Checking origin:', origin);
-
-      // Verificar si el origin está en la lista de permitidos
-      const isAllowed = env.ALLOWED_ORIGINS.some((allowedOrigin) => {
-        // Soporte para wildcards (*.vercel.app)
-        if (allowedOrigin.includes('*')) {
-          const pattern = allowedOrigin.replace(/\*/g, '.*');
-          const regex = new RegExp(`^${pattern}$`);
-          const matches = regex.test(origin);
-          console.log(
-            `  🔸 Testing wildcard: "${allowedOrigin}" → pattern: "${pattern}" → matches: ${matches}`
-          );
-          return matches;
-        }
-        const matches = allowedOrigin === origin;
-        console.log(`  🔸 Testing exact: "${allowedOrigin}" → matches: ${matches}`);
-        return matches;
-      });
-
-      if (isAllowed) {
-        console.log('✅ CORS allowed for:', origin);
-        callback(null, true);
-      } else {
-        console.warn(`❌ CORS blocked origin: ${origin}`);
-        console.warn('   Configured origins:', env.ALLOWED_ORIGINS);
-        callback(new Error('Not allowed by CORS'));
-      }
+      if (isOriginAllowed(origin)) return callback(null, true);
+      console.warn(`CORS blocked origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS'));
     },
     credentials: true
   })
 );
 app.use(morgan('dev'));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(passport.initialize());
@@ -100,7 +109,9 @@ import orderRoutes from './modules/orders/order.routes.js';
 import userRoutes from './modules/users/user.routes.js';
 import accountingRoutes from './modules/accounting/accounting.routes.js';
 import catalogRoutes from './modules/catalog/catalog.routes.js';
+import paymentsRoutes from './modules/payments/payments.routes.js';
 import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.js';
+import { scheduleStaleOrderCancellation } from './infrastructure/jobs/cancel-stale-orders.job.js';
 
 // Montar rutas
 app.use('/api/auth', authRoutes);
@@ -115,6 +126,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/accounting', accountingRoutes);
 app.use('/api/catalog', catalogRoutes);
+app.use('/api/payments', paymentsRoutes);
 
 // Swagger documentation
 app.use(
@@ -147,6 +159,8 @@ app.use((req, res) => {
 // Programar jobs en background
 scheduleTokenCleanup();
 console.log('🕒 Job programado: limpieza de tokens a las 3:00 AM ART (06:00 UTC)');
+scheduleStaleOrderCancellation();
+console.log('🕒 Job programado: cancelación horaria de órdenes pending_payment expiradas');
 
 // Iniciar servidor
 const server = app.listen(PORT, () => {

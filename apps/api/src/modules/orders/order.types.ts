@@ -45,6 +45,8 @@ export interface Order {
   created_at: Date;
   updated_at: Date;
   user?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'phone'> | null;
+  /** Presente cuando el listado se pide con includeItems (json_agg en el repo). */
+  items?: OrderItemWithProduct[];
 }
 
 export interface OrderItem {
@@ -87,6 +89,7 @@ export interface CreateOrderInput {
   payment_method: string;
   notes?: string;
   items: CreateOrderItemInput[];
+  payer_identification?: { type: string; number: string };
 }
 
 export interface CreateAdminOrderInput {
@@ -117,6 +120,7 @@ export interface UpdateAdminOrderInput {
 export interface CreateOrderItemInput {
   product_id: string;
   quantity: number;
+  price_list_id?: string;
 }
 
 export interface UpdateOrderStatusInput {

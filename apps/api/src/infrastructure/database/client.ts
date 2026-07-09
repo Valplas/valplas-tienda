@@ -7,15 +7,24 @@ const { Pool, types } = pg;
 types.setTypeParser(1700, parseFloat);
 
 /**
+ * Configuración TLS de la conexión.
+ * En producción se valida el certificado por defecto (evita MITM en el tramo app↔DB).
+ * Se puede aportar la CA del proveedor vía DATABASE_CA_CERT, o desactivar la validación
+ * con DATABASE_SSL_REJECT_UNAUTHORIZED=false como escape de emergencia.
+ */
+const sslConfig = env.IS_PRODUCTION
+  ? {
+      rejectUnauthorized: env.DATABASE_SSL_REJECT_UNAUTHORIZED,
+      ...(env.DATABASE_CA_CERT ? { ca: env.DATABASE_CA_CERT } : {})
+    }
+  : false;
+
+/**
  * Pool de conexiones a PostgreSQL
  */
 export const pool = new Pool({
   connectionString: env.DATABASE_URL,
-  ssl: env.IS_PRODUCTION
-    ? {
-        rejectUnauthorized: false
-      }
-    : false,
+  ssl: sslConfig,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000

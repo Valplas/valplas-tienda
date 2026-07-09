@@ -2,14 +2,20 @@ import { query } from '../../infrastructure/database/client.js';
 import type { User } from '@valplas/shared/types';
 import type { RegisterData } from './auth.types.js';
 
+// Columnas públicas del usuario. NUNCA incluir password_hash aquí: cualquier consumidor del
+// repositorio recibiría el hash. Para autenticación usar USER_COLUMNS_WITH_PASSWORD y los
+// métodos *ForAuth. Ver NC-06 (auditoría ISO 27001) y la regla "Never Expose passwordHash".
 const USER_COLUMNS = `
   id, email, username, phone,
   first_name AS "firstName", last_name AS "lastName",
   role, is_active AS "isActive",
   email_verified AS "emailVerified", phone_verified AS "phoneVerified",
-  password_hash, google_id AS "googleId",
+  google_id AS "googleId",
   last_login_at AS "lastLoginAt", created_at AS "createdAt", updated_at AS "updatedAt"
 `;
+
+// Solo para el dominio de autenticación (login). Incluye password_hash.
+const USER_COLUMNS_WITH_PASSWORD = `${USER_COLUMNS}, password_hash`;
 
 /**
  * Buscar usuario por email
@@ -47,6 +53,25 @@ export async function findUserByUsername(username: string): Promise<User | null>
 export async function findUserByEmailOrUsername(emailOrUsername: string): Promise<User | null> {
   const result = await query<User>(
     `SELECT ${USER_COLUMNS} FROM users
+     WHERE (email = $1 OR username = $1)
+       AND deleted_at IS NULL
+     LIMIT 1`,
+    [emailOrUsername]
+  );
+
+  return result.rows[0] || null;
+}
+
+/**
+ * Buscar usuario por email O username INCLUYENDO password_hash.
+ * Uso EXCLUSIVO del dominio de autenticación (login). Ningún otro módulo debe llamarlo.
+ * Ver NC-06.
+ */
+export async function findUserByEmailOrUsernameForAuth(
+  emailOrUsername: string
+): Promise<(User & { password_hash: string }) | null> {
+  const result = await query<User & { password_hash: string }>(
+    `SELECT ${USER_COLUMNS_WITH_PASSWORD} FROM users
      WHERE (email = $1 OR username = $1)
        AND deleted_at IS NULL
      LIMIT 1`,

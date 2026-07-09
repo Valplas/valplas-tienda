@@ -40,14 +40,48 @@ export async function getProducts(filters?: ProductFilters): Promise<ApiResponse
   return get<Product[]>(endpoint);
 }
 
+// El backend envuelve el producto único en { product: {...} } (ApiResponse.success({ product })).
+type SingleProductResponse = { product: DetailRawProduct };
+
+// Shape crudo de un producto individual: campos planos de categoría/marca +
+// imágenes como objetos. ProductDetail espera category/brand anidados,
+// images como string[] y tiers (no priceTiers), así que adaptamos.
+interface DetailRawProduct extends RawProduct {
+  categoryName?: string;
+  brandName?: string;
+  sku?: string;
+  availableStock?: number;
+  description?: string;
+}
+
+/**
+ * Adapta el producto crudo de la API al shape que consume <ProductDetail>:
+ * - images: string[] (extrae url de cada objeto)
+ * - tiers: desde priceTiers
+ * - category/brand: objetos { id, name } desde los campos planos
+ */
+function adaptProductDetail(raw: DetailRawProduct): Product {
+  const images = Array.isArray(raw.images)
+    ? raw.images.map((img) => (typeof img === 'string' ? img : img?.url)).filter(Boolean)
+    : [];
+
+  return {
+    ...raw,
+    images,
+    tiers: raw.priceTiers ?? [],
+    category: raw.categoryId ? { id: raw.categoryId, name: raw.categoryName ?? '' } : null,
+    brand: raw.brandId ? { id: raw.brandId, name: raw.brandName ?? '' } : null
+  } as unknown as Product;
+}
+
 /**
  * Obtener producto por ID
  */
 export async function getProductById(id: string): Promise<Product> {
-  const response = await get<Product>(`/products/${id}`);
+  const response = await get<SingleProductResponse>(`/products/${id}`);
 
-  if (response.success && response.data) {
-    return response.data;
+  if (response.success && response.data?.product) {
+    return adaptProductDetail(response.data.product);
   }
 
   throw new Error(response.error?.message || 'Error al obtener producto');
@@ -57,10 +91,10 @@ export async function getProductById(id: string): Promise<Product> {
  * Obtener producto por slug
  */
 export async function getProductBySlug(slug: string): Promise<Product> {
-  const response = await get<Product>(`/products/slug/${slug}`);
+  const response = await get<SingleProductResponse>(`/products/slug/${slug}`);
 
-  if (response.success && response.data) {
-    return response.data;
+  if (response.success && response.data?.product) {
+    return adaptProductDetail(response.data.product);
   }
 
   throw new Error(response.error?.message || 'Error al obtener producto');

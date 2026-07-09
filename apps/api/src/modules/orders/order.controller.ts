@@ -4,6 +4,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import type { OrderStatus } from './order.types.js';
 import * as orderDomain from './order.domain.js';
+import { clearCartCookie } from '../cart/cart.service.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 import { logger } from '../../infrastructure/logger/index.js';
 
@@ -117,6 +118,10 @@ export async function createOrder(req: Request, res: Response, next: NextFunctio
     const userId = (req.user as AuthenticatedUser).userId;
     const order = await orderDomain.createOrder(userId, req.body);
 
+    // El carrito vive en una cookie HttpOnly: se vacía en esta misma respuesta
+    // para que el usuario no vuelva de MP con el carrito lleno (doble compra).
+    clearCartCookie(res);
+
     return res.status(201).json(ApiResponse.success(order));
   } catch (error) {
     next(error);
@@ -175,7 +180,8 @@ export async function createAdminOrder(req: Request, res: Response, next: NextFu
 
     logger.info('Admin creating order', {
       adminId,
-      body: req.body
+      userId: req.body?.user_id,
+      itemCount: Array.isArray(req.body?.items) ? req.body.items.length : 0
     });
 
     const order = await orderDomain.createAdminOrder(adminId, req.body);
@@ -190,7 +196,9 @@ export async function createAdminOrder(req: Request, res: Response, next: NextFu
   } catch (error) {
     logger.error('Failed to create admin order', {
       adminId: (req.user as AuthenticatedUser | undefined)?.userId,
-      body: req.body,
+      // No loguear req.body completo: puede contener PII (direcciones, datos del cliente). Ver OBS-17.
+      targetUserId: req.body?.user_id,
+      itemCount: Array.isArray(req.body?.items) ? req.body.items.length : 0,
       error: error instanceof Error ? error.message : String(error)
     });
     next(error);

@@ -170,14 +170,18 @@ export async function deleteRate(id: string): Promise<void> {
 export async function getShippingQuote(request: ShippingQuoteRequest): Promise<ShippingQuote[]> {
   const { postcode, cart_total } = request;
 
-  // Find zone for this postcode
-  const zone = await shippingRepository.findZoneByPostcode(postcode);
-  if (!zone) {
+  // Todas las zonas activas que sirven este CP (no depender de "la primera")
+  const zones = await shippingRepository.findZonesByPostcode(postcode);
+  if (zones.length === 0) {
     throw new Error('No hay envíos disponibles para este código postal');
   }
+  const zoneNameById = new Map(zones.map((z) => [z.id, z.name]));
 
-  // Find rates for this zone and amount
-  const rates = await shippingRepository.findRatesByZoneAndAmount(zone.id, cart_total);
+  // Tarifas de todas esas zonas que aplican al monto
+  const rates = await shippingRepository.findRatesByZonesAndAmount(
+    zones.map((z) => z.id),
+    cart_total
+  );
   if (rates.length === 0) {
     throw new Error('No hay opciones de envío disponibles para este monto');
   }
@@ -188,13 +192,17 @@ export async function getShippingQuote(request: ShippingQuoteRequest): Promise<S
     const carrier = await shippingRepository.findCarrierById(rate.carrier_id);
     if (!carrier || !carrier.is_active) continue;
 
+    // max_amount = umbral de envío gratis: si el carrito lo alcanza, precio 0
+    const isFreeShipping = rate.max_amount != null && cart_total >= rate.max_amount;
+    const price = isFreeShipping ? 0 : rate.price;
+
     quotes.push({
       carrier_id: carrier.id,
       carrier_name: carrier.name,
       carrier_logo: carrier.logo_url,
-      price: rate.price,
+      price,
       estimated_days: `${rate.estimated_days_min}-${rate.estimated_days_max} días`,
-      zone_name: zone.name
+      zone_name: zoneNameById.get(rate.zone_id) ?? ''
     });
   }
 

@@ -1,42 +1,83 @@
 /**
  * Checkout Page Component
- * Multi-step checkout flow
+ * Multi-step checkout flow. Requiere sesión iniciada antes de empezar
+ * (si no, redirige a /login?redirect=/checkout). Carga las direcciones
+ * guardadas del usuario y trabaja siempre con direcciones persistidas.
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import { useCartStore } from '@/stores/cart-store';
+import { useAuthStore } from '@/stores/auth-store';
+import { getUserAddresses, type Address } from '@/lib/services/addresses.service';
 import { CheckoutStepper } from './checkout-stepper';
 import { AddressStep } from './address-step';
 import { ShippingStep } from './shipping-step';
 import { PaymentStep } from './payment-step';
 import { EmptyCart } from '@/components/cart/empty-cart';
-import { Address, ShippingOption } from '@/types';
-import { AddressFormData } from '@/lib/validations/checkout';
+import { ShippingOption } from '@/types';
 
 const STEPS = ['Dirección', 'Envío', 'Pago'];
 
-interface CheckoutPageProps {
-  isAuthenticated: boolean;
-  userId?: string;
-  savedAddresses?: Address[];
-}
-
-export function CheckoutPage({ isAuthenticated, userId, savedAddresses = [] }: CheckoutPageProps) {
+export function CheckoutPage() {
   const router = useRouter();
   const { items, itemCount, subtotal } = useCartStore();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuthStore();
+  const userId = user?.id;
+
   const [currentStep, setCurrentStep] = useState(1);
-  const [shippingAddress, setShippingAddress] = useState<Address | AddressFormData | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(true);
+  const [shippingAddress, setShippingAddress] = useState<Address | null>(null);
   const [shippingOption, setShippingOption] = useState<ShippingOption | null>(null);
 
-  // Redirect to cart if empty
+  // Gate: requiere sesión iniciada antes de empezar el checkout.
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace('/login?redirect=/checkout');
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  // Redirige al carrito si está vacío.
   useEffect(() => {
     if (itemCount === 0) {
       router.push('/carrito');
     }
   }, [itemCount, router]);
+
+  // Carga las direcciones guardadas del usuario.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let active = true;
+    getUserAddresses()
+      .then((res) => {
+        if (!active) return;
+        setSavedAddresses(res.success && res.data ? res.data : []);
+      })
+      .catch(() => {
+        if (active) setSavedAddresses([]);
+      })
+      .finally(() => {
+        if (active) setAddressesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated]);
+
+  // Mientras resuelve auth o no está autenticado (antes del redirect), loader.
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="container max-w-4xl py-16 flex justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -46,9 +87,16 @@ export function CheckoutPage({ isAuthenticated, userId, savedAddresses = [] }: C
     );
   }
 
-  const handleAddressNext = (address: Address | AddressFormData) => {
+  const handleAddressNext = (address: Address) => {
     setShippingAddress(address);
     setCurrentStep(2);
+  };
+
+  const handleAddressSaved = (address: Address) => {
+    setSavedAddresses((prev) => {
+      const exists = prev.some((a) => a.id === address.id);
+      return exists ? prev.map((a) => (a.id === address.id ? address : a)) : [...prev, address];
+    });
   };
 
   const handleShippingNext = (option: ShippingOption) => {
@@ -62,33 +110,6 @@ export function CheckoutPage({ isAuthenticated, userId, savedAddresses = [] }: C
     }
   };
 
-  // Helper to get postcode from address
-  const getPostcode = (): string => {
-    if (!shippingAddress) return '';
-    return 'postcode' in shippingAddress ? shippingAddress.postcode : '';
-  };
-
-  // Helper to convert AddressFormData to Address
-  const getFullAddress = (): Address => {
-    if (!shippingAddress) {
-      throw new Error('No shipping address');
-    }
-
-    if ('id' in shippingAddress) {
-      return shippingAddress as Address;
-    }
-
-    // Convert AddressFormData to Address
-    return {
-      ...shippingAddress,
-      id: 'temp-address',
-      userId: userId || 'guest',
-      isDefault: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    } as Address;
-  };
-
   return (
     <div className="container max-w-4xl px-4 py-4 sm:py-8">
       <h1 className="text-xl font-bold mb-2 sm:text-2xl">Checkout</h1>
@@ -99,13 +120,22 @@ export function CheckoutPage({ isAuthenticated, userId, savedAddresses = [] }: C
 
       {/* Step Content */}
       <div className="mt-8">
-        {currentStep === 1 && (
-          <AddressStep savedAddresses={savedAddresses} onNext={handleAddressNext} />
-        )}
+        {currentStep === 1 &&
+          (addressesLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <AddressStep
+              savedAddresses={savedAddresses}
+              onNext={handleAddressNext}
+              onAddressSaved={handleAddressSaved}
+            />
+          ))}
 
         {currentStep === 2 && shippingAddress && (
           <ShippingStep
-            postcode={getPostcode()}
+            postcode={shippingAddress.postcode}
             cartTotal={subtotal}
             onNext={handleShippingNext}
             onBack={handleBack}
@@ -115,7 +145,7 @@ export function CheckoutPage({ isAuthenticated, userId, savedAddresses = [] }: C
         {currentStep === 3 && shippingAddress && shippingOption && (
           <PaymentStep
             items={items}
-            shippingAddress={getFullAddress()}
+            shippingAddress={shippingAddress}
             shippingOption={shippingOption}
             subtotal={subtotal}
             isAuthenticated={isAuthenticated}

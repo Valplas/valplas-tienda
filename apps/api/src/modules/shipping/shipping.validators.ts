@@ -81,10 +81,10 @@ export const updateShippingRateSchema = z.object({
   is_active: z.boolean().optional()
 });
 
-// Quote validator
+// Quote validator (query params → coerce desde string)
 export const getShippingQuoteSchema = z.object({
   postcode: z.string().min(4).max(10),
-  cart_total: z.number().min(0)
+  cart_total: z.coerce.number().min(0)
 });
 
 // Query validators

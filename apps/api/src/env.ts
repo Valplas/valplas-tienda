@@ -6,7 +6,7 @@
  */
 
 import dotenv from 'dotenv';
-import { requireEnv, getEnv, getEnvNumber } from '@/shared/utils/require-env.js';
+import { requireEnv, getEnv, getEnvNumber, getEnvBoolean } from '@/shared/utils/require-env.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -38,6 +38,11 @@ export const env = {
   // Base de datos
   DATABASE_URL: requireEnv('DATABASE_URL'),
   DIRECT_URL: getEnv('DIRECT_URL'),
+  // TLS de la conexión a Postgres. Por defecto valida el certificado (seguro).
+  // Si el proveedor usa una CA no incluida en el sistema, cargá el cert en DATABASE_CA_CERT;
+  // como último recurso (no recomendado en prod) poné DATABASE_SSL_REJECT_UNAUTHORIZED=false.
+  DATABASE_SSL_REJECT_UNAUTHORIZED: getEnvBoolean('DATABASE_SSL_REJECT_UNAUTHORIZED', true),
+  DATABASE_CA_CERT: getEnv('DATABASE_CA_CERT'),
 
   // Supabase (solo SERVICE_KEY es obligatoria para Storage)
   SUPABASE_URL: getEnv('SUPABASE_URL', ''),
@@ -46,8 +51,16 @@ export const env = {
 
   // Autenticación
   JWT_SECRET: requireEnv('JWT_SECRET'),
+  // Secreto separado para firmar/verificar refresh tokens (defensa en profundidad).
+  // Si no se define, cae a JWT_SECRET por compatibilidad. Al establecer un valor distinto
+  // se invalidan los refresh tokens previos (los usuarios deben reloguear). Ver OBS-15.
+  JWT_REFRESH_SECRET: getEnv('JWT_REFRESH_SECRET') || requireEnv('JWT_SECRET'),
   JWT_EXPIRES_IN: getEnv('JWT_EXPIRES_IN', '15m'),
-  JWT_REFRESH_EXPIRES_IN: getEnv('JWT_REFRESH_EXPIRES_IN', '30m'),
+  JWT_REFRESH_EXPIRES_IN: getEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
+  // Fuerza cookies de sesión a SameSite=None; Secure para deploys cross-site (frontend y API
+  // en dominios distintos, ej: Vercel + Railway) sin depender de NODE_ENV=production.
+  // Activar (true) solo en deploys HTTPS. En local (http) dejar false.
+  COOKIE_CROSS_SITE: getEnvBoolean('COOKIE_CROSS_SITE', false),
 
   // Google OAuth
   GOOGLE_CLIENT_ID: getEnv('GOOGLE_CLIENT_ID', ''),
@@ -55,7 +68,15 @@ export const env = {
   GOOGLE_CALLBACK_URL: getEnv(
     'GOOGLE_CALLBACK_URL',
     'http://localhost:3001/api/auth/google/callback'
-  )
+  ),
+
+  // Mercado Pago
+  MP_ACCESS_TOKEN: requireEnv('MP_ACCESS_TOKEN'),
+  MP_WEBHOOK_SECRET: requireEnv('MP_WEBHOOK_SECRET'),
+  MP_CLIENT_ID: getEnv('MP_CLIENT_ID', ''),
+  MP_CLIENT_SECRET: getEnv('MP_CLIENT_SECRET', ''),
+  // State secreto para CSRF protection en el OAuth callback (elegís vos el valor)
+  MP_OAUTH_STATE: getEnv('MP_OAUTH_STATE', '')
 } as const;
 
 /**

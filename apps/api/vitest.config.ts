@@ -5,6 +5,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Los tests comparten una DB real y el cleanup global corre tras cada test:
+    // archivos en paralelo se pisan entre sí (races en users/orders). Secuencial.
+    fileParallelism: false,
     setupFiles: ['./src/tests/setup.ts'],
     include: ['src/**/*.test.ts'],
     coverage: {
