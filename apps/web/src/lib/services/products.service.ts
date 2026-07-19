@@ -179,9 +179,9 @@ export async function getAdminProducts(params?: {
   if (params?.page) query.set('page', String(params.page));
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.search) query.set('search', params.search);
-  if (params?.categoryId) query.set('categoryId', params.categoryId);
-  if (params?.brandId) query.set('brandId', params.brandId);
-  if (params?.isActive !== undefined) query.set('isActive', String(params.isActive));
+  if (params?.categoryId) query.set('category_id', params.categoryId);
+  if (params?.brandId) query.set('brand_id', params.brandId);
+  if (params?.isActive !== undefined) query.set('is_active', String(params.isActive));
   if (params?.sort) query.set('sort', params.sort);
 
   const qs = query.toString();

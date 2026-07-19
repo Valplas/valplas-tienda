@@ -49,6 +49,8 @@ export default function AdminProductsPage() {
   const [hasMore, setHasMore] = React.useState(true);
   const [search, setSearch] = React.useState('');
   const [sortBy, setSortBy] = React.useState<AdminProductSort>('name_asc');
+  const [statusFilter, setStatusFilter] = React.useState<'all' | 'active' | 'inactive'>('all');
+  const isActiveParam = statusFilter === 'all' ? undefined : statusFilter === 'active';
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [productToDelete, setProductToDelete] = React.useState<Product | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
@@ -61,7 +63,13 @@ export default function AdminProductsPage() {
     setPage(1);
     setHasMore(true);
 
-    getAdminProducts({ page: 1, limit: PAGE_SIZE, search: search || undefined, sort: sortBy })
+    getAdminProducts({
+      page: 1,
+      limit: PAGE_SIZE,
+      search: search || undefined,
+      sort: sortBy,
+      isActive: isActiveParam
+    })
       .then((result) => {
         if (cancelled) return;
         setProducts(result.products);
@@ -77,7 +85,7 @@ export default function AdminProductsPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, sortBy, reloadKey]);
+  }, [search, sortBy, isActiveParam, reloadKey]);
 
   const loadMore = React.useCallback(
     async (nextPage: number) => {
@@ -87,7 +95,8 @@ export default function AdminProductsPage() {
           page: nextPage,
           limit: PAGE_SIZE,
           search: search || undefined,
-          sort: sortBy
+          sort: sortBy,
+          isActive: isActiveParam
         });
         setProducts((prev) => [...prev, ...result.products]);
         setHasMore(result.products.length === PAGE_SIZE);
@@ -99,7 +108,7 @@ export default function AdminProductsPage() {
         setIsLoadingMore(false);
       }
     },
-    [search, sortBy]
+    [search, sortBy, isActiveParam]
   );
 
   const handleSearch = React.useCallback((value: string) => {
@@ -365,6 +374,21 @@ export default function AdminProductsPage() {
             <SelectItem value="stock_desc">Stock: mayor a menor</SelectItem>
             <SelectItem value="stock_asc">Stock: menor a mayor</SelectItem>
             <SelectItem value="updated_desc">Última modificación</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <span className="text-sm text-muted-foreground ml-4">Estado:</span>
+        <Select
+          value={statusFilter}
+          onValueChange={(value) => setStatusFilter(value as 'all' | 'active' | 'inactive')}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="active">Activos</SelectItem>
+            <SelectItem value="inactive">Inactivos</SelectItem>
           </SelectContent>
         </Select>
       </div>

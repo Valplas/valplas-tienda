@@ -11,6 +11,8 @@ export interface ProductFilters {
   maxPrice?: number;
   inStock?: boolean;
   featured?: boolean;
+  /** true = solo activos, false = solo inactivos, undefined = todos (solo admin/owner) */
+  isActive?: boolean;
   requireActiveTier?: boolean;
   page?: number;
   limit?: number;
