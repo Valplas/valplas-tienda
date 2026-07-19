@@ -51,7 +51,7 @@ export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
     const result = await pool.query(text, params);
     const duration = Date.now() - start;
 
-    if (env.IS_DEVELOPMENT) {
+    if (env.DEBUG_SQL) {
       console.log('📊 Query ejecutada:', {
         text,
         duration: `${duration}ms`,

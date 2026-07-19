@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import * as productService from './product.service.js';
+import type { ProductFilters } from './product.types.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
 /**
@@ -8,7 +9,13 @@ import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-respon
  */
 export async function listProducts(req: Request, res: Response, next: NextFunction) {
   try {
-    const filters = req.query;
+    // Filtros ya validados y normalizados a camelCase por validateQuery;
+    // req.query crudo trae snake_case que el service no entiende.
+    const parsed = (req.validated?.query ?? {}) as ProductFilters;
+    const filters: ProductFilters = {
+      ...parsed,
+      isActive: productService.resolveIsActiveFilter(req.user?.role, parsed.isActive)
+    };
     const result = await productService.listProducts(filters);
 
     return res.json(
