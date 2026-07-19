@@ -14,7 +14,18 @@ export const productFiltersSchema = z.object({
   page: z.coerce.number().min(1).optional().default(1),
   limit: z.coerce.number().min(1).max(100).optional().default(24),
   sort: z
-    .enum(['price_asc', 'price_desc', 'name_asc', 'name_desc', 'newest', 'oldest'])
+    .enum([
+      'price_asc',
+      'price_desc',
+      'name_asc',
+      'name_desc',
+      'newest',
+      'oldest',
+      'stock_asc',
+      'stock_desc',
+      'updated_asc',
+      'updated_desc'
+    ])
     .optional()
     .default('newest')
 });

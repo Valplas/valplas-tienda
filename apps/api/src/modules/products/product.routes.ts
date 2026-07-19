@@ -15,7 +15,9 @@ const router = Router();
  * GET /api/products
  * Listar productos con filtros (público)
  */
-router.get('/', validate(productFiltersSchema), productController.listProducts);
+// Los filtros van en el query string. Validar 'body' acá rompía en Express 5:
+// req.body es undefined en un GET sin json parser y Zod rechazaba la request.
+router.get('/', validate(productFiltersSchema, 'query'), productController.listProducts);
 
 /**
  * GET /api/products/slug/:slug
