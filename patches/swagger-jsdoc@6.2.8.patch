@@ -1,0 +1,37 @@
+diff --git a/node_modules/swagger-jsdoc/.bun-tag-3e80b09367dabf6 b/.bun-tag-3e80b09367dabf6
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/src/specification.js b/src/specification.js
+index 299e968e4a83cda4e4eca8f6bc3367e96cd6e81f..b55b8909e328c30b28820bde077674c1ff28e268 100644
+--- a/src/specification.js
++++ b/src/specification.js
+@@ -184,7 +184,10 @@ function organize(swaggerObject, annotation, property) {
+  * @returns {object} swaggerObject
+  */
+ function build(options) {
+-  YAML.defaultOptions.keepCstNodes = true;
++  // yaml >=2.2 eliminó defaultOptions; solo aplica en versiones viejas
++  if (YAML.defaultOptions) {
++    YAML.defaultOptions.keepCstNodes = true;
++  }
+ 
+   // Get input definition and prepare the specification's skeleton
+   const definition = options.swaggerDefinition || options.definition;
+@@ -205,7 +208,7 @@ function build(options) {
+           filePath,
+         });
+ 
+-        const anchors = parsed.anchors.getNames();
++        const anchors = parsed.anchors ? parsed.anchors.getNames() : [];
+         if (anchors.length) {
+           for (const anchor of anchors) {
+             yamlDocsAnchors.set(anchor, parsed);
+@@ -228,7 +231,7 @@ function build(options) {
+         for (const doc of extractYamlFromJsDoc(jsDocComment)) {
+           const parsed = Object.assign(YAML.parseDocument(doc), { filePath });
+ 
+-          const anchors = parsed.anchors.getNames();
++          const anchors = parsed.anchors ? parsed.anchors.getNames() : [];
+           if (anchors.length) {
+             for (const anchor of anchors) {
+               yamlDocsAnchors.set(anchor, parsed);

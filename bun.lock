@@ -140,12 +140,14 @@
     "sharp",
     "unrs-resolver",
   ],
+  "patchedDependencies": {
+    "swagger-jsdoc@6.2.8": "patches/swagger-jsdoc@6.2.8.patch",
+  },
   "overrides": {
     "@babel/core": "7.29.7",
     "dompurify": "3.4.11",
     "flatted": "3.4.2",
     "js-yaml": "4.2.0",
-    "path-to-regexp": "0.1.13",
     "postcss": "8.5.15",
     "qs": "6.15.2",
     "rollup": "4.62.2",
@@ -1388,7 +1390,7 @@
 
     "path-parse": ["path-parse@1.0.7", "", {}, "sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw=="],
 
-    "path-to-regexp": ["path-to-regexp@0.1.13", "", {}, "sha512-A/AGNMFN3c8bOlvV9RreMdrv7jsmF9XIfDeCd87+I8RNg6s78BhJxMu69NEMHBSJFxKidViTEdruRwEk/WIKqA=="],
+    "path-to-regexp": ["path-to-regexp@8.4.2", "", {}, "sha512-qRcuIdP69NPm4qbACK+aDogI5CBDMi1jKe0ry5rSQJz8JVLsC7jV8XpiJjGRLLol3N+R5ihGYcrPLTno6pAdBA=="],
 
     "path-type": ["path-type@4.0.0", "", {}, "sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw=="],
 
