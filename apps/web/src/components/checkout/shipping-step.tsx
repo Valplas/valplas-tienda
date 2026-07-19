@@ -24,8 +24,6 @@ interface ShippingStepProps {
   onBack: () => void;
 }
 
-const FREE_SHIPPING_THRESHOLD = 10000;
-
 export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingStepProps) {
   const [options, setOptions] = useState<ShippingOption[]>([]);
   const [selectedOption, setSelectedOption] = useState<ShippingOption | null>(null);
@@ -43,12 +41,12 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
       });
 
       if (response.success && response.data) {
-        // Map service rates to ShippingOptions
-        const mappedOptions: ShippingOption[] = response.data.rates.map((rate) => ({
-          carrierId: rate.carrier.id,
-          carrierName: rate.carrier.name,
-          cost: rate.cost,
-          estimatedDays: parseInt(rate.estimatedDays.split('-')[0])
+        // El backend devuelve un array plano de cotizaciones (una por carrier/tarifa).
+        const mappedOptions: ShippingOption[] = response.data.map((quote) => ({
+          carrierId: quote.carrierId,
+          carrierName: quote.carrierName,
+          cost: quote.price,
+          estimatedDays: parseInt(quote.estimatedDays.split('-')[0])
         }));
 
         setOptions(mappedOptions);
@@ -78,8 +76,6 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
       onNext(selectedOption);
     }
   };
-
-  const isFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD;
 
   return (
     <div className="space-y-6">
@@ -118,7 +114,7 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
         >
           <div className="space-y-3">
             {options.map((option) => {
-              const displayCost = isFreeShipping ? 0 : option.cost;
+              const displayCost = option.cost;
 
               return (
                 <div key={option.carrierId} className="flex items-start space-x-3">
@@ -140,9 +136,7 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
                             </div>
                           </div>
                           <div className="text-right">
-                            {isFreeShipping ? (
-                              <div className="font-semibold text-green-600">Gratis</div>
-                            ) : displayCost === 0 ? (
+                            {displayCost === 0 ? (
                               <div className="font-semibold text-green-600">Gratis</div>
                             ) : (
                               <div className="font-semibold">{formatPrice(displayCost)}</div>
@@ -160,7 +154,7 @@ export function ShippingStep({ postcode, cartTotal, onNext, onBack }: ShippingSt
       )}
 
       {/* Free Shipping Badge */}
-      {!loading && !error && isFreeShipping && (
+      {!loading && !error && options.some((o) => o.cost === 0) && (
         <div className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg p-3 text-center">
           ¡Tu pedido califica para envío gratis!
         </div>

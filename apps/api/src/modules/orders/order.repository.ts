@@ -207,6 +207,22 @@ export async function findOrderByNumber(orderNumber: string): Promise<Order | nu
 }
 
 /**
+ * Órdenes de MercadoPago pendientes de pago cuya preferencia ya expiró.
+ * Solo MP: las órdenes con otros medios de pago no se auto-cancelan.
+ */
+export async function findStalePendingPaymentOrders(olderThanHours: number): Promise<Order[]> {
+  const result = await query<Order>(
+    `SELECT * FROM orders
+     WHERE status = 'pending_payment'
+       AND payment_method = 'mercadopago'
+       AND created_at < NOW() - make_interval(hours => $1)`,
+    [olderThanHours]
+  );
+
+  return result.rows;
+}
+
+/**
  * Find order with full details
  */
 export async function findOrderWithDetails(id: string): Promise<OrderWithDetails | null> {
@@ -279,24 +295,44 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
 /**
  * Create order with items
  */
+/**
+ * Snapshot desnormalizado de envío que se persiste en la orden (columnas NOT NULL
+ * en la tabla orders). Se arma en el dominio a partir de la dirección validada.
+ */
+export interface OrderShippingSnapshot {
+  shipping_street: string;
+  shipping_street_number: string;
+  shipping_floor: string | null;
+  shipping_apartment: string | null;
+  shipping_city: string;
+  shipping_province: string;
+  shipping_postcode: string;
+  carrier_name: string;
+}
+
 export async function createOrder(
   userId: string,
   data: CreateOrderInput,
   subtotal: number,
   shippingCost: number,
-  total: number
+  total: number,
+  snapshot: OrderShippingSnapshot
 ): Promise<Order> {
   return transaction(async (client) => {
     // Generate order number
     const orderNumber = await generateOrderNumber('VLP', client);
 
-    // Create order
+    // Create order — incluye el snapshot de envío (columnas NOT NULL) y usa
+    // customer_notes (la tabla orders no tiene columna `notes`).
     const orderResult = await client.query<Order>(
       `INSERT INTO orders (
         order_number, user_id, status, subtotal, shipping_cost, total,
-        shipping_address_id, shipping_carrier_id, payment_method, notes
+        shipping_address_id, shipping_carrier_id,
+        shipping_street, shipping_street_number, shipping_floor, shipping_apartment,
+        shipping_city, shipping_province, shipping_postcode,
+        carrier_name, payment_method, customer_notes
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *`,
       [
         orderNumber,
@@ -307,6 +343,14 @@ export async function createOrder(
         total,
         data.shipping_address_id,
         data.shipping_carrier_id,
+        snapshot.shipping_street,
+        snapshot.shipping_street_number,
+        snapshot.shipping_floor,
+        snapshot.shipping_apartment,
+        snapshot.shipping_city,
+        snapshot.shipping_province,
+        snapshot.shipping_postcode,
+        snapshot.carrier_name,
         data.payment_method,
         data.notes || null
       ]
@@ -314,19 +358,29 @@ export async function createOrder(
 
     const order = orderResult.rows[0];
 
-    // Create order items
+    // Create order items — enriquecidos en el dominio con snapshot de producto,
+    // precio por bulto y cantidades (bultos vs unidades reales).
     for (const item of data.items) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const itemWithPrice = item as any; // Items are enriched in domain layer with unit_price and subtotal
+      const it = item as any;
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
-         VALUES ($1, $2, $3, $4, $5)`,
+        `INSERT INTO order_items (
+          order_id, product_id, product_name, product_sku,
+          quantity, real_quantity, bundle_size_snapshot,
+          unit_price, subtotal, price_list_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           order.id,
-          itemWithPrice.product_id,
-          itemWithPrice.quantity,
-          itemWithPrice.unit_price,
-          itemWithPrice.subtotal
+          it.product_id,
+          it.product_name,
+          it.product_sku,
+          it.quantity,
+          it.real_quantity,
+          it.bundle_size_snapshot,
+          it.unit_price,
+          it.subtotal,
+          it.price_list_id ?? null
         ]
       );
     }

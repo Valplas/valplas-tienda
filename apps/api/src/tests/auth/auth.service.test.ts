@@ -1,213 +1,202 @@
 // apps/api/src/tests/auth/auth.service.test.ts
+//
+// Tests del servicio de auth contra la DB real. Cada test crea sus propios
+// usuarios (@vitest.local) — sin dependencia de usuarios seed ni de sus passwords.
 
 import { describe, it, expect } from 'vitest';
 import * as authService from '../../modules/auth/auth.service.js';
 import { query } from '../../infrastructure/database/client.js';
+import { createTestUser, uniqueSuffix } from '../helpers.js';
 
 describe('Auth Service', () => {
   describe('register', () => {
     it('should create a new user with valid data', async () => {
+      const suffix = uniqueSuffix();
       const userData = {
-        email: 'newuser@test.com',
-        username: 'newuser123',
-        password: 'Test1234',
+        email: `register-${suffix}@vitest.local`,
+        username: `vt_reg_${suffix}`,
+        password: 'Test1234!',
         firstName: 'Test',
-        lastName: 'User',
-        phone: '+541199998888'
+        lastName: 'User'
       };
 
       const result = await authService.register(userData);
 
-      expect(result).toBeDefined();
       expect(result.user).toBeDefined();
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
       expect(result.user.email).toBe(userData.email);
       expect(result.user.username).toBe(userData.username);
       expect(result.user.role).toBe('customer');
-      expect(result.user.isActive).toBe(true);
-      expect(result.user.passwordHash).toBeUndefined(); // Should not return password
+      // Nunca exponer el hash, en ninguna convención de nombre
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((result.user as any).password_hash).toBeUndefined();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((result.user as any).passwordHash).toBeUndefined();
     });
 
     it('should reject duplicate email', async () => {
-      const userData = {
-        email: 'owner@valplas.net', // Already exists from seed
-        username: 'newuser',
-        password: 'Test1234',
-        firstName: 'Test',
-        lastName: 'User'
-      };
+      const user = await createTestUser();
 
-      await expect(authService.register(userData)).rejects.toThrow();
+      await expect(
+        authService.register({
+          email: user.email,
+          username: `vt_dup_${uniqueSuffix()}`,
+          password: 'Test1234!',
+          firstName: 'Test',
+          lastName: 'User'
+        })
+      ).rejects.toMatchObject({ code: 'EMAIL_ALREADY_EXISTS' });
     });
 
     it('should reject duplicate username', async () => {
-      const userData = {
-        email: 'newuser@example.com',
-        username: 'owner', // Already exists from seed
-        password: 'Test1234',
-        firstName: 'Test',
-        lastName: 'User'
-      };
+      const user = await createTestUser();
 
-      await expect(authService.register(userData)).rejects.toThrow();
+      await expect(
+        authService.register({
+          email: `dupuser-${uniqueSuffix()}@vitest.local`,
+          username: user.username,
+          password: 'Test1234!',
+          firstName: 'Test',
+          lastName: 'User'
+        })
+      ).rejects.toMatchObject({ code: 'USERNAME_ALREADY_EXISTS' });
     });
 
     it('should hash password correctly', async () => {
-      const userData = {
-        email: 'hashtest@test.com',
-        username: 'hashtest123',
-        password: 'Test1234',
-        firstName: 'Hash',
-        lastName: 'Test',
-        phone: '+541177776666'
-      };
+      const user = await createTestUser();
 
-      const registerResult = await authService.register(userData);
-
-      // Verify password is hashed in DB
-      const result = await query('SELECT password_hash FROM users WHERE email = $1', [
-        userData.email
-      ]);
+      const result = await query('SELECT password_hash FROM users WHERE email = $1', [user.email]);
 
       expect(result.rows[0].password_hash).toBeDefined();
-      expect(result.rows[0].password_hash).not.toBe(userData.password);
-      expect(result.rows[0].password_hash.length).toBeGreaterThan(50); // bcrypt hash length
+      expect(result.rows[0].password_hash).not.toBe(user.password);
+      expect(result.rows[0].password_hash.length).toBeGreaterThan(50); // bcrypt
 
-      // Verify can login with password
       const loginResult = await authService.login({
-        emailOrUsername: userData.email,
-        password: userData.password
+        emailOrUsername: user.email,
+        password: user.password
       });
-      expect(loginResult.user.id).toBe(registerResult.user.id);
+      expect(loginResult.user.id).toBe(user.id);
     });
   });
 
   describe('login', () => {
     it('should login with valid email and password', async () => {
+      const user = await createTestUser();
+
       const result = await authService.login({
-        emailOrUsername: 'owner@valplas.net',
-        password: 'password123'
+        emailOrUsername: user.email,
+        password: user.password
       });
 
-      expect(result).toBeDefined();
-      expect(result.user).toBeDefined();
-      expect(result.user.email).toBe('owner@valplas.net');
+      expect(result.user.email).toBe(user.email);
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
     });
 
     it('should login with valid username and password', async () => {
+      const user = await createTestUser();
+
       const result = await authService.login({
-        emailOrUsername: 'owner',
-        password: 'password123'
+        emailOrUsername: user.username,
+        password: user.password
       });
 
-      expect(result).toBeDefined();
-      expect(result.user).toBeDefined();
-      expect(result.user.username).toBe('owner');
+      expect(result.user.username).toBe(user.username);
       expect(result.accessToken).toBeDefined();
-      expect(result.refreshToken).toBeDefined();
     });
 
     it('should reject invalid password', async () => {
+      const user = await createTestUser();
+
       await expect(
         authService.login({
-          emailOrUsername: 'owner@valplas.net',
+          emailOrUsername: user.email,
           password: 'wrongpassword'
         })
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
     });
 
     it('should reject non-existent user', async () => {
       await expect(
         authService.login({
-          emailOrUsername: 'nonexistent@example.com',
-          password: 'Test1234'
+          emailOrUsername: `ghost-${uniqueSuffix()}@vitest.local`,
+          password: 'Test1234!'
         })
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
     });
 
     it('should reject inactive user', async () => {
-      // Create inactive user
-      const hashedPassword = await authService.hashPassword('Test1234');
+      const suffix = uniqueSuffix();
+      const hashedPassword = await authService.hashPassword('Test1234!');
       await query(
         `INSERT INTO users (email, username, password_hash, first_name, last_name, role, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        ['inactive@test.com', 'inactiveuser', hashedPassword, 'Inactive', 'User', 'customer', false]
+         VALUES ($1, $2, $3, 'Inactive', 'User', 'customer', false)`,
+        [`inactive-${suffix}@vitest.local`, `vt_inactive_${suffix}`, hashedPassword]
       );
 
       await expect(
         authService.login({
-          emailOrUsername: 'inactive@test.com',
-          password: 'Test1234'
+          emailOrUsername: `inactive-${suffix}@vitest.local`,
+          password: 'Test1234!'
         })
-      ).rejects.toThrow('USER_INACTIVE');
+      ).rejects.toMatchObject({ code: 'USER_INACTIVE' });
     });
 
     it('should update last_login_at on successful login', async () => {
-      const beforeLogin = await query('SELECT last_login_at FROM users WHERE email = $1', [
-        'owner@valplas.net'
-      ]);
+      const user = await createTestUser();
 
-      await authService.login({
-        emailOrUsername: 'owner@valplas.net',
-        password: 'password123'
-      });
+      await authService.login({ emailOrUsername: user.email, password: user.password });
 
-      const afterLogin = await query('SELECT last_login_at FROM users WHERE email = $1', [
-        'owner@valplas.net'
-      ]);
-
-      // last_login_at should be updated
-      if (beforeLogin.rows[0].last_login_at) {
-        expect(new Date(afterLogin.rows[0].last_login_at).getTime()).toBeGreaterThan(
-          new Date(beforeLogin.rows[0].last_login_at).getTime()
-        );
-      } else {
-        expect(afterLogin.rows[0].last_login_at).toBeDefined();
-      }
+      const after = await query('SELECT last_login_at FROM users WHERE email = $1', [user.email]);
+      expect(after.rows[0].last_login_at).not.toBeNull();
     });
   });
 
   describe('verifyAccessToken', () => {
     it('should verify valid access token', async () => {
-      const loginResult = await authService.login({
-        emailOrUsername: 'owner@valplas.net',
-        password: 'password123'
-      });
+      const user = await createTestUser();
 
-      const decoded = authService.verifyAccessToken(loginResult.accessToken);
+      const decoded = authService.verifyAccessToken(user.accessToken);
 
-      expect(decoded).toBeDefined();
-      expect(decoded.userId).toBe(loginResult.user.id);
-      expect(decoded.role).toBe('owner');
+      expect(decoded.userId).toBe(user.id);
+      expect(decoded.role).toBe('customer');
     });
 
     it('should reject invalid token', () => {
-      expect(() => {
-        authService.verifyAccessToken('invalid.token.here');
-      }).toThrow();
+      expect(() => authService.verifyAccessToken('invalid.token.here')).toThrow();
     });
   });
 
-  describe('verifyRefreshToken', () => {
-    it('should verify valid refresh token', async () => {
-      const loginResult = await authService.login({
-        emailOrUsername: 'owner@valplas.net',
-        password: 'password123'
-      });
+  describe('refreshAccessToken', () => {
+    it('should rotate the refresh token and issue a new access token', async () => {
+      const user = await createTestUser();
 
-      const decoded = authService.verifyRefreshToken(loginResult.refreshToken);
+      const rotated = await authService.refreshAccessToken(user.refreshToken);
 
-      expect(decoded).toBeDefined();
-      expect(decoded.userId).toBe(loginResult.user.id);
+      expect(rotated.accessToken).toBeDefined();
+      expect(rotated.newRefreshToken).toBeDefined();
+      expect(rotated.newRefreshToken).not.toBe(user.refreshToken);
+
+      const decoded = authService.verifyAccessToken(rotated.accessToken);
+      expect(decoded.userId).toBe(user.id);
     });
 
-    it('should reject invalid refresh token', () => {
-      expect(() => {
-        authService.verifyRefreshToken('invalid.token.here');
-      }).toThrow();
+    it('should reject a refresh token that was already rotated (revoked)', async () => {
+      const user = await createTestUser();
+
+      await authService.refreshAccessToken(user.refreshToken);
+
+      // El token viejo quedó revocado por la rotación
+      await expect(authService.refreshAccessToken(user.refreshToken)).rejects.toMatchObject({
+        code: 'INVALID_TOKEN'
+      });
+    });
+
+    it('should reject a malformed refresh token', async () => {
+      await expect(authService.refreshAccessToken('invalid.token.here')).rejects.toMatchObject({
+        code: 'INVALID_TOKEN'
+      });
     });
   });
 });

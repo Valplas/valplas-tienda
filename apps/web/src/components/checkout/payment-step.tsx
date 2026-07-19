@@ -7,16 +7,17 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { formatPrice } from '@/lib/formatters';
-import { Address, ShippingOption, CartItem } from '@/types';
+import { ShippingOption, CartItem } from '@/types';
+import { type Address } from '@/lib/services/addresses.service';
 import { Loader2, CreditCard } from 'lucide-react';
 import { createOrder } from '@/services';
+import { useCartStore } from '@/stores/cart-store';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -30,8 +31,6 @@ interface PaymentStepProps {
   onBack: () => void;
 }
 
-const FREE_SHIPPING_THRESHOLD = 10000;
-
 export function PaymentStep({
   items,
   shippingAddress,
@@ -42,11 +41,12 @@ export function PaymentStep({
   onBack
 }: PaymentStepProps) {
   const router = useRouter();
+  const loadCart = useCartStore((state) => state.loadFromStorage);
   const [isProcessing, setIsProcessing] = useState(false);
   const [dni, setDni] = useState('');
 
-  const isFreeShipping = subtotal >= FREE_SHIPPING_THRESHOLD;
-  const shippingCost = isFreeShipping ? 0 : shippingOption.cost;
+  // El costo del envío ya viene resuelto desde la cotización (0 = gratis).
+  const shippingCost = shippingOption.cost;
   const total = subtotal + shippingCost;
 
   const handlePayment = async () => {
@@ -69,16 +69,24 @@ export function PaymentStep({
         paymentMethod: 'mercadopago' as const,
         items: items
           .filter((item) => item.productId)
-          .map((item) => ({ productId: item.productId, quantity: item.quantity })),
+          .map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            priceListId: item.priceListId
+          })),
         payerIdentification: dni.trim() ? { type: 'DNI', number: dni.trim() } : undefined
       };
 
       const response = await createOrder(orderData);
 
       if (response.success && response.data) {
+        // El backend ya vació la cookie del carrito al crear la orden.
         if (response.data.paymentUrl) {
+          // Redirect full-page a MP: el store en memoria se descarta solo.
           window.location.href = response.data.paymentUrl;
         } else {
+          // Navegación client-side: refrescar el store para que refleje el carrito vacío.
+          await loadCart();
           toast.success('¡Pedido creado exitosamente!');
           router.push('/cuenta/pedidos');
         }
@@ -136,7 +144,7 @@ export function PaymentStep({
           </CardHeader>
           <CardContent>
             <div className="text-sm space-y-1">
-              <div className="font-medium">{shippingAddress.label}</div>
+              <div className="font-medium">{shippingAddress.alias}</div>
               <div>
                 {shippingAddress.street} {shippingAddress.streetNumber}
                 {shippingAddress.floor && `, Piso ${shippingAddress.floor}`}
@@ -172,7 +180,7 @@ export function PaymentStep({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Envío</span>
-              {isFreeShipping ? (
+              {shippingCost === 0 ? (
                 <span className="font-medium text-green-600">Gratis</span>
               ) : (
                 <span className="font-medium">{formatPrice(shippingCost)}</span>
@@ -186,24 +194,6 @@ export function PaymentStep({
           </div>
         </CardContent>
       </Card>
-
-      {/* Authentication Check */}
-      {!isAuthenticated && (
-        <Card className="border-yellow-500 bg-yellow-50">
-          <CardContent className="p-6">
-            <p className="font-medium mb-3">Creá una cuenta o iniciá sesión para continuar</p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button asChild variant="default">
-                <Link href="/auth/login">Iniciar sesión</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/auth/registro">Registrarme</Link>
-              </Button>
-              <Button variant="ghost">Continuar como invitado</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* DNI para mejora de aprobación */}
       {isAuthenticated && (

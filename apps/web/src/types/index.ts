@@ -158,7 +158,9 @@ export interface ProductFilters {
 
 export interface CartItem {
   productId: string;
-  quantity: number;
+  quantity: number; // cantidad de bultos
+  priceListId?: string; // lista de precios del tier elegido (para la orden)
+  minQuantity?: number; // unidades por bulto (1 si no hay tier)
   product?: Product; // Populated for display
 }
 
@@ -311,6 +313,9 @@ export interface CatalogFilters {
   search?: string;
   categoryId?: string;
   brandId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: import('./filter.types').SortOption;
   page?: number;
   limit?: number;
 }

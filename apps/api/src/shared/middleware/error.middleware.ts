@@ -23,21 +23,31 @@ export class AppError extends Error {
  * Middleware global de manejo de errores
  */
 export function errorHandler(error: Error, req: Request, res: Response, _next: NextFunction): void {
-  // Log estructurado del error
-  logger.error('Request error', {
-    error: {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    },
-    request: {
-      method: req.method,
-      url: req.url,
-      path: req.path,
-      ip: req.ip,
-      userAgent: req.get('user-agent')
-    }
-  });
+  // Errores de negocio esperables (4xx: credenciales inválidas, refresh sin
+  // cookie de un visitante anónimo, etc.) no son incidentes: warn sin stack.
+  // Solo los 5xx/no manejados se loggean como error con stack completo.
+  const isExpectedClientError = error instanceof AppError && error.statusCode < 500;
+
+  if (isExpectedClientError) {
+    logger.warn(
+      `${(error as AppError).code}: ${error.message} — ${req.method} ${req.path} (${req.ip})`
+    );
+  } else {
+    logger.error('Request error', {
+      error: {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      },
+      request: {
+        method: req.method,
+        url: req.url,
+        path: req.path,
+        ip: req.ip,
+        userAgent: req.get('user-agent')
+      }
+    });
+  }
 
   // Error de validacion Zod
   if (error instanceof ZodError) {

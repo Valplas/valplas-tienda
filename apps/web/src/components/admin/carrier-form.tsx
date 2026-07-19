@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { Carrier } from '@/lib/mock/services/fake-shipping-admin.service';
+import { Loader2 } from 'lucide-react';
+import type { AdminCarrier } from '@/lib/services/shipping-admin.service';
 
 interface CarrierFormProps {
-  carrier?: Carrier;
+  carrier?: AdminCarrier;
   onSubmit: (data: CarrierFormData) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
@@ -28,14 +29,14 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
     defaultValues: carrier
       ? {
           name: carrier.name,
-          baseRate: carrier.baseRate,
-          estimatedDays: carrier.estimatedDays,
+          code: carrier.code,
+          logoUrl: carrier.logoUrl ?? '',
           isActive: carrier.isActive
         }
       : {
           name: '',
-          baseRate: 0,
-          estimatedDays: 1,
+          code: '',
+          logoUrl: '',
           isActive: true
         }
   });
@@ -52,7 +53,7 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
         <Input
           id="name"
           {...register('name')}
-          placeholder="Ej: Andreani Estándar"
+          placeholder="Ej: Envío Estándar"
           disabled={isLoading}
         />
         {errors.name && (
@@ -60,42 +61,32 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
         )}
       </div>
 
-      {/* Base Rate */}
+      {/* Code */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="baseRate">
-          Tarifa Base (ARS) <span className="text-red-500">*</span>
+        <Label htmlFor="code">
+          Código <span className="text-red-500">*</span>
         </Label>
-        <Input
-          id="baseRate"
-          type="number"
-          step="0.01"
-          {...register('baseRate', { valueAsNumber: true })}
-          placeholder="0.00"
-          disabled={isLoading}
-        />
-        {errors.baseRate && (
-          <p className="text-sm text-red-500 absolute bottom-0">{errors.baseRate.message}</p>
+        <Input id="code" {...register('code')} placeholder="Ej: standard" disabled={isLoading} />
+        {errors.code && (
+          <p className="text-sm text-red-500 absolute bottom-0">{errors.code.message}</p>
         )}
-        <p className="text-xs text-muted-foreground">Tarifa base para esta opción de envío</p>
+        <p className="text-xs text-muted-foreground">
+          Identificador único: minúsculas, números, guiones (sin espacios)
+        </p>
       </div>
 
-      {/* Estimated Days */}
+      {/* Logo URL */}
       <div className="space-y-2 relative pb-5">
-        <Label htmlFor="estimatedDays">
-          Días Estimados <span className="text-red-500">*</span>
-        </Label>
+        <Label htmlFor="logoUrl">Logo (URL)</Label>
         <Input
-          id="estimatedDays"
-          type="number"
-          min="1"
-          {...register('estimatedDays', { valueAsNumber: true })}
-          placeholder="1"
+          id="logoUrl"
+          {...register('logoUrl')}
+          placeholder="https://..."
           disabled={isLoading}
         />
-        {errors.estimatedDays && (
-          <p className="text-sm text-red-500 absolute bottom-0">{errors.estimatedDays.message}</p>
+        {errors.logoUrl && (
+          <p className="text-sm text-red-500 absolute bottom-0">{errors.logoUrl.message}</p>
         )}
-        <p className="text-xs text-muted-foreground">Tiempo estimado de entrega</p>
       </div>
 
       {/* Is Active */}
@@ -117,6 +108,7 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
           Cancelar
         </Button>
         <Button type="submit" disabled={isLoading}>
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
           {isLoading ? 'Guardando...' : carrier ? 'Actualizar' : 'Crear'}
         </Button>
       </div>

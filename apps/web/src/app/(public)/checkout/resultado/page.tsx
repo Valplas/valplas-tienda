@@ -81,8 +81,34 @@ function CheckoutResultadoContent() {
       .finally(() => setLoading(false));
   }, [orderNumber]);
 
+  // El webhook de MP tarda unos segundos en confirmar la orden después del
+  // redirect: mientras siga pending_payment, re-consultar hasta ~30s.
+  useEffect(() => {
+    if (!orderNumber || !order || order.status !== 'pending_payment') return;
+
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts += 1;
+      if (attempts > 10) {
+        clearInterval(interval);
+        return;
+      }
+      try {
+        const updated = await getOrderByNumber(orderNumber);
+        if (updated.status !== 'pending_payment') {
+          setOrder(updated);
+          clearInterval(interval);
+        }
+      } catch {
+        clearInterval(interval);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [orderNumber, order]);
+
   return (
-    <div className="container max-w-lg py-16">
+    <div className="container mx-auto max-w-lg py-16">
       <div className="text-center mb-8 space-y-3">
         <StatusIcon status={status} />
         <StatusText status={status} />
@@ -154,7 +180,7 @@ export default function CheckoutResultadoPage() {
   return (
     <Suspense
       fallback={
-        <div className="container max-w-lg py-16 flex justify-center">
+        <div className="container mx-auto max-w-lg py-16 flex justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       }

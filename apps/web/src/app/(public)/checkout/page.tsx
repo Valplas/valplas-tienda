@@ -12,17 +12,6 @@ export const metadata: Metadata = {
 };
 
 export default function CheckoutPageRoute() {
-  // TODO: Get auth state from session/cookies
-  // For MVP, we'll pass mock data
-  const isAuthenticated = false; // Will be replaced with actual auth check
-  const userId = undefined;
-  const savedAddresses: never[] = [];
-
-  return (
-    <CheckoutPage
-      isAuthenticated={isAuthenticated}
-      userId={userId}
-      savedAddresses={savedAddresses}
-    />
-  );
+  // Auth y direcciones se resuelven en el cliente (useAuthStore + API).
+  return <CheckoutPage />;
 }

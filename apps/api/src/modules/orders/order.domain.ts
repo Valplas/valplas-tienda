@@ -5,6 +5,7 @@ import { createOrderPreference } from '../../infrastructure/external/mercadopago
 import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
 import { findProductById, findProductsByIds } from '../products/product.repository.js';
+import { getTiersForCartItems } from '../cart/cart.repository.js';
 import { calculatePrice } from '../price-lists/price-list.service.js';
 import { getTierByProductAndPriceList } from '../products/price-tiers/price-tier.service.js';
 import { VALID_STATUS_TRANSITIONS } from './order.types.js';
@@ -24,7 +25,10 @@ import type {
 export async function getUserOrders(userId: string, filters: Omit<OrderFilters, 'user_id'>) {
   return orderRepository.findOrders({
     ...filters,
-    user_id: userId
+    user_id: userId,
+    // La vista "Mis pedidos" del cliente renderiza la cantidad de items de
+    // cada orden — sin esto el front recibe orders sin `items` y explota.
+    includeItems: true
   });
 }
 
@@ -112,6 +116,14 @@ export async function createOrder(
   const products = await findProductsByIds(data.items.map((i) => i.product_id));
   const productMap = new Map(products.map((p) => [p.id, p]));
 
+  // Tiers (precio de lista por bulto) para los ítems que traen price_list_id.
+  // Batch en un solo query para evitar N+1. Sin tier => unidad suelta.
+  const tierMap = await getTiersForCartItems(
+    data.items
+      .filter((i) => i.price_list_id)
+      .map((i) => ({ productId: i.product_id, priceListId: i.price_list_id as string }))
+  );
+
   for (const item of data.items) {
     const product = productMap.get(item.product_id);
 
@@ -123,42 +135,61 @@ export async function createOrder(
       throw new Error(`Producto ${product.name} no está disponible`);
     }
 
-    // Check stock availability
+    // Semántica de bultos: quantity = bultos; bundleSize = unidades por bulto.
+    const tier = item.price_list_id
+      ? tierMap.get(`${item.product_id}:${item.price_list_id}`)
+      : undefined;
+    const bundleSize = tier?.minQuantity ?? 1;
+    const unitPrice = tier?.unitPrice ?? product.basePrice;
+    const realQuantity = item.quantity * bundleSize; // unidades reales (para stock)
+    const pricePerBundle = Math.trunc(unitPrice * bundleSize * 100) / 100;
+    const itemSubtotal = Math.trunc(pricePerBundle * item.quantity * 100) / 100;
+
+    // El stock se controla en unidades reales, no en bultos.
     const availableStock = product.stock - product.reservedStock;
-    if (availableStock < item.quantity) {
+    if (availableStock < realQuantity) {
       throw new Error(
-        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, solicitado: ${item.quantity}`
+        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, solicitado: ${realQuantity}`
       );
     }
 
-    const itemSubtotal = product.basePrice * item.quantity;
     subtotal += itemSubtotal;
 
     itemsWithPrices.push({
       product_id: item.product_id,
-      quantity: item.quantity,
-      unit_price: product.basePrice,
-      subtotal: itemSubtotal
+      product_name: product.name,
+      product_sku: product.sku,
+      quantity: item.quantity, // bultos
+      real_quantity: realQuantity, // unidades
+      bundle_size_snapshot: bundleSize,
+      unit_price: pricePerBundle, // precio por bulto (trigger: subtotal = quantity × unit_price)
+      subtotal: itemSubtotal,
+      price_list_id: item.price_list_id
     });
   }
 
-  // Get shipping cost
-  const zone = await shippingRepository.findZoneByPostcode(address.postcode);
-  if (!zone) {
+  // Get shipping cost — mismas zonas/tarifas que la cotización pública
+  const zones = await shippingRepository.findZonesByPostcode(address.postcode);
+  if (zones.length === 0) {
     throw new Error('No hay envíos disponibles para este código postal');
   }
 
-  const rates = await shippingRepository.findRatesByZoneAndAmount(zone.id, subtotal);
+  const rates = await shippingRepository.findRatesByZonesAndAmount(
+    zones.map((z) => z.id),
+    subtotal
+  );
   const selectedRate = rates.find((r) => r.carrier_id === data.shipping_carrier_id);
 
   if (!selectedRate) {
     throw new Error('Tarifa de envío no encontrada para este transportista');
   }
 
-  const shippingCost = selectedRate.price;
+  // max_amount = umbral de envío gratis (igual que en la cotización)
+  const isFreeShipping = selectedRate.max_amount != null && subtotal >= selectedRate.max_amount;
+  const shippingCost = isFreeShipping ? 0 : selectedRate.price;
   const total = subtotal + shippingCost;
 
-  // Create order
+  // Create order — snapshot de envío desde la dirección validada (columnas NOT NULL)
   const order = await orderRepository.createOrder(
     userId,
     {
@@ -167,7 +198,17 @@ export async function createOrder(
     },
     subtotal,
     shippingCost,
-    total
+    total,
+    {
+      shipping_street: address.street,
+      shipping_street_number: address.street_number,
+      shipping_floor: address.floor ?? null,
+      shipping_apartment: address.apartment ?? null,
+      shipping_city: address.city,
+      shipping_province: address.province,
+      shipping_postcode: address.postcode,
+      carrier_name: carrier.name
+    }
   );
 
   // Return with details

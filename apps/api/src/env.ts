@@ -57,6 +57,10 @@ export const env = {
   JWT_REFRESH_SECRET: getEnv('JWT_REFRESH_SECRET') || requireEnv('JWT_SECRET'),
   JWT_EXPIRES_IN: getEnv('JWT_EXPIRES_IN', '15m'),
   JWT_REFRESH_EXPIRES_IN: getEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
+  // Fuerza cookies de sesión a SameSite=None; Secure para deploys cross-site (frontend y API
+  // en dominios distintos, ej: Vercel + Railway) sin depender de NODE_ENV=production.
+  // Activar (true) solo en deploys HTTPS. En local (http) dejar false.
+  COOKIE_CROSS_SITE: getEnvBoolean('COOKIE_CROSS_SITE', false),
 
   // Google OAuth
   GOOGLE_CLIENT_ID: getEnv('GOOGLE_CLIENT_ID', ''),

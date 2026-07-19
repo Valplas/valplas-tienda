@@ -20,6 +20,19 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
+ * Validate a post-auth redirect target. Solo acepta paths relativos same-origin
+ * para evitar open redirect (rechaza https://evil.com, //evil.com, /\evil.com).
+ * @param target - Valor crudo del query param `redirect`
+ * @param fallback - Path a usar si el target es inválido
+ */
+export function safeRedirect(target: string | null | undefined, fallback: string): string {
+  if (target && target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/\\')) {
+    return target;
+  }
+  return fallback;
+}
+
+/**
  * Generate a URL-friendly slug from text
  * @param text - Text to convert to slug
  * @returns Slug string (lowercase, no accents, hyphen-separated)

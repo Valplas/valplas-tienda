@@ -45,14 +45,16 @@ export function ProductCard({ product, className }: ProductCardProps) {
   };
 
   const handleAddToCart = async () => {
+    // counter = cantidad de bultos. El backend multiplica por minQuantity del tier.
+    // Pasar el priceListId del tier para que el carrito use el precio de lista (no basePrice).
     const presentation = selectedTier?.minQuantity ?? 1;
-    const totalQuantity = presentation * counter;
+    const totalUnits = presentation * counter;
 
     setIsLoading(true);
     try {
-      await addItem(product.id, totalQuantity);
+      await addItem(product.id, counter, selectedTier?.priceListId);
       toast.success('Producto agregado', {
-        description: `${product.name} (x${totalQuantity}) se agregó al carrito`
+        description: `${product.name} (x${totalUnits}) se agregó al carrito`
       });
     } catch (error) {
       toast.error('Error al agregar', {

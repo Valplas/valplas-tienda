@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { AppError } from '../../shared/middleware/error.middleware.js';
+import { env } from '../../env.js';
 import * as cartRepository from './cart.repository.js';
 import type {
   Cart,
@@ -11,6 +12,17 @@ import type {
 
 const CART_COOKIE_NAME = 'cart';
 const CART_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 días
+
+// Cross-site (frontend en Vercel, API en Railway): la cookie debe ir con
+// SameSite=None; Secure o el browser no la reenvía en los fetch a la API y el
+// carrito guest se "reinicia" en cada request. Misma lógica que las cookies de auth.
+const USE_CROSS_SITE_COOKIES = env.IS_PRODUCTION || env.COOKIE_CROSS_SITE;
+const CART_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: USE_CROSS_SITE_COOKIES,
+  sameSite: (USE_CROSS_SITE_COOKIES ? 'none' : 'lax') as 'none' | 'lax',
+  path: '/'
+};
 
 /**
  * Leer carrito desde cookie
@@ -38,9 +50,7 @@ export function getCartFromCookie(req: Request): Cart {
  */
 export function saveCartToCookie(res: Response, cart: Cart): void {
   res.cookie(CART_COOKIE_NAME, JSON.stringify(cart), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    ...CART_COOKIE_OPTIONS,
     maxAge: CART_COOKIE_MAX_AGE
   });
 }
@@ -49,7 +59,7 @@ export function saveCartToCookie(res: Response, cart: Cart): void {
  * Limpiar carrito (eliminar cookie)
  */
 export function clearCartCookie(res: Response): void {
-  res.clearCookie(CART_COOKIE_NAME);
+  res.clearCookie(CART_COOKIE_NAME, CART_COOKIE_OPTIONS);
 }
 
 /**

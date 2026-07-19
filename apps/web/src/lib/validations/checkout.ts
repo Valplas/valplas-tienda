@@ -5,6 +5,37 @@
 import { z } from 'zod';
 
 /**
+ * Provincias de Argentina (alineado al enum del backend en address.validators.ts).
+ * El backend valida `province` contra esta lista exacta.
+ */
+export const ARGENTINA_PROVINCES = [
+  'Buenos Aires',
+  'CABA',
+  'Catamarca',
+  'Chaco',
+  'Chubut',
+  'Córdoba',
+  'Corrientes',
+  'Entre Ríos',
+  'Formosa',
+  'Jujuy',
+  'La Pampa',
+  'La Rioja',
+  'Mendoza',
+  'Misiones',
+  'Neuquén',
+  'Río Negro',
+  'Salta',
+  'San Juan',
+  'San Luis',
+  'Santa Cruz',
+  'Santa Fe',
+  'Santiago del Estero',
+  'Tierra del Fuego',
+  'Tucumán'
+] as const;
+
+/**
  * Address Schema
  */
 export const addressSchema = z.object({
@@ -17,8 +48,9 @@ export const addressSchema = z.object({
   province: z.string().min(2, 'Seleccioná la provincia'),
   postcode: z
     .string()
-    .length(4, 'Código postal de 4 dígitos')
-    .regex(/^\d{4}$/, 'Solo números'),
+    .min(4, 'Código postal de 4 a 8 dígitos')
+    .max(8, 'Código postal de 4 a 8 dígitos')
+    .regex(/^\d{4,8}$/, 'Solo números'),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   placeId: z.string().optional()

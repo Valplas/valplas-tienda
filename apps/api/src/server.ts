@@ -111,6 +111,7 @@ import accountingRoutes from './modules/accounting/accounting.routes.js';
 import catalogRoutes from './modules/catalog/catalog.routes.js';
 import paymentsRoutes from './modules/payments/payments.routes.js';
 import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.js';
+import { scheduleStaleOrderCancellation } from './infrastructure/jobs/cancel-stale-orders.job.js';
 
 // Montar rutas
 app.use('/api/auth', authRoutes);
@@ -158,6 +159,8 @@ app.use((req, res) => {
 // Programar jobs en background
 scheduleTokenCleanup();
 console.log('🕒 Job programado: limpieza de tokens a las 3:00 AM ART (06:00 UTC)');
+scheduleStaleOrderCancellation();
+console.log('🕒 Job programado: cancelación horaria de órdenes pending_payment expiradas');
 
 // Iniciar servidor
 const server = app.listen(PORT, () => {
