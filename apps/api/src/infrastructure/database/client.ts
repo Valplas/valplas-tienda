@@ -12,10 +12,14 @@ types.setTypeParser(1700, parseFloat);
  * Se puede aportar la CA del proveedor vía DATABASE_CA_CERT, o desactivar la validación
  * con DATABASE_SSL_REJECT_UNAUTHORIZED=false como escape de emergencia.
  */
+// El PEM puede venir pegado en una sola línea con \n literales (según el
+// panel del proveedor); pg necesita saltos de línea reales.
+const caCert = env.DATABASE_CA_CERT?.replace(/\\n/g, '\n');
+
 const sslConfig = env.IS_PRODUCTION
   ? {
       rejectUnauthorized: env.DATABASE_SSL_REJECT_UNAUTHORIZED,
-      ...(env.DATABASE_CA_CERT ? { ca: env.DATABASE_CA_CERT } : {})
+      ...(caCert ? { ca: caCert } : {})
     }
   : false;
 
