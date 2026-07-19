@@ -43,6 +43,9 @@ export const env = {
   // como último recurso (no recomendado en prod) poné DATABASE_SSL_REJECT_UNAUTHORIZED=false.
   DATABASE_SSL_REJECT_UNAUTHORIZED: getEnvBoolean('DATABASE_SSL_REJECT_UNAUTHORIZED', true),
   DATABASE_CA_CERT: getEnv('DATABASE_CA_CERT'),
+  // Loguea cada query SQL con su texto completo. Opt-in explícito: en Railway
+  // el volumen supera el rate limit de logs (500/seg), nunca dejar activo ahí.
+  DEBUG_SQL: getEnvBoolean('DEBUG_SQL', false),
 
   // Supabase (solo SERVICE_KEY es obligatoria para Storage)
   SUPABASE_URL: getEnv('SUPABASE_URL', ''),
