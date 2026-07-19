@@ -1,5 +1,4 @@
 import type { Request, Response, NextFunction } from 'express';
-import 'express-serve-static-core';
 import { z } from 'zod';
 
 // Extendemos Request para guardar los datos validados

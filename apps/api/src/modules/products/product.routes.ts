@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as productController from './product.controller.js';
 import { validate } from '../../shared/middleware/validation.middleware.js';
+import { validateQuery } from '../../shared/middleware/validate.middleware.js';
 import { authMiddleware, requireRole } from '../../shared/middleware/auth.middleware.js';
 import {
   productFiltersSchema,
@@ -15,9 +16,10 @@ const router = Router();
  * GET /api/products
  * Listar productos con filtros (público)
  */
-// Los filtros van en el query string. Validar 'body' acá rompía en Express 5:
-// req.body es undefined en un GET sin json parser y Zod rechazaba la request.
-router.get('/', validate(productFiltersSchema, 'query'), productController.listProducts);
+// Los filtros van en el query string. validateQuery guarda el resultado
+// parseado (snake_case normalizado a camelCase) en req.validated.query;
+// en Express 5 req.query es un getter y no se puede reasignar.
+router.get('/', validateQuery(productFiltersSchema), productController.listProducts);
 
 /**
  * GET /api/products/slug/:slug

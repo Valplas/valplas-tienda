@@ -1,34 +1,61 @@
 import { z } from 'zod';
 
 /**
+ * Los requests usan snake_case (convención del proyecto) pero el service y
+ * el repositorio leen camelCase. Se normalizan las keys antes de validar,
+ * aceptando también camelCase por compatibilidad (el admin lo manda así).
+ */
+const FILTER_KEY_ALIASES: Record<string, string> = {
+  category_id: 'categoryId',
+  brand_id: 'brandId',
+  min_price: 'minPrice',
+  max_price: 'maxPrice',
+  in_stock: 'inStock'
+};
+
+function normalizeFilterKeys(input: unknown): unknown {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) return input;
+  const normalized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input)) {
+    normalized[FILTER_KEY_ALIASES[key] ?? key] = value;
+  }
+  return normalized;
+}
+
+/**
  * Schema para filtros de búsqueda de productos
  */
-export const productFiltersSchema = z.object({
-  search: z.string().optional(),
-  categoryId: z.string().uuid().optional(),
-  brandId: z.string().uuid().optional(),
-  minPrice: z.coerce.number().min(0).optional(),
-  maxPrice: z.coerce.number().min(0).optional(),
-  inStock: z.coerce.boolean().optional(),
-  featured: z.coerce.boolean().optional(),
-  page: z.coerce.number().min(1).optional().default(1),
-  limit: z.coerce.number().min(1).max(100).optional().default(24),
-  sort: z
-    .enum([
-      'price_asc',
-      'price_desc',
-      'name_asc',
-      'name_desc',
-      'newest',
-      'oldest',
-      'stock_asc',
-      'stock_desc',
-      'updated_asc',
-      'updated_desc'
-    ])
-    .optional()
-    .default('newest')
-});
+export const productFiltersSchema = z.preprocess(
+  normalizeFilterKeys,
+  z.object({
+    search: z.string().optional(),
+    categoryId: z.string().uuid().optional(),
+    brandId: z.string().uuid().optional(),
+    minPrice: z.coerce.number().min(0).optional(),
+    maxPrice: z.coerce.number().min(0).optional(),
+    inStock: z.coerce.boolean().optional(),
+    featured: z.coerce.boolean().optional(),
+    page: z.coerce.number().min(1).optional().default(1),
+    limit: z.coerce.number().min(1).max(100).optional().default(24),
+    sort: z
+      .enum([
+        'price_asc',
+        'price_desc',
+        'name_asc',
+        'name_desc',
+        'newest',
+        'oldest',
+        'stock_asc',
+        'stock_desc',
+        'updated_asc',
+        'updated_desc'
+      ])
+      .optional()
+      .default('newest')
+  })
+);
+
+export type ProductFiltersQuery = z.output<typeof productFiltersSchema>;
 
 /**
  * Schema para crear producto
