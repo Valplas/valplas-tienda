@@ -120,13 +120,41 @@ describe('createOrderPreference: notification_url', () => {
 });
 
 describe('createOrderPreference: contrato existente', () => {
-  it('mantiene external_reference, currency ARS y shipments.cost', async () => {
+  it('mantiene external_reference, currency ARS y statement_descriptor', async () => {
     await createOrderPreference({ ...BASE_INPUT, shippingCost: 2500 });
 
     const body = lastPreferenceBody();
     expect(body.external_reference).toBe('VLP-20260705-0001');
     expect(body.items[0].currency_id).toBe('ARS');
-    expect(body.shipments).toEqual({ cost: 2500, mode: 'not_specified' });
     expect(body.statement_descriptor).toBe('VALPLAS');
+  });
+});
+
+describe('createOrderPreference: envío como ítem', () => {
+  // El comprobante compartible de MP muestra transaction_amount, que EXCLUYE
+  // shipments.cost: con envío $25 el cliente pagaba $80 pero el comprobante
+  // decía $55. El envío viaja como ítem para que el comprobante muestre el
+  // total realmente pagado.
+  it('agrega el envío como último ítem y no manda nodo shipments', async () => {
+    await createOrderPreference({ ...BASE_INPUT, shippingCost: 2500 });
+
+    const body = lastPreferenceBody();
+    expect(body.shipments).toBeUndefined();
+    expect(body.items).toHaveLength(2);
+    expect(body.items.at(-1)).toMatchObject({
+      title: 'Envío',
+      quantity: 1,
+      unit_price: 2500,
+      currency_id: 'ARS'
+    });
+  });
+
+  it('sin costo de envío no agrega ítem Envío ni nodo shipments', async () => {
+    await createOrderPreference({ ...BASE_INPUT, shippingCost: 0 });
+
+    const body = lastPreferenceBody();
+    expect(body.shipments).toBeUndefined();
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0].title).toBe('Producto Test');
   });
 });

@@ -38,7 +38,12 @@ interface PreferencePayer {
 export interface OrderPreferenceInput {
   orderNumber: string;
   items: PreferenceItem[];
-  /** Costo de envío en la misma unidad que items[].unit_price. Se cobra como `shipments.cost`. */
+  /**
+   * Costo de envío en la misma unidad que items[].unit_price. Se cobra como
+   * ítem "Envío" y NO como `shipments.cost`: MP excluye shipments.cost del
+   * transaction_amount y el comprobante compartible muestra ese campo, así
+   * que el cliente veía un total menor al que pagó.
+   */
   shippingCost?: number;
   payer?: PreferencePayer;
 }
@@ -64,20 +69,34 @@ export async function createOrderPreference(input: OrderPreferenceInput): Promis
     );
   }
 
+  const mpItems = input.items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    category_id: item.category_id ?? 'others',
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    currency_id: 'ARS'
+  }));
+
+  if (input.shippingCost && input.shippingCost > 0) {
+    mpItems.push({
+      id: 'envio',
+      title: 'Envío',
+      description: undefined,
+      category_id: 'others',
+      quantity: 1,
+      unit_price: input.shippingCost,
+      currency_id: 'ARS'
+    });
+  }
+
   const preference = new Preference(client);
   const response = await preference.create({
     body: {
       external_reference: input.orderNumber,
       statement_descriptor: 'VALPLAS',
-      items: input.items.map((item) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        category_id: item.category_id ?? 'others',
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        currency_id: 'ARS'
-      })),
+      items: mpItems,
       payer: input.payer
         ? {
             email: input.payer.email,
@@ -88,10 +107,6 @@ export async function createOrderPreference(input: OrderPreferenceInput): Promis
             address: input.payer.address
           }
         : undefined,
-      shipments:
-        input.shippingCost && input.shippingCost > 0
-          ? { cost: input.shippingCost, mode: 'not_specified' }
-          : undefined,
       notification_url: notificationUrl,
       back_urls: {
         success: `${env.FRONTEND_URL}/checkout/resultado`,
