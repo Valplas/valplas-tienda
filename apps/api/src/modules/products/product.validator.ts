@@ -10,8 +10,13 @@ const FILTER_KEY_ALIASES: Record<string, string> = {
   brand_id: 'brandId',
   min_price: 'minPrice',
   max_price: 'maxPrice',
-  in_stock: 'inStock'
+  in_stock: 'inStock',
+  is_active: 'isActive'
 };
+
+// z.coerce.boolean() convierte 'false' en true (Boolean('false')); para un
+// filtro de visibilidad eso invertiría la intención. Solo 'true'/'false'.
+const queryBoolean = z.enum(['true', 'false']).transform((v) => v === 'true');
 
 function normalizeFilterKeys(input: unknown): unknown {
   if (input === null || typeof input !== 'object' || Array.isArray(input)) return input;
@@ -35,6 +40,9 @@ export const productFiltersSchema = z.preprocess(
     maxPrice: z.coerce.number().min(0).optional(),
     inStock: z.coerce.boolean().optional(),
     featured: z.coerce.boolean().optional(),
+    // Visibilidad admin: true = activos, false = inactivos, ausente = todos.
+    // El controller lo fuerza a true para roles sin privilegio.
+    isActive: queryBoolean.optional(),
     page: z.coerce.number().min(1).optional().default(1),
     limit: z.coerce.number().min(1).max(100).optional().default(24),
     sort: z

@@ -47,6 +47,38 @@ export async function authMiddleware(
 }
 
 /**
+ * Autenticación opcional para rutas públicas cuyo comportamiento varía por
+ * rol (ej: admin ve productos inactivos en el listado). Si hay token válido
+ * setea req.user; si no hay token o es inválido/expirado, sigue como
+ * anónimo sin cortar la request — una cookie vieja no debe romper el catálogo.
+ */
+export async function optionalAuthMiddleware(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const token =
+      req.cookies?.['accessToken'] ||
+      (req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.split(' ')[1]
+        : undefined);
+
+    if (token) {
+      const payload = verifyAccessToken(token);
+      req.user = {
+        userId: payload.userId,
+        email: payload.email,
+        role: payload.role
+      } as AuthenticatedUser;
+    }
+  } catch {
+    // Token inválido o expirado en ruta pública → anónimo
+  }
+  next();
+}
+
+/**
  * Middleware para requerir roles específicos
  * Debe usarse después de authMiddleware
  */

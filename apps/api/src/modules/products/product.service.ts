@@ -8,6 +8,19 @@ import type {
 } from './product.types.js';
 
 /**
+ * Resuelve el filtro de visibilidad según rol. Solo admin y owner pueden
+ * ver productos inactivos (o "todos"); cualquier otro rol —o anónimo—
+ * queda forzado a solo activos aunque mande is_active en el query.
+ */
+export function resolveIsActiveFilter(
+  role: string | undefined,
+  requested: boolean | undefined
+): boolean | undefined {
+  const canSeeInactive = role === 'admin' || role === 'owner';
+  return canSeeInactive ? requested : true;
+}
+
+/**
  * Listar productos con filtros y paginación
  */
 export async function listProducts(filters: ProductFilters) {

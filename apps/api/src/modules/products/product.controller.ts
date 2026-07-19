@@ -11,7 +11,11 @@ export async function listProducts(req: Request, res: Response, next: NextFuncti
   try {
     // Filtros ya validados y normalizados a camelCase por validateQuery;
     // req.query crudo trae snake_case que el service no entiende.
-    const filters = (req.validated?.query ?? {}) as ProductFilters;
+    const parsed = (req.validated?.query ?? {}) as ProductFilters;
+    const filters: ProductFilters = {
+      ...parsed,
+      isActive: productService.resolveIsActiveFilter(req.user?.role, parsed.isActive)
+    };
     const result = await productService.listProducts(filters);
 
     return res.json(

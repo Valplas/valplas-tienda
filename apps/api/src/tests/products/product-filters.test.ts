@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { productFiltersSchema } from '../../modules/products/product.validator.js';
+import { resolveIsActiveFilter } from '../../modules/products/product.service.js';
 
 const UUID = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -62,5 +63,37 @@ describe('productFiltersSchema: normalización snake_case', () => {
 
   it('rechaza sort desconocido', () => {
     expect(productFiltersSchema.safeParse({ sort: 'precio_asc' }).success).toBe(false);
+  });
+});
+
+describe('productFiltersSchema: is_active', () => {
+  it("parsea 'true' y 'false' como booleanos reales (no coerce)", () => {
+    expect(productFiltersSchema.parse({ is_active: 'true' }).isActive).toBe(true);
+    expect(productFiltersSchema.parse({ is_active: 'false' }).isActive).toBe(false);
+    expect(productFiltersSchema.parse({ isActive: 'false' }).isActive).toBe(false);
+  });
+
+  it('ausente queda undefined (sin filtro)', () => {
+    expect(productFiltersSchema.parse({}).isActive).toBeUndefined();
+  });
+
+  it('rechaza valores que no son true/false', () => {
+    expect(productFiltersSchema.safeParse({ is_active: 'si' }).success).toBe(false);
+  });
+});
+
+describe('resolveIsActiveFilter: visibilidad por rol', () => {
+  it('admin y owner ven lo que pida el selector (incluido "todos" = undefined)', () => {
+    expect(resolveIsActiveFilter('admin', false)).toBe(false);
+    expect(resolveIsActiveFilter('owner', false)).toBe(false);
+    expect(resolveIsActiveFilter('admin', undefined)).toBeUndefined();
+    expect(resolveIsActiveFilter('owner', true)).toBe(true);
+  });
+
+  it('customer, driver y anónimo siempre fuerzan solo activos', () => {
+    expect(resolveIsActiveFilter('customer', false)).toBe(true);
+    expect(resolveIsActiveFilter('driver', false)).toBe(true);
+    expect(resolveIsActiveFilter(undefined, false)).toBe(true);
+    expect(resolveIsActiveFilter('customer', undefined)).toBe(true);
   });
 });

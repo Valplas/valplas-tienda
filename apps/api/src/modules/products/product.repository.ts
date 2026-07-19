@@ -21,6 +21,7 @@ export async function findProducts(
     maxPrice,
     inStock,
     featured,
+    isActive,
     requireActiveTier,
     page = 1,
     limit = 24,
@@ -28,7 +29,12 @@ export async function findProducts(
   } = filters;
 
   const offset = (page - 1) * limit;
-  const conditions: string[] = ['p.deleted_at IS NULL', 'p.is_active = true'];
+  // isActive undefined = sin filtro de visibilidad (solo llega así para
+  // admin/owner: el controller lo fuerza a true para el resto).
+  const conditions: string[] = ['p.deleted_at IS NULL'];
+  if (isActive !== undefined) {
+    conditions.push(`p.is_active = ${isActive ? 'true' : 'false'}`);
+  }
 
   if (requireActiveTier) {
     conditions.push(
