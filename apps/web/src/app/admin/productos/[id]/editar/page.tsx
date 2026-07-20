@@ -74,6 +74,7 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
         name: data.name,
         description: data.description,
         basePrice: price,
+        costPrice: data.costPrice !== undefined ? parsePriceInput(String(data.costPrice)) : 0,
         categoryId: data.categoryId,
         brandId: data.brandId || undefined,
         sku: data.sku?.toUpperCase(),

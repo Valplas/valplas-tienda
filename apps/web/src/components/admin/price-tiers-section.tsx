@@ -25,9 +25,10 @@ interface TierRow {
 interface PriceTiersSectionProps {
   productId?: string;
   costPrice?: number; // needed for price preview
+  basePrice?: number; // fallback when costPrice is 0 (same rule as backend)
 }
 
-export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionProps) {
+export function PriceTiersSection({ productId, costPrice, basePrice }: PriceTiersSectionProps) {
   const [priceLists, setPriceLists] = useState<PriceList[]>([]);
   const [rows, setRows] = useState<TierRow[]>([{ priceListId: '', minQuantity: 1 }]);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,10 +65,13 @@ export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionPro
     loadData();
   }, [loadData]);
 
+  // Misma regla que el backend: cost_price > 0 ? cost_price : base_price
+  const effectiveCost = costPrice && costPrice > 0 ? costPrice : (basePrice ?? 0);
+
   const unitPrice = (row: TierRow): number | null => {
     const pl = priceLists.find((p) => p.id === row.priceListId);
-    if (!pl || !costPrice || costPrice <= 0) return null;
-    return Math.trunc(costPrice * (1 + pl.margin / 100) * 100) / 100;
+    if (!pl || effectiveCost <= 0) return null;
+    return Math.trunc(effectiveCost * (1 + pl.margin / 100) * 100) / 100;
   };
 
   const addRow = () => {
@@ -182,7 +186,7 @@ export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionPro
                     </Select>
                   </td>
                   <td className="py-2 pr-4 text-muted-foreground">
-                    {price !== null ? formatPrice(price) : costPrice ? '—' : 'sin costo'}
+                    {price !== null ? formatPrice(price) : effectiveCost > 0 ? '—' : 'sin precio'}
                   </td>
                   <td className="py-2">
                     <Button

@@ -52,6 +52,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           sku: product.sku,
           description: product.description,
           basePrice: product.basePrice,
+          costPrice: product.costPrice || undefined,
           stock: product.stock,
           categoryId: product.categoryId,
           brandId: product.brandId,
@@ -75,6 +76,8 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const brandId = watch('brandId');
   const isFeatured = watch('isFeatured');
   const isActive = watch('isActive');
+  const costPriceValue = watch('costPrice');
+  const basePriceValue = watch('basePrice');
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -178,6 +181,16 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             required
             error={errors.basePrice?.message}
             {...register('basePrice', { setValueAs: toRequiredNumber })}
+          />
+
+          <FormField
+            label="Precio de costo"
+            type="number"
+            step="0.01"
+            placeholder="Costo de compra"
+            error={errors.costPrice?.message}
+            helperText="Base para el margen de las listas de precio. Vacío: se usa el precio base"
+            {...register('costPrice', { setValueAs: toNumber })}
           />
         </div>
 
@@ -330,7 +343,11 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       {/* Price Tiers */}
       <div className="space-y-3">
         <h3 className="text-base font-semibold">Tiers de precio</h3>
-        <PriceTiersSection productId={product?.id} costPrice={product?.costPrice} />
+        <PriceTiersSection
+          productId={product?.id}
+          costPrice={Number.isFinite(costPriceValue) ? costPriceValue : product?.costPrice}
+          basePrice={Number.isFinite(basePriceValue) ? basePriceValue : product?.basePrice}
+        />
       </div>
 
       {/* Actions */}
