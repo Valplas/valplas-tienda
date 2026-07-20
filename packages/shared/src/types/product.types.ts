@@ -8,7 +8,6 @@ export interface Product {
   name: string;
   slug: string;
   description: string | null;
-  basePrice: number;
   costPrice: number;
   finalPrice?: number;
   stock: number;
@@ -69,8 +68,7 @@ export interface CreateProductInput {
   sku: string;
   name: string;
   description?: string;
-  basePrice: number;
-  costPrice?: number;
+  costPrice: number;
   stock: number;
   categoryId?: string;
   brandId?: string;
@@ -86,7 +84,6 @@ export interface CreateProductInput {
 export interface UpdateProductInput {
   name?: string;
   description?: string;
-  basePrice?: number;
   costPrice?: number;
   stock?: number;
   categoryId?: string;

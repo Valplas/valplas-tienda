@@ -108,7 +108,7 @@ interface RawProduct {
   name: string;
   slug: string;
   description?: string;
-  basePrice: number; // pesos ARS
+  costPrice: number; // pesos ARS
   isActive: boolean;
   categoryId?: string;
   brandId?: string;
@@ -128,15 +128,18 @@ interface RawProduct {
  * API returns camelCase after middleware conversion.
  */
 export function normalizeProduct(raw: RawProduct): Product {
-  const basePricePesos = raw.basePrice ?? 0;
+  const costPrice = raw.costPrice ?? 0;
+  // Precio efectivo de venta: tier de menor cantidad mínima, o el costo si no hay lista
+  const tiers = [...(raw.priceTiers ?? [])].sort((a, b) => a.minQuantity - b.minQuantity);
+  const price = tiers[0]?.unitPrice ?? costPrice;
   return {
     id: raw.id,
     name: raw.name,
     slug: raw.slug,
     description: raw.description ?? '',
-    basePrice: basePricePesos,
-    costPrice: (raw.costPrice as number) ?? 0,
-    finalPrice: basePricePesos,
+    costPrice,
+    price,
+    finalPrice: price,
     isActive: raw.isActive,
     categoryId: raw.categoryId ?? '',
     brandId: raw.brandId ?? '',
@@ -199,8 +202,7 @@ export async function createProduct(data: {
   name: string;
   slug: string;
   description?: string;
-  basePrice: number; // pesos ARS
-  costPrice?: number;
+  costPrice: number; // pesos ARS
   categoryId: string;
   brandId?: string;
   sku: string; // required by backend
@@ -224,8 +226,7 @@ export async function updateProduct(
     name: string;
     slug: string;
     description: string;
-    basePrice: number; // pesos ARS
-    costPrice: number;
+    costPrice: number; // pesos ARS
     categoryId: string;
     brandId: string;
     sku: string;

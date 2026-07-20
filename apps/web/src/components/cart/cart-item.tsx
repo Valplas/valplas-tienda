@@ -82,9 +82,9 @@ export function CartItem({ item }: CartItemProps) {
 
         <div className="flex items-center gap-2 mt-2">
           <span className="text-sm font-semibold">{formatPrice(product.finalPrice)}</span>
-          {product.basePrice > product.finalPrice && (
+          {product.price > product.finalPrice && (
             <span className="text-xs text-muted-foreground line-through">
-              {formatPrice(product.basePrice)}
+              {formatPrice(product.price)}
             </span>
           )}
         </div>

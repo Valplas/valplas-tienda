@@ -26,7 +26,7 @@ interface RawProductShape {
   name: string;
   slug: string;
   description?: string;
-  basePrice: number; // pesos ARS
+  costPrice: number; // pesos ARS
   isActive: boolean;
   categoryId?: string;
   brandId?: string;
@@ -69,11 +69,10 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
 
   const handleSubmit = async (data: ProductFormData & { images?: string[] }) => {
     try {
-      const price = parsePriceInput(String(data.basePrice));
       await updateProduct(id, {
         name: data.name,
         description: data.description,
-        basePrice: price,
+        costPrice: parsePriceInput(String(data.costPrice)),
         categoryId: data.categoryId,
         brandId: data.brandId || undefined,
         sku: data.sku?.toUpperCase(),

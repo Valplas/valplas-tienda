@@ -121,10 +121,10 @@ const options: swaggerJsdoc.Options = {
             name: { type: 'string' },
             slug: { type: 'string' },
             description: { type: 'string' },
-            base_price: {
-              type: 'integer',
-              description: 'Precio en centavos (ARS)',
-              example: 125000
+            cost_price: {
+              type: 'number',
+              description: 'Precio de costo en pesos (ARS)',
+              example: 1250.5
             },
             stock: { type: 'integer' },
             reserved_stock: { type: 'integer' },

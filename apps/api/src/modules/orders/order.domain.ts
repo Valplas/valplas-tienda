@@ -140,7 +140,8 @@ export async function createOrder(
       ? tierMap.get(`${item.product_id}:${item.price_list_id}`)
       : undefined;
     const bundleSize = tier?.minQuantity ?? 1;
-    const unitPrice = tier?.unitPrice ?? product.basePrice;
+    // Sin lista asignada se vende a costo (placeholder hasta asignar lista)
+    const unitPrice = tier?.unitPrice ?? product.costPrice;
     const realQuantity = item.quantity * bundleSize; // unidades reales (para stock)
     const pricePerBundle = Math.trunc(unitPrice * bundleSize * 100) / 100;
     const itemSubtotal = Math.trunc(pricePerBundle * item.quantity * 100) / 100;

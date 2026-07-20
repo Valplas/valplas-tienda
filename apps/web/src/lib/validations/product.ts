@@ -14,7 +14,7 @@ export const productSchema = z.object({
     .regex(/^[a-zA-Z0-9-]*$/, 'SKU solo puede contener letras, números y guiones')
     .optional(),
   description: z.string().min(10, 'Mínimo 10 caracteres'),
-  basePrice: z
+  costPrice: z
     .number({ message: 'Precio de costo requerido' })
     .min(0, 'Debe ser mayor o igual a 0'),
   stock: z.number({ message: 'Cantidad requerida' }).min(0, 'No puede ser negativo'),

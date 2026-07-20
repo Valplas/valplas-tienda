@@ -6,10 +6,10 @@ import { ProductPublic } from '@/types';
 import { SortOption } from '@/types/filter.types';
 
 /**
- * Obtiene el precio de referencia para ordenar (primer tier o basePrice)
+ * Obtiene el precio de referencia para ordenar (primer tier o price)
  */
 function getRefPrice(product: ProductPublic): number {
-  return product.tiers.length > 0 ? product.tiers[0].unitPrice : product.basePrice;
+  return product.tiers.length > 0 ? product.tiers[0].unitPrice : product.price;
 }
 
 /**

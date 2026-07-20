@@ -117,8 +117,8 @@ export interface Product {
   description: string;
   categoryId: string;
   brandId: string;
-  basePrice: number;
   costPrice: number;
+  price: number; // precio efectivo de venta (tier unitario o costo)
   finalPrice: number; // Con descuentos aplicados
   stock: number;
   reservedStock: number;
@@ -301,7 +301,7 @@ export interface ProductPublic {
   slug: string;
   imageUrl: string | null;
   availableStock: number;
-  basePrice: number; // fallback si no hay tiers
+  price: number; // precio efectivo (tier unitario o costo); fallback si no hay tiers
   categoryId: string;
   brandId: string | null;
   category: { id: string; name: string } | null;

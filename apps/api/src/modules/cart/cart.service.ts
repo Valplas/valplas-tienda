@@ -97,7 +97,7 @@ export async function getCartWithDetails(cart: Cart): Promise<CartSummary> {
     const tier = tierKey ? tiersMap.get(tierKey) : null;
 
     const minQuantity = tier ? tier.minQuantity : 1;
-    const unitPrice = tier ? tier.unitPrice : product.basePrice;
+    const unitPrice = tier ? tier.unitPrice : product.price;
     const pricePerBundle = Math.trunc(unitPrice * minQuantity * 100) / 100;
 
     // quantity = bundles; cap bundles so total units don't exceed available stock
@@ -116,7 +116,7 @@ export async function getCartWithDetails(cart: Cart): Promise<CartSummary> {
       name: product.name,
       slug: product.slug,
       sku: product.sku,
-      basePrice: product.basePrice,
+      price: product.price,
       imageUrl: product.imageUrl,
       availableStock: product.availableStock,
       minQuantity,

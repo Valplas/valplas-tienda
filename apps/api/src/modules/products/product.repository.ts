@@ -67,15 +67,15 @@ export async function findProducts(
     paramIndex++;
   }
 
-  // Filtro por rango de precio (en centavos)
+  // Filtro por rango de precio (sobre el costo)
   if (minPrice !== undefined) {
-    conditions.push(`p.base_price >= $${paramIndex}`);
+    conditions.push(`p.cost_price >= $${paramIndex}`);
     params.push(minPrice);
     paramIndex++;
   }
 
   if (maxPrice !== undefined) {
-    conditions.push(`p.base_price <= $${paramIndex}`);
+    conditions.push(`p.cost_price <= $${paramIndex}`);
     params.push(maxPrice);
     paramIndex++;
   }
@@ -94,10 +94,10 @@ export async function findProducts(
   let orderBy = 'p.name ASC'; // alfabético por defecto
   switch (sort) {
     case 'price_asc':
-      orderBy = 'p.base_price ASC';
+      orderBy = 'p.cost_price ASC';
       break;
     case 'price_desc':
-      orderBy = 'p.base_price DESC';
+      orderBy = 'p.cost_price DESC';
       break;
     case 'name_desc':
       orderBy = 'p.name DESC';
@@ -160,11 +160,7 @@ export async function findProducts(
             'priceListId', ppt.price_list_id,
             'priceListName', pl.name,
             'minQuantity', ppt.min_quantity,
-            'unitPrice', TRUNC(
-              (CASE WHEN p.cost_price > 0 THEN p.cost_price ELSE p.base_price END)
-              * (1 + pl.margin / 100)
-              * 100
-            ) / 100
+            'unitPrice', TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100
           ) ORDER BY pl.name ASC
         )
         FROM product_price_tiers ppt
@@ -346,11 +342,11 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
   const result = await query<Product>(
     `INSERT INTO products (
       sku, name, slug, description, category_id, brand_id,
-      base_price, cost_price, stock,
+      cost_price, stock,
       weight, width, length, height, origin,
       is_featured, is_active
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     RETURNING *`,
     [
       data.sku,
@@ -359,8 +355,7 @@ export async function createProduct(data: CreateProductData): Promise<Product> {
       data.description || null,
       data.categoryId,
       data.brandId || null,
-      data.basePrice,
-      data.costPrice || 0,
+      data.costPrice,
       data.stock || 0,
       data.weight ?? null,
       data.width ?? null,
@@ -410,12 +405,6 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
   if (data.brandId !== undefined) {
     updates.push(`brand_id = $${paramIndex}`);
     params.push(data.brandId);
-    paramIndex++;
-  }
-
-  if (data.basePrice !== undefined) {
-    updates.push(`base_price = $${paramIndex}`);
-    params.push(data.basePrice);
     paramIndex++;
   }
 
@@ -516,7 +505,6 @@ function transformProductRow(row: Record<string, unknown>): ProductWithDetails {
     categoryName: row.category_name,
     brandId: row.brand_id,
     brandName: row.brand_name,
-    basePrice: row.base_price,
     costPrice: row.cost_price,
     stock: row.stock,
     reservedStock: row.reserved_stock,
