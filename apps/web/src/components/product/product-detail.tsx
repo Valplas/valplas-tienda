@@ -96,7 +96,7 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
           {!hasTiers && (
             <div className="space-y-1">
               <div className="flex items-baseline gap-3">
-                <p className="text-2xl font-bold sm:text-3xl">{formatPrice(product.basePrice)}</p>
+                <p className="text-2xl font-bold sm:text-3xl">{formatPrice(product.price)}</p>
               </div>
             </div>
           )}

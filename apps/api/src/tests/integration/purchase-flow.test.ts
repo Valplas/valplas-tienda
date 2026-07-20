@@ -65,7 +65,7 @@ describe('Complete Purchase Flow (Integration)', () => {
     expect(orderItems.rows[0].quantity).toBe(2);
 
     // 7. Totales
-    const expectedSubtotal = Math.trunc(product.base_price * 2 * 100) / 100;
+    const expectedSubtotal = Math.trunc(product.cost_price * 2 * 100) / 100;
     expect(order.subtotal).toBeCloseTo(expectedSubtotal, 2);
     expect(order.total).toBeCloseTo(expectedSubtotal + SHIPPING_PRICE, 2);
 

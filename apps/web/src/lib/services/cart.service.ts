@@ -9,7 +9,7 @@ export interface CartItem {
   name?: string;
   slug?: string;
   sku?: string;
-  basePrice?: number;
+  price?: number;
   imageUrl?: string | null;
   availableStock?: number;
   minQuantity?: number; // bundle size (1 if no tier)

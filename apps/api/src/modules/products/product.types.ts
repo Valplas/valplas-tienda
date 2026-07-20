@@ -63,8 +63,7 @@ export interface CreateProductData {
   description?: string;
   categoryId: string;
   brandId?: string;
-  basePrice: number;
-  costPrice?: number;
+  costPrice: number;
   stock?: number;
   weight?: number;
   width?: number;
@@ -83,7 +82,6 @@ export interface UpdateProductData {
   description?: string;
   categoryId?: string;
   brandId?: string;
-  basePrice?: number;
   costPrice?: number;
   stock?: number;
   weight?: number;

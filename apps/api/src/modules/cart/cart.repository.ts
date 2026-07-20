@@ -25,7 +25,7 @@ export async function getTiersForCartItems(
   }>(
     `SELECT ppt.product_id, ppt.price_list_id, ppt.min_quantity,
       TRUNC(
-        (CASE WHEN p.cost_price > 0 THEN p.cost_price ELSE p.base_price END)
+        p.cost_price
         * (1 + pl.margin / 100) * 100
       ) / 100 AS unit_price
      FROM product_price_tiers ppt
@@ -74,7 +74,7 @@ export async function getProductForCart(productId: string): Promise<{
   name: string;
   slug: string;
   sku: string;
-  basePrice: number;
+  price: number;
   imageUrl: string | null;
   availableStock: number;
 } | null> {
@@ -83,7 +83,7 @@ export async function getProductForCart(productId: string): Promise<{
     name: string;
     slug: string;
     sku: string;
-    base_price: number;
+    price: number;
     image_url: string | null;
     available_stock: number;
   }>(
@@ -92,7 +92,18 @@ export async function getProductForCart(productId: string): Promise<{
       p.name,
       p.slug,
       p.sku,
-      p.base_price,
+      COALESCE(
+        (SELECT TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100
+         FROM product_price_tiers ppt
+         JOIN price_lists pl ON pl.id = ppt.price_list_id
+         WHERE ppt.product_id = p.id
+           AND ppt.is_active = true
+           AND pl.is_active = true
+           AND pl.deleted_at IS NULL
+         ORDER BY ppt.min_quantity ASC
+         LIMIT 1),
+        p.cost_price
+      ) AS price,
       (p.stock - p.reserved_stock) as available_stock,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image_url
      FROM products p
@@ -110,7 +121,7 @@ export async function getProductForCart(productId: string): Promise<{
     name: row.name,
     slug: row.slug,
     sku: row.sku,
-    basePrice: row.base_price,
+    price: Number(row.price),
     imageUrl: row.image_url,
     availableStock: row.available_stock
   };
@@ -125,7 +136,7 @@ export async function getProductsForCart(productIds: string[]): Promise<
     name: string;
     slug: string;
     sku: string;
-    basePrice: number;
+    price: number;
     imageUrl: string | null;
     availableStock: number;
   }>
@@ -139,7 +150,7 @@ export async function getProductsForCart(productIds: string[]): Promise<
     name: string;
     slug: string;
     sku: string;
-    base_price: number;
+    price: number;
     image_url: string | null;
     available_stock: number;
   }>(
@@ -148,7 +159,18 @@ export async function getProductsForCart(productIds: string[]): Promise<
       p.name,
       p.slug,
       p.sku,
-      p.base_price,
+      COALESCE(
+        (SELECT TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100
+         FROM product_price_tiers ppt
+         JOIN price_lists pl ON pl.id = ppt.price_list_id
+         WHERE ppt.product_id = p.id
+           AND ppt.is_active = true
+           AND pl.is_active = true
+           AND pl.deleted_at IS NULL
+         ORDER BY ppt.min_quantity ASC
+         LIMIT 1),
+        p.cost_price
+      ) AS price,
       (p.stock - p.reserved_stock) as available_stock,
       (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image_url
      FROM products p
@@ -161,7 +183,7 @@ export async function getProductsForCart(productIds: string[]): Promise<
     name: row.name,
     slug: row.slug,
     sku: row.sku,
-    basePrice: row.base_price,
+    price: Number(row.price),
     imageUrl: row.image_url,
     availableStock: row.available_stock
   }));

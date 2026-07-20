@@ -42,10 +42,7 @@ export async function findTiersByProductId(productId: string): Promise<ProductPr
        pl.name AS price_list_name,
        ppt.min_quantity,
        -- Formula: TRUNC(cost_price * (1 + margin / 100), 2)
-       TRUNC(
-         CASE WHEN p.cost_price > 0 THEN p.cost_price ELSE p.base_price END
-         * (1 + pl.margin / 100)
-       * 100) / 100 AS unit_price,
+       TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100 AS unit_price,
        ppt.is_active,
        ppt.created_at,
        ppt.updated_at
@@ -74,10 +71,7 @@ export async function findTierByProductAndPriceList(
        ppt.price_list_id,
        pl.name AS price_list_name,
        ppt.min_quantity,
-       TRUNC(
-         CASE WHEN p.cost_price > 0 THEN p.cost_price ELSE p.base_price END
-         * (1 + pl.margin / 100)
-       * 100) / 100 AS unit_price,
+       TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100 AS unit_price,
        ppt.is_active,
        ppt.created_at,
        ppt.updated_at

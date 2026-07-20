@@ -117,7 +117,7 @@ export interface TestProduct {
   id: string;
   name: string;
   sku: string;
-  base_price: number;
+  cost_price: number;
   stock: number;
   reserved_stock: number;
 }
@@ -125,7 +125,7 @@ export interface TestProduct {
 /** Toma un producto real del catálogo con stock disponible suficiente. */
 export async function getTestProduct(minAvailable = 10): Promise<TestProduct> {
   const result = await query<TestProduct>(
-    `SELECT id, name, sku, base_price, stock, reserved_stock
+    `SELECT id, name, sku, cost_price, stock, reserved_stock
      FROM products
      WHERE is_active = true AND deleted_at IS NULL
        AND (stock - reserved_stock) >= $1

@@ -68,11 +68,11 @@ async function seedComplete() {
     if (catResult.rows[0] && brandResult.rows[0]) {
       await query(
         `
-        INSERT INTO products (sku, name, slug, description, category_id, brand_id, base_price, stock, is_featured, is_active)
+        INSERT INTO products (sku, name, slug, description, category_id, brand_id, cost_price, stock, is_featured, is_active)
         VALUES
-          ('MAG-001', 'Detergente Magistral 500ml', 'detergente-magistral-500ml', 'Detergente líquido', $1, $2, 125000, 150, true, true),
-          ('MAG-002', 'Detergente Magistral 750ml', 'detergente-magistral-750ml', 'Detergente líquido', $1, $2, 165000, 120, true, true),
-          ('AYU-001', 'Lavandina Ayudín 1L', 'lavandina-ayudin-1l', 'Lavandina concentrada', $1, $2, 98000, 200, false, true)
+          ('MAG-001', 'Detergente Magistral 500ml', 'detergente-magistral-500ml', 'Detergente líquido', $1, $2, 1250.0, 150, true, true),
+          ('MAG-002', 'Detergente Magistral 750ml', 'detergente-magistral-750ml', 'Detergente líquido', $1, $2, 1650.0, 120, true, true),
+          ('AYU-001', 'Lavandina Ayudín 1L', 'lavandina-ayudin-1l', 'Lavandina concentrada', $1, $2, 980.0, 200, false, true)
         ON CONFLICT (sku) DO NOTHING
       `,
         [catResult.rows[0].id, brandResult.rows[0].id]

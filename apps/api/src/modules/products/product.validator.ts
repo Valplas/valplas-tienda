@@ -89,9 +89,7 @@ export const createProductSchema = z.object({
 
   brandId: z.string().uuid('Brand ID debe ser UUID válido').optional(),
 
-  basePrice: z.number().min(0, 'Precio debe ser mayor o igual a 0'),
-
-  costPrice: z.number().min(0, 'Precio de costo debe ser mayor o igual a 0').optional().default(0),
+  costPrice: z.number().min(0, 'Precio de costo debe ser mayor o igual a 0'),
 
   stock: z.number().int().min(0, 'Stock debe ser mayor o igual a 0').optional().default(0),
 
@@ -119,7 +117,6 @@ export const updateProductSchema = z
     description: z.string().max(5000).optional(),
     categoryId: z.string().uuid().optional(),
     brandId: z.string().uuid().optional(),
-    basePrice: z.number().min(0).optional(),
     costPrice: z.number().min(0).optional(),
     stock: z.number().int().min(0).optional(),
     weight: z.number().min(0).optional(),

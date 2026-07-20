@@ -64,10 +64,12 @@ export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionPro
     loadData();
   }, [loadData]);
 
+  const effectiveCost = costPrice && costPrice > 0 ? costPrice : 0;
+
   const unitPrice = (row: TierRow): number | null => {
     const pl = priceLists.find((p) => p.id === row.priceListId);
-    if (!pl || !costPrice || costPrice <= 0) return null;
-    return Math.trunc(costPrice * (1 + pl.margin / 100) * 100) / 100;
+    if (!pl || effectiveCost <= 0) return null;
+    return Math.trunc(effectiveCost * (1 + pl.margin / 100) * 100) / 100;
   };
 
   const addRow = () => {
@@ -182,7 +184,7 @@ export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionPro
                     </Select>
                   </td>
                   <td className="py-2 pr-4 text-muted-foreground">
-                    {price !== null ? formatPrice(price) : costPrice ? '—' : 'sin costo'}
+                    {price !== null ? formatPrice(price) : effectiveCost > 0 ? '—' : 'sin costo'}
                   </td>
                   <td className="py-2">
                     <Button
