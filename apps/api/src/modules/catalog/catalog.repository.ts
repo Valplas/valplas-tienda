@@ -13,7 +13,7 @@ export interface PublicProduct {
   slug: string;
   image_url: string | null;
   available_stock: number;
-  base_price: number;
+  price: number;
   category_id: string;
   brand_id: string | null;
   category: { id: string; name: string } | null;
@@ -40,12 +40,27 @@ export interface CatalogFilters {
   limit?: number;
 }
 
+// Precio efectivo de venta: precio del tier unitario (menor min_quantity) o,
+// si el producto no tiene lista asignada, cost_price tal cual.
+const EFFECTIVE_PRICE_SQL = `COALESCE(
+  (SELECT TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100
+   FROM product_price_tiers ppt
+   JOIN price_lists pl ON pl.id = ppt.price_list_id
+   WHERE ppt.product_id = p.id
+     AND ppt.is_active = true
+     AND pl.is_active = true
+     AND pl.deleted_at IS NULL
+   ORDER BY ppt.min_quantity ASC
+   LIMIT 1),
+  p.cost_price
+)`;
+
 // Mapea la opción de orden a su cláusula SQL. Whitelist estricta: evita
 // inyección y valores inválidos caen a 'featured'.
 const ORDER_BY_CLAUSE: Record<CatalogSort, string> = {
   featured: 'p.is_featured DESC, p.name ASC',
-  price_asc: 'p.base_price ASC, p.name ASC',
-  price_desc: 'p.base_price DESC, p.name ASC',
+  price_asc: `${EFFECTIVE_PRICE_SQL} ASC, p.name ASC`,
+  price_desc: `${EFFECTIVE_PRICE_SQL} DESC, p.name ASC`,
   name_asc: 'p.name ASC',
   name_desc: 'p.name DESC',
   newest: 'p.created_at DESC'
@@ -98,13 +113,13 @@ export async function findPublicProducts(
   }
 
   if (min_price !== undefined) {
-    conditions.push(`p.base_price >= $${paramIndex}`);
+    conditions.push(`${EFFECTIVE_PRICE_SQL} >= $${paramIndex}`);
     filterParams.push(min_price);
     paramIndex++;
   }
 
   if (max_price !== undefined) {
-    conditions.push(`p.base_price <= $${paramIndex}`);
+    conditions.push(`${EFFECTIVE_PRICE_SQL} <= $${paramIndex}`);
     filterParams.push(max_price);
     paramIndex++;
   }
@@ -118,7 +133,7 @@ export async function findPublicProducts(
       p.sku,
       p.name,
       p.slug,
-      p.base_price,
+      ${EFFECTIVE_PRICE_SQL} AS price,
       (p.stock - p.reserved_stock) AS available_stock,
       p.category_id,
       p.brand_id,
@@ -152,7 +167,7 @@ export async function findPublicProducts(
       sku: string;
       name: string;
       slug: string;
-      base_price: number;
+      price: number;
       available_stock: number;
       category_id: string;
       brand_id: string | null;
@@ -181,10 +196,7 @@ export async function findPublicProducts(
       ppt.product_id,
       ppt.min_quantity,
       ppt.price_list_id,
-      TRUNC(
-        (CASE WHEN p.cost_price > 0 THEN p.cost_price ELSE p.base_price END)
-        * (1 + pl.margin / 100) * 100
-      ) / 100 AS unit_price
+      TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100 AS unit_price
     FROM product_price_tiers ppt
     JOIN products p ON p.id = ppt.product_id
     JOIN price_lists pl ON pl.id = ppt.price_list_id
@@ -213,7 +225,7 @@ export async function findPublicProducts(
     sku: row.sku,
     name: row.name,
     slug: row.slug,
-    base_price: row.base_price,
+    price: Number(row.price),
     available_stock: row.available_stock,
     category_id: row.category_id,
     brand_id: row.brand_id,

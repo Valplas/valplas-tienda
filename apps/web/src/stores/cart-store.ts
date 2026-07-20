@@ -31,9 +31,9 @@ function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
         name: item.name,
         slug: item.slug,
         imageUrl: item.imageUrl,
-        basePrice: item.basePrice,
+        price: item.price,
         // subtotal del backend = pricePerBundle * quantity → finalPrice = pricePerBundle
-        finalPrice: item.pricePerBundle ?? item.basePrice,
+        finalPrice: item.pricePerBundle ?? item.price,
         availableStock: item.availableStock,
         unit: ''
       } as Product

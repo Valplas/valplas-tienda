@@ -29,7 +29,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const hasMultipleTiers = product.tiers.length > 1;
 
   const selectedTier = hasTiers ? product.tiers[selectedTierIndex] : null;
-  const unitPrice = hasTiers ? product.tiers[0].unitPrice : product.basePrice;
+  const unitPrice = hasTiers ? product.tiers[0].unitPrice : product.price;
   const bulkTier = hasMultipleTiers ? product.tiers[product.tiers.length - 1] : null;
 
   const handleTierSelect = (index: number) => {
@@ -46,7 +46,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
 
   const handleAddToCart = async () => {
     // counter = cantidad de bultos. El backend multiplica por minQuantity del tier.
-    // Pasar el priceListId del tier para que el carrito use el precio de lista (no basePrice).
+    // Pasar el priceListId del tier para que el carrito use el precio de lista.
     const presentation = selectedTier?.minQuantity ?? 1;
     const totalUnits = presentation * counter;
 

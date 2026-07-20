@@ -252,7 +252,7 @@ async function seedProducts(): Promise<void> {
       description: 'Detergente líquido concentrado aroma limón. Ideal para vajilla y superficies.',
       category_id: detergentesId || limpiezaId,
       brand_id: magistralId,
-      base_price: 125000, // $1.250,00 en centavos
+      cost_price: 1250.0, // pesos ARS
       stock: 150,
       is_featured: true
     },
@@ -263,7 +263,7 @@ async function seedProducts(): Promise<void> {
       description: 'Detergente líquido concentrado aroma original. Limpieza profunda.',
       category_id: detergentesId || limpiezaId,
       brand_id: magistralId,
-      base_price: 165000, // $1.650,00
+      cost_price: 1650.0, // pesos ARS
       stock: 120,
       is_featured: true
     },
@@ -274,7 +274,7 @@ async function seedProducts(): Promise<void> {
       description: 'Lavandina concentrada para desinfección y limpieza. Con hipoclorito de sodio.',
       category_id: lavandId || limpiezaId,
       brand_id: ayudinId,
-      base_price: 98000, // $980,00
+      cost_price: 980.0, // pesos ARS
       stock: 200,
       is_featured: false
     },
@@ -285,7 +285,7 @@ async function seedProducts(): Promise<void> {
       description: 'Lavandina en gel con aroma a pino. Mayor adherencia en superficies.',
       category_id: lavandId || limpiezaId,
       brand_id: ayudinId,
-      base_price: 145000, // $1.450,00
+      cost_price: 1450.0, // pesos ARS
       stock: 80,
       is_featured: false
     },
@@ -296,7 +296,7 @@ async function seedProducts(): Promise<void> {
       description: 'Detergente líquido para ropa con triple acción: limpia, cuida y perfuma.',
       category_id: detergentesId || limpiezaId,
       brand_id: skipId,
-      base_price: 485000, // $4.850,00
+      cost_price: 4850.0, // pesos ARS
       stock: 50,
       is_featured: true
     },
@@ -307,7 +307,7 @@ async function seedProducts(): Promise<void> {
       description: 'Limpiador multiuso para todo tipo de superficies. Con desengrasante.',
       category_id: limpiezaId,
       brand_id: magistralId,
-      base_price: 135000, // $1.350,00
+      cost_price: 1350.0, // pesos ARS
       stock: 100,
       is_featured: false
     },
@@ -318,7 +318,7 @@ async function seedProducts(): Promise<void> {
       description: 'Desinfectante en aerosol. Elimina 99.9% de bacterias y virus.',
       category_id: limpiezaId,
       brand_id: ayudinId,
-      base_price: 275000, // $2.750,00
+      cost_price: 2750.0, // pesos ARS
       stock: 60,
       is_featured: false
     }
@@ -326,7 +326,7 @@ async function seedProducts(): Promise<void> {
 
   for (const product of products) {
     await query(
-      `INSERT INTO products (sku, name, slug, description, category_id, brand_id, base_price, stock, is_featured, is_active)
+      `INSERT INTO products (sku, name, slug, description, category_id, brand_id, cost_price, stock, is_featured, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (sku) DO NOTHING`,
       [
@@ -336,7 +336,7 @@ async function seedProducts(): Promise<void> {
         product.description,
         product.category_id,
         product.brand_id,
-        product.base_price,
+        product.cost_price,
         product.stock,
         product.is_featured,
         true

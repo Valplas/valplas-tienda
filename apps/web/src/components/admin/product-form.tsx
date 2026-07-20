@@ -51,7 +51,6 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           name: product.name,
           sku: product.sku,
           description: product.description,
-          basePrice: product.basePrice,
           costPrice: product.costPrice || undefined,
           stock: product.stock,
           categoryId: product.categoryId,
@@ -77,7 +76,6 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const isFeatured = watch('isFeatured');
   const isActive = watch('isActive');
   const costPriceValue = watch('costPrice');
-  const basePriceValue = watch('basePrice');
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -174,23 +172,14 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
-            label="Precio base"
-            type="number"
-            step="0.01"
-            placeholder="1234"
-            required
-            error={errors.basePrice?.message}
-            {...register('basePrice', { setValueAs: toRequiredNumber })}
-          />
-
-          <FormField
             label="Precio de costo"
             type="number"
             step="0.01"
             placeholder="Costo de compra"
+            required
             error={errors.costPrice?.message}
-            helperText="Base para el margen de las listas de precio. Vacío: se usa el precio base"
-            {...register('costPrice', { setValueAs: toNumber })}
+            helperText="El precio de venta sale del costo + margen de la lista asignada"
+            {...register('costPrice', { setValueAs: toRequiredNumber })}
           />
         </div>
 
@@ -346,7 +335,6 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         <PriceTiersSection
           productId={product?.id}
           costPrice={Number.isFinite(costPriceValue) ? costPriceValue : product?.costPrice}
-          basePrice={Number.isFinite(basePriceValue) ? basePriceValue : product?.basePrice}
         />
       </div>
 

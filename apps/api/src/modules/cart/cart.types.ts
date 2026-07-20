@@ -8,7 +8,7 @@ export interface CartItemWithProduct extends CartItem {
   name: string;
   slug: string;
   sku: string;
-  basePrice: number;
+  price: number; // precio efectivo de venta (tier unitario o cost_price)
   imageUrl: string | null;
   availableStock: number;
   minQuantity: number; // bundle size (1 if no tier)

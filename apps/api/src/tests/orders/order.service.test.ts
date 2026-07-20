@@ -37,7 +37,7 @@ describe('Order Service', () => {
 
     const product = await getTestProduct(10);
     productId = product.id;
-    basePrice = product.base_price;
+    basePrice = product.cost_price;
   });
 
   function orderInput(quantity: number) {
@@ -101,7 +101,7 @@ describe('Order Service', () => {
       expect(items.rows.length).toBe(1);
       expect(items.rows[0].product_name).toBe(product.name);
       expect(items.rows[0].product_sku).toBe(product.sku);
-      expect(Number(items.rows[0].unit_price)).toBeCloseTo(product.base_price, 2);
+      expect(Number(items.rows[0].unit_price)).toBeCloseTo(product.cost_price, 2);
     });
 
     it('should reject an address that belongs to another user', async () => {
