@@ -181,7 +181,10 @@ export async function findPublicProducts(
       ppt.product_id,
       ppt.min_quantity,
       ppt.price_list_id,
-      ROUND(p.cost_price::numeric * (1 + pl.margin / 100))::integer AS unit_price
+      TRUNC(
+        (CASE WHEN p.cost_price > 0 THEN p.cost_price ELSE p.base_price END)
+        * (1 + pl.margin / 100) * 100
+      ) / 100 AS unit_price
     FROM product_price_tiers ppt
     JOIN products p ON p.id = ppt.product_id
     JOIN price_lists pl ON pl.id = ppt.price_list_id
@@ -200,7 +203,7 @@ export async function findPublicProducts(
     }
     tiersByProduct.get(row.product_id)!.push({
       min_quantity: row.min_quantity,
-      unit_price: row.unit_price,
+      unit_price: Number(row.unit_price),
       price_list_id: row.price_list_id
     });
   }
