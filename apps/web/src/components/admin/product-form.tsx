@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Product, Category, Brand } from '@/types';
+import { Product, Category, Brand, ProductImage } from '@/types';
 import { productSchema, type ProductFormData } from '@/lib/validations/product';
 import { FormField } from '@/components/ui/form-field';
 import { Label } from '@/components/ui/label';
@@ -27,12 +27,18 @@ const toRequiredNumber = (v: string) => (v === '' ? NaN : Number(v));
 
 export interface ProductFormProps {
   product?: Product;
-  onSubmit: (data: ProductFormData & { images?: string[] }) => Promise<void>;
+  onSubmit: (
+    data: ProductFormData & { tempId?: string; tempImageOrder?: string[] }
+  ) => Promise<void>;
   onCancel?: () => void;
 }
 
 export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
-  const [images, setImages] = React.useState<string[]>(product?.images || []);
+  const [images, setImages] = React.useState<ProductImage[]>(product?.images || []);
+  // Generado una sola vez por montaje — solo se usa en modo creación (product
+  // no seteado) para la sesión de staging de imágenes antes de que el
+  // producto exista. Ver components/admin/image-upload.tsx.
+  const [tempId] = React.useState(() => crypto.randomUUID());
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [brands, setBrands] = React.useState<Brand[]>([]);
@@ -97,10 +103,20 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const handleFormSubmit = async (data: ProductFormData) => {
     setIsSubmitting(true);
     try {
-      await onSubmit({
-        ...data,
-        images
-      });
+      if (product) {
+        // Edit-flow: las imágenes ya se persistieron directo contra el
+        // producto real (ver ImageUpload) — no hay nada que mandar acá.
+        await onSubmit(data);
+      } else {
+        // Create-flow: las imágenes están en staging bajo tempId; el orden
+        // local (drag/estrella) se manda explícito porque Storage.list() no
+        // lo garantiza.
+        await onSubmit({
+          ...data,
+          tempId,
+          tempImageOrder: images.map((img) => img.id.split('/').pop() as string)
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -291,7 +307,13 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       {/* Imágenes */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Imágenes</h2>
-        <ImageUpload value={images} onChange={setImages} maxImages={5} />
+        <ImageUpload
+          images={images}
+          onChange={setImages}
+          maxImages={5}
+          productId={product?.id}
+          tempId={product ? undefined : tempId}
+        />
       </div>
 
       {/* Opciones */}

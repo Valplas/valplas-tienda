@@ -61,10 +61,14 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<Ap
   const url = `${API_URL}${endpoint}`;
   const { silentErrors, skipAuthRedirect, _isRetry, ...fetchOptions } = options || {};
 
+  // FormData: el browser setea su propio Content-Type con el boundary del
+  // multipart — forzar 'application/json' acá rompería el parseo en el server.
+  const isFormData = fetchOptions.body instanceof FormData;
+
   const res = await fetch(url, {
     ...fetchOptions,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...fetchOptions?.headers
     },
     credentials: 'include'
@@ -153,4 +157,15 @@ export async function patch<T>(
  */
 export async function del<T>(endpoint: string, options?: FetchOptions): Promise<ApiResponse<T>> {
   return fetchApi<T>(endpoint, { ...options, method: 'DELETE' });
+}
+
+/**
+ * POST multipart/form-data (upload de archivos)
+ */
+export async function postFormData<T>(
+  endpoint: string,
+  formData: FormData,
+  options?: FetchOptions
+): Promise<ApiResponse<T>> {
+  return fetchApi<T>(endpoint, { ...options, method: 'POST', body: formData });
 }

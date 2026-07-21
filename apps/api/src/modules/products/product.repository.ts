@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { query } from '../../infrastructure/database/client.js';
 import type { Product } from '@valplas/shared/types';
 import type {
@@ -149,7 +150,9 @@ export async function findProducts(
             'url', pi.url,
             'altText', pi.alt_text,
             'displayOrder', pi.display_order,
-            'isPrimary', pi.is_primary
+            'isPrimary', pi.is_primary,
+            'width', pi.width,
+            'height', pi.height
           ) ORDER BY pi.display_order
         ) FILTER (WHERE pi.id IS NOT NULL),
         '[]'
@@ -204,7 +207,9 @@ export async function findProductById(id: string): Promise<ProductWithDetails | 
             'url', pi.url,
             'altText', pi.alt_text,
             'displayOrder', pi.display_order,
-            'isPrimary', pi.is_primary
+            'isPrimary', pi.is_primary,
+            'width', pi.width,
+            'height', pi.height
           ) ORDER BY pi.display_order
         ) FILTER (WHERE pi.id IS NOT NULL),
         '[]'
@@ -242,7 +247,9 @@ export async function findProductsByIds(ids: string[]): Promise<ProductWithDetai
             'url', pi.url,
             'altText', pi.alt_text,
             'displayOrder', pi.display_order,
-            'isPrimary', pi.is_primary
+            'isPrimary', pi.is_primary,
+            'width', pi.width,
+            'height', pi.height
           ) ORDER BY pi.display_order
         ) FILTER (WHERE pi.id IS NOT NULL),
         '[]'
@@ -276,7 +283,9 @@ export async function findProductBySlug(slug: string): Promise<ProductWithDetail
             'url', pi.url,
             'altText', pi.alt_text,
             'displayOrder', pi.display_order,
-            'isPrimary', pi.is_primary
+            'isPrimary', pi.is_primary,
+            'width', pi.width,
+            'height', pi.height
           ) ORDER BY pi.display_order
         ) FILTER (WHERE pi.id IS NOT NULL),
         '[]'
@@ -336,10 +345,12 @@ export async function slugExists(slug: string, excludeId?: string): Promise<bool
 }
 
 /**
- * Crear producto
+ * Crear producto. Recibe siempre un client explícito (llamado dentro de una
+ * transaction() en el service) porque la creación puede ir acompañada de la
+ * finalización de imágenes en staging — ver product.service.ts#createProduct.
  */
-export async function createProduct(data: CreateProductData): Promise<Product> {
-  const result = await query<Product>(
+export async function createProduct(data: CreateProductData, client: PoolClient): Promise<Product> {
+  const result = await client.query<Product>(
     `INSERT INTO products (
       sku, name, slug, description, category_id, brand_id,
       cost_price, stock,

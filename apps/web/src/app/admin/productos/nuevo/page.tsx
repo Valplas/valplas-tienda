@@ -29,7 +29,9 @@ export default function NewProductPage() {
   });
   const router = useRouter();
 
-  const handleSubmit = async (data: ProductFormData & { images?: string[] }) => {
+  const handleSubmit = async (
+    data: ProductFormData & { tempId?: string; tempImageOrder?: string[] }
+  ) => {
     try {
       await createProduct({
         name: data.name,
@@ -46,7 +48,9 @@ export default function NewProductPage() {
         height: data.height,
         origin: data.origin,
         isFeatured: data.isFeatured,
-        isActive: data.isActive ?? true
+        isActive: data.isActive ?? true,
+        tempId: data.tempId,
+        tempImageOrder: data.tempImageOrder
       });
       toast.success('Producto creado correctamente');
       router.push('/admin/productos');

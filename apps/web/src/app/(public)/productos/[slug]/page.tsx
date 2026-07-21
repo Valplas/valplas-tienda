@@ -20,8 +20,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     const { slug } = await params;
     const product = await getProductBySlug(slug);
 
-    // images es un array de strings (URLs)
-    const primaryImage = product.imageUrl || product.images?.[0];
+    const primaryImage = product.imageUrl || product.images?.[0]?.url;
 
     return {
       title: `${product.name} | Valplas`,

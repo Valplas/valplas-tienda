@@ -2,10 +2,33 @@
 
 import { get, post, put, del } from '../api';
 import type { ApiResponse } from '../api';
-import type { Product } from '@/types';
+import type { Product, ProductImage } from '@/types';
 
 // Re-export Product type for convenience
 export type { Product };
+
+// Shape cruda de una imagen tal como la devuelve la API (camelCase)
+interface RawProductImage {
+  id: string;
+  url: string;
+  altText?: string | null;
+  displayOrder: number;
+  isPrimary: boolean;
+  width?: number | null;
+  height?: number | null;
+}
+
+function mapRawImage(img: RawProductImage): ProductImage {
+  return {
+    id: img.id,
+    url: img.url,
+    altText: img.altText ?? null,
+    displayOrder: img.displayOrder,
+    isPrimary: img.isPrimary,
+    width: img.width ?? null,
+    height: img.height ?? null
+  };
+}
 
 export interface ProductFilters {
   search?: string;
@@ -61,9 +84,7 @@ interface DetailRawProduct extends RawProduct {
  * - category/brand: objetos { id, name } desde los campos planos
  */
 function adaptProductDetail(raw: DetailRawProduct): Product {
-  const images = Array.isArray(raw.images)
-    ? raw.images.map((img) => (typeof img === 'string' ? img : img?.url)).filter(Boolean)
-    : [];
+  const images = Array.isArray(raw.images) ? raw.images.map(mapRawImage) : [];
 
   return {
     ...raw,
@@ -113,7 +134,7 @@ interface RawProduct {
   categoryId?: string;
   brandId?: string;
   availableStock?: number;
-  images?: Array<{ url: string; alt?: string }>;
+  images?: RawProductImage[];
   priceTiers?: Array<{
     priceListId: string;
     priceListName: string;
@@ -145,6 +166,7 @@ export function normalizeProduct(raw: RawProduct): Product {
     brandId: raw.brandId ?? '',
     availableStock: raw.availableStock ?? 0,
     imageUrl: raw.images?.[0]?.url ?? '',
+    images: Array.isArray(raw.images) ? raw.images.map(mapRawImage) : [],
     sku: (raw.sku as string) ?? '',
     stock: (raw.stock as number) ?? 0,
     weight: (raw.weight as number | null) ?? null,
@@ -214,6 +236,8 @@ export async function createProduct(data: {
   origin?: string;
   isFeatured?: boolean;
   isActive?: boolean;
+  tempId?: string;
+  tempImageOrder?: string[];
 }) {
   const res = await post<{ product: RawProduct }>('/products', data);
   if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear producto');

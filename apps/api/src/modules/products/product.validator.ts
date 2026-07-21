@@ -99,7 +99,15 @@ export const createProductSchema = z.object({
   height: z.number().min(0).optional(),
   origin: z.string().max(100).optional(),
 
-  isFeatured: z.boolean().optional().default(false)
+  isFeatured: z.boolean().optional().default(false),
+
+  // Id de la sesión de staging de imágenes (ver módulo images/) — si se manda,
+  // las imágenes subidas a temp/{tempId}/ se mueven al producto recién creado.
+  tempId: z.string().uuid('tempId debe ser un UUID válido').optional(),
+
+  // Orden (nombres de archivo) elegido por el usuario en el form ANTES de que
+  // el producto exista — Storage.list() no garantiza orden estable.
+  tempImageOrder: z.array(z.string()).optional()
 });
 
 /**
