@@ -112,6 +112,7 @@ import catalogRoutes from './modules/catalog/catalog.routes.js';
 import paymentsRoutes from './modules/payments/payments.routes.js';
 import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.js';
 import { scheduleStaleOrderCancellation } from './infrastructure/jobs/cancel-stale-orders.job.js';
+import { scheduleStagedImageCleanup } from './infrastructure/jobs/cleanup-staged-images.job.js';
 
 // Montar rutas
 app.use('/api/auth', authRoutes);
@@ -161,6 +162,8 @@ scheduleTokenCleanup();
 console.log('🕒 Job programado: limpieza de tokens a las 3:00 AM ART (06:00 UTC)');
 scheduleStaleOrderCancellation();
 console.log('🕒 Job programado: cancelación horaria de órdenes pending_payment expiradas');
+scheduleStagedImageCleanup();
+console.log('🕒 Job programado: limpieza de imágenes en staging abandonadas (06:30 UTC)');
 
 // Iniciar servidor
 const server = app.listen(PORT, () => {
