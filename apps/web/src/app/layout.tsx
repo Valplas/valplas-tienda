@@ -1,8 +1,11 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Inter } from 'next/font/google';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
 import { Providers } from '@/components/providers';
+
+const isMainBranch = process.env.VERCEL_GIT_COMMIT_REF === 'main';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -39,6 +42,7 @@ export default function RootLayout({
     <html lang="es-AR">
       <body className={inter.className}>
         <Providers>{children}</Providers>
+        {isMainBranch && <SpeedInsights />}
       </body>
     </html>
   );
