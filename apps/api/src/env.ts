@@ -47,10 +47,10 @@ export const env = {
   // el volumen supera el rate limit de logs (500/seg), nunca dejar activo ahí.
   DEBUG_SQL: getEnvBoolean('DEBUG_SQL', false),
 
-  // Supabase (solo SERVICE_KEY es obligatoria para Storage)
-  SUPABASE_URL: getEnv('SUPABASE_URL', ''),
+  // Supabase (SERVICE_KEY y URL obligatorias: Storage de imágenes de producto)
+  SUPABASE_URL: requireEnv('SUPABASE_URL'),
   SUPABASE_ANON_KEY: getEnv('SUPABASE_ANON_KEY', ''), // No usada en MVP (frontend no se conecta directamente)
-  SUPABASE_SERVICE_KEY: getEnv('SUPABASE_SERVICE_KEY', ''), // Para Storage en Iteración 2
+  SUPABASE_SERVICE_KEY: requireEnv('SUPABASE_SERVICE_KEY'),
 
   // Autenticación
   JWT_SECRET: requireEnv('JWT_SECRET'),

@@ -109,6 +109,16 @@ export interface Brand {
 // PRODUCTS
 // ============================================================================
 
+export interface ProductImage {
+  id: string;
+  url: string;
+  altText: string | null;
+  displayOrder: number;
+  isPrimary: boolean;
+  width: number | null;
+  height: number | null;
+}
+
 export interface Product {
   id: string;
   sku: string;
@@ -130,7 +140,7 @@ export interface Product {
   height?: number | null; // cm
   origin?: string | null;
   imageUrl: string;
-  images: string[]; // URLs adicionales
+  images: ProductImage[]; // galería completa (admin: upload/reorder/delete usan estos ids)
   isFeatured: boolean;
   isActive: boolean;
   createdAt: string;

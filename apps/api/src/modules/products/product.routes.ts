@@ -13,6 +13,7 @@ import {
   updateProductSchema
 } from './product.validator.js';
 import priceTierRouter, { productTierRouter } from './price-tiers/price-tier.routes.js';
+import { stagingRouter, productImagesRouter } from './images/product-image.routes.js';
 
 const router = Router();
 
@@ -49,6 +50,19 @@ router.use('/price-tiers', priceTierRouter);
  * /api/products/:id/price-tiers — per-product tier management
  */
 router.use('/:id/price-tiers', productTierRouter);
+
+/**
+ * /api/products/images/staging/* — staged image upload (create-flow, sin
+ * producto todavía). Debe ir antes de /:id para que "images" no choque con
+ * el param de id.
+ */
+router.use('/images', stagingRouter);
+
+/**
+ * /api/products/:id/images — gestión de imágenes de un producto existente
+ * (edit-flow: upload directo, borrar, reordenar/set-primary)
+ */
+router.use('/:id/images', productImagesRouter);
 
 /**
  * GET /api/products/:id

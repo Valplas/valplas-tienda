@@ -1,5 +1,7 @@
 import { AppError } from '../../shared/middleware/error.middleware.js';
+import { transaction } from '../../infrastructure/database/client.js';
 import * as productRepository from './product.repository.js';
+import * as productImageService from './images/product-image.service.js';
 import type {
   ProductFilters,
   ProductWithDetails,
@@ -84,8 +86,21 @@ export async function createProduct(data: CreateProductData): Promise<ProductWit
     throw new AppError('SLUG_ALREADY_EXISTS', 'El slug ya existe', 400);
   }
 
-  // Crear producto
-  const product = await productRepository.createProduct(data);
+  // Crear producto y, si viene tempId, finalizar las imágenes en staging
+  // (mover de temp/{tempId}/ a products/{id}/ + insertar filas) en la misma
+  // transacción — ver product-image.service.ts#finalizeStagedImages.
+  const product = await transaction(async (client) => {
+    const created = await productRepository.createProduct(data, client);
+    if (data.tempId) {
+      await productImageService.finalizeStagedImages(
+        client,
+        data.tempId,
+        created.id,
+        data.tempImageOrder
+      );
+    }
+    return created;
+  });
 
   // Retornar producto con detalles
   return getProductById(product.id);

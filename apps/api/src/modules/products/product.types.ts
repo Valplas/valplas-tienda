@@ -44,6 +44,8 @@ export interface ProductWithDetails extends Omit<Product, 'categoryId' | 'brandI
     altText: string | null;
     displayOrder: number;
     isPrimary: boolean;
+    width: number | null;
+    height: number | null;
   }>;
   priceTiers: Array<{
     priceListId: string;
@@ -71,6 +73,10 @@ export interface CreateProductData {
   height?: number;
   origin?: string;
   isFeatured?: boolean;
+  /** Id de sesión de staging de imágenes — ver módulo images/ */
+  tempId?: string;
+  /** Orden de archivos elegido en el form de creación — ver images/product-image.service.ts */
+  tempImageOrder?: string[];
 }
 
 /**

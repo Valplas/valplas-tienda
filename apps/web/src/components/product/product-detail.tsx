@@ -68,7 +68,7 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
       {/* Product Info Grid */}
       <div className="grid gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-2">
         {/* Gallery */}
-        <ProductGallery images={product.images} productName={product.name} />
+        <ProductGallery images={product.images.map((img) => img.url)} productName={product.name} />
 
         {/* Info */}
         <div className="space-y-6">

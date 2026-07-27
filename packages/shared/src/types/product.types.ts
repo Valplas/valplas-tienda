@@ -59,8 +59,10 @@ export interface ProductImage {
   productId: string;
   url: string;
   altText: string | null;
-  position: number;
+  displayOrder: number;
   isPrimary: boolean;
+  width: number | null;
+  height: number | null;
   createdAt: string;
 }
 

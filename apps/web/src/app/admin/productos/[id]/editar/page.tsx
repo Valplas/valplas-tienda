@@ -31,7 +31,15 @@ interface RawProductShape {
   categoryId?: string;
   brandId?: string;
   availableStock?: number;
-  images?: Array<{ url: string; alt?: string }>;
+  images?: Array<{
+    id: string;
+    url: string;
+    altText?: string | null;
+    displayOrder: number;
+    isPrimary: boolean;
+    width?: number | null;
+    height?: number | null;
+  }>;
   [key: string]: unknown;
 }
 
@@ -67,7 +75,7 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
     loadProduct();
   }, [id, router]);
 
-  const handleSubmit = async (data: ProductFormData & { images?: string[] }) => {
+  const handleSubmit = async (data: ProductFormData) => {
     try {
       await updateProduct(id, {
         name: data.name,
