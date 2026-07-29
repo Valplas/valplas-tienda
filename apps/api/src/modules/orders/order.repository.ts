@@ -171,7 +171,20 @@ export async function findOrders(
       `SELECT o.*,
               CASE WHEN u.id IS NOT NULL THEN
                 json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
-              END as user
+              END as user,
+              CASE WHEN o.shipping_street IS NOT NULL THEN
+                json_build_object(
+                  'id', COALESCE(o.shipping_address_id, o.id),
+                  'alias', 'Dirección de entrega',
+                  'street', o.shipping_street,
+                  'street_number', o.shipping_street_number,
+                  'floor', o.shipping_floor,
+                  'apartment', o.shipping_apartment,
+                  'city', o.shipping_city,
+                  'province', o.shipping_province,
+                  'postcode', o.shipping_postcode
+                )
+              END as shipping_address
        FROM orders o
        LEFT JOIN users u ON o.user_id = u.id
        WHERE ${whereClause}

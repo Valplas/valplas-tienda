@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { UserRole } from '@/types';
 import {
   AdminUser,
+  AdminUserWithAddresses,
   getAdminUsers,
   createAdminUser,
   updateAdminUser,
@@ -55,7 +56,7 @@ export default function UsuariosPage() {
   });
   const currentUser = useAuthStore((state) => state.user);
 
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [users, setUsers] = useState<AdminUserWithAddresses[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -90,10 +91,11 @@ export default function UsuariosPage() {
           limit: PAGE_SIZE,
           role: roleFilter === 'all' ? undefined : roleFilter,
           search: searchTerm || undefined,
-          sort: sortBy
+          sort: sortBy,
+          includeAddresses: true
         });
         if (!isMountedRef.current) return;
-        setUsers(result.users);
+        setUsers(result.users as AdminUserWithAddresses[]);
         setHasMore(result.users.length === PAGE_SIZE);
       } catch {
         if (!isMountedRef.current) return;
@@ -116,10 +118,11 @@ export default function UsuariosPage() {
           limit: PAGE_SIZE,
           role: roleFilter === 'all' ? undefined : roleFilter,
           search: search || undefined,
-          sort: sortBy
+          sort: sortBy,
+          includeAddresses: true
         });
         if (!isMountedRef.current) return;
-        setUsers((prev) => [...prev, ...result.users]);
+        setUsers((prev) => [...prev, ...(result.users as AdminUserWithAddresses[])]);
         setHasMore(result.users.length === PAGE_SIZE);
         setPage(nextPage);
       } catch {
@@ -246,7 +249,7 @@ export default function UsuariosPage() {
     setUserToDelete(null);
   };
 
-  const columns = useMemo<ColumnDef<AdminUser>[]>(
+  const columns = useMemo<ColumnDef<AdminUserWithAddresses>[]>(
     () => [
       {
         id: 'avatar',
@@ -278,6 +281,20 @@ export default function UsuariosPage() {
         accessorKey: 'phone',
         header: 'Teléfono',
         cell: ({ row }) => row.original.phone || <span className="text-muted-foreground">—</span>
+      },
+      {
+        id: 'address',
+        header: 'Dirección',
+        cell: ({ row }) => {
+          const addr = row.original.addresses?.[0];
+          if (!addr) return <span className="text-muted-foreground">—</span>;
+          return (
+            <span className="text-sm">
+              {addr.street} {addr.streetNumber}, {addr.city}
+            </span>
+          );
+        },
+        enableSorting: false
       },
       {
         accessorKey: 'role',

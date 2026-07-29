@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Inter } from 'next/font/google';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import { Providers } from '@/components/providers';
 
@@ -43,6 +44,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>{children}</Providers>
         {isMainBranch && <SpeedInsights />}
+        {isMainBranch && <Analytics />}
       </body>
     </html>
   );

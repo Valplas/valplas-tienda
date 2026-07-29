@@ -243,6 +243,20 @@ export default function PedidosPage() {
         cell: ({ row }) => <OrderStatusBadge status={row.original.status} />
       },
       {
+        id: 'shippingAddress',
+        header: 'Dirección',
+        cell: ({ row }) => {
+          const addr = row.original.shippingAddress;
+          if (!addr) return <span className="text-muted-foreground">—</span>;
+          return (
+            <span className="text-sm">
+              {addr.street} {addr.streetNumber}, {addr.city}
+            </span>
+          );
+        },
+        enableSorting: false
+      },
+      {
         id: 'actions',
         header: 'Acciones',
         cell: ({ row }) => (
