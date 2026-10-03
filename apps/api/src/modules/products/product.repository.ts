@@ -8,6 +8,26 @@ import type {
   UpdateProductData
 } from './product.types.js';
 
+// Tiers activos del producto con precio de venta derivado (costo × margen de lista).
+// Lo usan listado y detalle para que el front calcule el precio efectivo.
+const PRICE_TIERS_SQL = `COALESCE(
+        (SELECT json_agg(
+          json_build_object(
+            'priceListId', ppt.price_list_id,
+            'priceListName', pl.name,
+            'minQuantity', ppt.min_quantity,
+            'unitPrice', TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100
+          ) ORDER BY pl.name ASC
+        )
+        FROM product_price_tiers ppt
+        JOIN price_lists pl ON pl.id = ppt.price_list_id
+        WHERE ppt.product_id = p.id
+          AND ppt.is_active = true
+          AND pl.is_active = true
+          AND pl.deleted_at IS NULL),
+        '[]'
+      ) as price_tiers`;
+
 /**
  * Buscar productos con filtros y paginación
  */
@@ -157,23 +177,7 @@ export async function findProducts(
         ) FILTER (WHERE pi.id IS NOT NULL),
         '[]'
       ) as images,
-      COALESCE(
-        (SELECT json_agg(
-          json_build_object(
-            'priceListId', ppt.price_list_id,
-            'priceListName', pl.name,
-            'minQuantity', ppt.min_quantity,
-            'unitPrice', TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100
-          ) ORDER BY pl.name ASC
-        )
-        FROM product_price_tiers ppt
-        JOIN price_lists pl ON pl.id = ppt.price_list_id
-        WHERE ppt.product_id = p.id
-          AND ppt.is_active = true
-          AND pl.is_active = true
-          AND pl.deleted_at IS NULL),
-        '[]'
-      ) as price_tiers
+      ${PRICE_TIERS_SQL}
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN brands b ON p.brand_id = b.id
@@ -213,7 +217,8 @@ export async function findProductById(id: string): Promise<ProductWithDetails | 
           ) ORDER BY pi.display_order
         ) FILTER (WHERE pi.id IS NOT NULL),
         '[]'
-      ) as images
+      ) as images,
+      ${PRICE_TIERS_SQL}
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN brands b ON p.brand_id = b.id
@@ -253,7 +258,8 @@ export async function findProductsByIds(ids: string[]): Promise<ProductWithDetai
           ) ORDER BY pi.display_order
         ) FILTER (WHERE pi.id IS NOT NULL),
         '[]'
-      ) as images
+      ) as images,
+      ${PRICE_TIERS_SQL}
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN brands b ON p.brand_id = b.id
@@ -289,7 +295,8 @@ export async function findProductBySlug(slug: string): Promise<ProductWithDetail
           ) ORDER BY pi.display_order
         ) FILTER (WHERE pi.id IS NOT NULL),
         '[]'
-      ) as images
+      ) as images,
+      ${PRICE_TIERS_SQL}
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN brands b ON p.brand_id = b.id
