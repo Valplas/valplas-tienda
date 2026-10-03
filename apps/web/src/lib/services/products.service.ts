@@ -85,9 +85,12 @@ interface DetailRawProduct extends RawProduct {
  */
 function adaptProductDetail(raw: DetailRawProduct): Product {
   const images = Array.isArray(raw.images) ? raw.images.map(mapRawImage) : [];
+  const price = getEffectivePrice(raw);
 
   return {
     ...raw,
+    price,
+    finalPrice: price,
     images,
     tiers: raw.priceTiers ?? [],
     category: raw.categoryId ? { id: raw.categoryId, name: raw.categoryName ?? '' } : null,
@@ -144,15 +147,19 @@ interface RawProduct {
   [key: string]: unknown;
 }
 
+// Precio efectivo de venta: tier de menor cantidad mínima, o el costo si no hay lista
+function getEffectivePrice(raw: RawProduct): number {
+  const tiers = [...(raw.priceTiers ?? [])].sort((a, b) => a.minQuantity - b.minQuantity);
+  return tiers[0]?.unitPrice ?? raw.costPrice ?? 0;
+}
+
 /**
  * Maps API response fields to the frontend Product shape.
  * API returns camelCase after middleware conversion.
  */
 export function normalizeProduct(raw: RawProduct): Product {
   const costPrice = raw.costPrice ?? 0;
-  // Precio efectivo de venta: tier de menor cantidad mínima, o el costo si no hay lista
-  const tiers = [...(raw.priceTiers ?? [])].sort((a, b) => a.minQuantity - b.minQuantity);
-  const price = tiers[0]?.unitPrice ?? costPrice;
+  const price = getEffectivePrice(raw);
   return {
     id: raw.id,
     name: raw.name,
