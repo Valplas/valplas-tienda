@@ -4,8 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRequireAuth } from '@/hooks/use-require-auth';
 import { UserRole } from '@/types';
-import type { Product } from '@/types';
-import { Package, ShoppingCart, AlertTriangle, DollarSign } from 'lucide-react';
+import { Package, ShoppingCart, AlertTriangle, DollarSign, Loader2 } from 'lucide-react';
 import { StatsCard } from '@/components/admin/stats-card';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,82 +18,39 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { getAdminProducts, getAdminOrders, type Order } from '@/services';
+import { getDashboardStats, type DashboardStats } from '@/services';
 import { formatCurrency } from '@/lib/utils';
-import dayjs from 'dayjs';
-import 'dayjs/locale/es';
-
-dayjs.locale('es');
-
-// Estados que cuentan como "pendientes" (operativos, sin terminar)
-const PENDING_STATUSES = new Set([
-  'pending_payment',
-  'payment_confirmed',
-  'processing',
-  'ready_to_ship'
-]);
-// Estados que NO suman a las ventas del mes
-const NON_REVENUE_STATUSES = new Set(['cancelled', 'refunded', 'payment_failed', 'failed']);
-
 export default function AdminDashboardPage() {
   const { user, isLoading: authLoading } = useRequireAuth({
     allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
   });
 
-  const [products, setProducts] = React.useState<Product[]>([]);
-  const [orders, setOrders] = React.useState<Order[]>([]);
-  const [totalOrders, setTotalOrders] = React.useState(0);
+  const [stats, setStats] = React.useState<DashboardStats | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const loadStats = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setStats(await getDashboardStats());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar métricas');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (authLoading || !user) return;
-    let cancelled = false;
-    setLoading(true);
-    // Recursos independientes → Promise.all permitido
-    Promise.all([
-      getAdminProducts({ page: 1, limit: 500 }),
-      getAdminOrders({ page: 1, limit: 500 })
-    ])
-      .then(([p, o]) => {
-        if (cancelled) return;
-        setProducts(p.products as Product[]);
-        setOrders(o.orders);
-        setTotalOrders(o.total);
-      })
-      .catch(() => {
-        if (!cancelled) return;
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [authLoading, user]);
+    loadStats();
+  }, [authLoading, user, loadStats]);
 
-  const activeProducts = products.filter((p) => p.isActive && !p.deletedAt).length;
-  const pendingOrders = orders.filter((o) => PENDING_STATUSES.has(o.status)).length;
-
-  const currentMonth = dayjs().month();
-  const currentYear = dayjs().year();
-  const monthRevenue = orders
-    .filter((o) => {
-      const d = dayjs(o.createdAt);
-      return (
-        d.month() === currentMonth &&
-        d.year() === currentYear &&
-        !NON_REVENUE_STATUSES.has(o.status)
-      );
-    })
-    .reduce((sum, o) => sum + (o.total ?? 0), 0);
-
-  const recentOrders = [...orders]
-    .sort((a, b) => dayjs(b.createdAt).unix() - dayjs(a.createdAt).unix())
-    .slice(0, 10);
-
-  const lowStockProducts = products
-    .filter((p) => p.isActive && !p.deletedAt && (p.availableStock ?? 0) < 10)
-    .slice(0, 5);
+  const pendingOrders = stats?.pendingOrders ?? 0;
+  const recentOrders = stats?.recentOrders ?? [];
+  const lowStockProducts = stats?.lowStockProducts ?? [];
+  const showValue = (value: string | number | undefined): string | number =>
+    loading || !stats || value === undefined ? '—' : value;
 
   if (authLoading || !user) return null;
 
@@ -108,29 +64,39 @@ export default function AdminDashboardPage() {
         </p>
       </div>
 
+      {error && (
+        <div className="flex flex-col gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" onClick={loadStats} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {loading ? 'Cargando...' : 'Reintentar'}
+          </Button>
+        </div>
+      )}
+
       {/* Stats cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Productos Activos"
-          value={loading ? '—' : activeProducts}
+          value={showValue(stats?.activeProducts)}
           icon={Package}
           variant="info"
         />
         <StatsCard
           title="Total Pedidos"
-          value={loading ? '—' : totalOrders}
+          value={showValue(stats?.totalOrders)}
           icon={ShoppingCart}
           variant="default"
         />
         <StatsCard
           title="Pedidos Pendientes"
-          value={loading ? '—' : pendingOrders}
+          value={showValue(pendingOrders)}
           icon={AlertTriangle}
           variant={pendingOrders > 0 ? 'warning' : 'success'}
         />
         <StatsCard
           title="Ventas del Mes"
-          value={loading ? '—' : formatCurrency(monthRevenue)}
+          value={showValue(formatCurrency(stats?.monthRevenue ?? 0))}
           icon={DollarSign}
           variant="success"
         />

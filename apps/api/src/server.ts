@@ -108,6 +108,7 @@ import addressRoutes from './modules/addresses/address.routes.js';
 import orderRoutes from './modules/orders/order.routes.js';
 import userRoutes from './modules/users/user.routes.js';
 import accountingRoutes from './modules/accounting/accounting.routes.js';
+import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 import catalogRoutes from './modules/catalog/catalog.routes.js';
 import paymentsRoutes from './modules/payments/payments.routes.js';
 import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.js';
@@ -126,6 +127,7 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/accounting', accountingRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/payments', paymentsRoutes);
 
