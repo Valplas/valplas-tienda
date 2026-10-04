@@ -4,6 +4,7 @@
  * - UnitaryPrice → unit_price (pesos ARS, NUMERIC(12,2))
  * - CostPrice → cost_price_snapshot (pesos ARS, NUMERIC(12,2))
  * - Subtotal is overwritten by DB trigger (quantity * unit_price)
+ * - real_quantity = quantity, bundle_size_snapshot = 1 (no bundle/tier concept in CRM, migration 033)
  * - Revenue is a GENERATED ALWAYS column (migration 018) — computed automatically, not inserted
  * Idempotent: deletes existing items per order before re-inserting
  */
@@ -79,16 +80,19 @@ for (const [orderId, items] of byOrder) {
         `INSERT INTO order_items (
           order_id, product_id,
           product_name, product_sku,
-          quantity, unit_price,
+          quantity, real_quantity, bundle_size_snapshot,
+          unit_price,
           cost_price_snapshot, price_list_id
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
         [
           orderId,
           row.ProductID,
           productName,
           productSku,
           row.Quantity,
+          row.Quantity, // real_quantity: CRM orders predate bundles, 1 unit = 1 real unit
+          1, // bundle_size_snapshot: no tiers in source, treat as bundle of 1
           unitPrice,
           costSnapshot,
           priceListId
