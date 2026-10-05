@@ -2,11 +2,7 @@ import { Router } from 'express';
 import * as productController from './product.controller.js';
 import { validate } from '../../shared/middleware/validation.middleware.js';
 import { validateQuery } from '../../shared/middleware/validate.middleware.js';
-import {
-  authMiddleware,
-  optionalAuthMiddleware,
-  requireRole
-} from '../../shared/middleware/auth.middleware.js';
+import { authMiddleware, requireRole } from '../../shared/middleware/auth.middleware.js';
 import {
   productFiltersSchema,
   createProductSchema,
@@ -19,23 +15,24 @@ const router = Router();
 
 /**
  * GET /api/products
- * Listar productos con filtros (público)
+ * Listar productos con filtros (admin/owner)
  */
+// Expone cost_price y filtra/ordena por costo, así que es solo staff.
+// El listado público es GET /api/catalog/products.
 // Los filtros van en el query string. validateQuery guarda el resultado
 // parseado (snake_case normalizado a camelCase) en req.validated.query;
 // en Express 5 req.query es un getter y no se puede reasignar.
-// optionalAuthMiddleware: la ruta es pública, pero admin/owner pueden
-// filtrar por is_active (ver productos desactivados).
 router.get(
   '/',
-  optionalAuthMiddleware,
+  authMiddleware,
+  requireRole(['admin', 'owner']),
   validateQuery(productFiltersSchema),
   productController.listProducts
 );
 
 /**
  * GET /api/products/slug/:slug
- * Obtener producto por slug (público)
+ * Obtener producto por slug (público: sin costo, con precio de venta)
  * NOTA: Esta ruta debe ir antes de /:id para evitar conflictos
  */
 router.get('/slug/:slug', productController.getProductBySlug);
@@ -66,9 +63,14 @@ router.use('/:id/images', productImagesRouter);
 
 /**
  * GET /api/products/:id
- * Obtener producto por ID (público)
+ * Obtener producto por ID con costo (admin/owner). El detalle público va por slug.
  */
-router.get('/:id', productController.getProductById);
+router.get(
+  '/:id',
+  authMiddleware,
+  requireRole(['admin', 'owner']),
+  productController.getProductById
+);
 
 /**
  * POST /api/products

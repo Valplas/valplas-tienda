@@ -56,6 +56,12 @@ export interface ProductWithDetails extends Omit<Product, 'categoryId' | 'brandI
 }
 
 /**
+ * Producto para endpoints públicos: sin costo, con el precio de venta
+ * efectivo ya calculado (tier de menor cantidad mínima, o costo sin lista)
+ */
+export type PublicProduct = Omit<ProductWithDetails, 'costPrice'> & { price: number };
+
+/**
  * Datos para crear producto
  */
 export interface CreateProductData {

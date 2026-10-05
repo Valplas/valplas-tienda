@@ -5,6 +5,7 @@ import * as productImageService from './images/product-image.service.js';
 import type {
   ProductFilters,
   ProductWithDetails,
+  PublicProduct,
   CreateProductData,
   UpdateProductData
 } from './product.types.js';
@@ -20,6 +21,22 @@ export function resolveIsActiveFilter(
 ): boolean | undefined {
   const canSeeInactive = role === 'admin' || role === 'owner';
   return canSeeInactive ? requested : true;
+}
+
+/**
+ * Quita el costo y agrega el precio de venta efectivo. Misma regla que
+ * EFFECTIVE_PRICE_SQL del catálogo: tier de menor min_quantity, o cost_price
+ * si el producto no tiene lista asignada. Los tiers vienen ordenados por
+ * nombre de lista, por eso se busca el mínimo explícitamente.
+ */
+export function toPublicProduct(product: ProductWithDetails): PublicProduct {
+  const { costPrice, ...rest } = product;
+  const baseTier = product.priceTiers.reduce<ProductWithDetails['priceTiers'][number] | null>(
+    (min, tier) => (min === null || tier.minQuantity < min.minQuantity ? tier : min),
+    null
+  );
+
+  return { ...rest, price: baseTier?.unitPrice ?? costPrice };
 }
 
 /**
@@ -58,16 +75,16 @@ export async function getProductById(id: string): Promise<ProductWithDetails> {
 }
 
 /**
- * Obtener producto por slug
+ * Obtener producto por slug (público: sin costo)
  */
-export async function getProductBySlug(slug: string): Promise<ProductWithDetails> {
+export async function getProductBySlug(slug: string): Promise<PublicProduct> {
   const product = await productRepository.findProductBySlug(slug);
 
   if (!product) {
     throw new AppError('PRODUCT_NOT_FOUND', 'Producto no encontrado', 404);
   }
 
-  return product;
+  return toPublicProduct(product);
 }
 
 /**
