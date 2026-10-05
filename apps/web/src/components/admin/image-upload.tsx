@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ProductImage } from '@/types';
+import { ImageCropDialog } from './image-crop-dialog';
 import {
   stageProductImage,
   uploadProductImage,
@@ -41,8 +42,10 @@ export function ImageUpload({
   // se rastrea por su propia key, así uploads concurrentes no se pisan.
   const [uploadingKeys, setUploadingKeys] = React.useState<string[]>([]);
   const [previews, setPreviews] = React.useState<Record<string, string>>({});
+  // Archivo elegido esperando recorte en el diálogo (url = object URL del original)
+  const [pendingCrop, setPendingCrop] = React.useState<{ file: File; url: string } | null>(null);
 
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // permite volver a elegir el mismo archivo
 
@@ -60,6 +63,20 @@ export function ImageUpload({
       return;
     }
 
+    setPendingCrop({ file, url: URL.createObjectURL(file) });
+  };
+
+  const closeCropDialog = () => {
+    if (pendingCrop) URL.revokeObjectURL(pendingCrop.url);
+    setPendingCrop(null);
+  };
+
+  const handleCropConfirm = (croppedFile: File) => {
+    closeCropDialog();
+    void uploadFile(croppedFile);
+  };
+
+  const uploadFile = async (file: File) => {
     const key = crypto.randomUUID();
     const previewUrl = URL.createObjectURL(file);
     setPreviews((prev) => ({ ...prev, [key]: previewUrl }));
@@ -235,9 +252,20 @@ export function ImageUpload({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        JPEG, PNG, WebP o AVIF — máximo 10MB por imagen.
+        JPEG, PNG, WebP o AVIF — máximo 10MB por imagen. Antes de subirla podés recortarla (formato
+        cuadrado), girarla y enderezarla.
         {images.length > 1 && ' Hacé clic en la estrella para cambiar la imagen principal.'}
       </p>
+
+      {pendingCrop && (
+        <ImageCropDialog
+          key={pendingCrop.url}
+          src={pendingCrop.url}
+          fileName={pendingCrop.file.name}
+          onCancel={closeCropDialog}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 }
