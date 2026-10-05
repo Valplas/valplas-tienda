@@ -132,7 +132,8 @@ interface RawProduct {
   name: string;
   slug: string;
   description?: string;
-  costPrice: number; // pesos ARS
+  costPrice?: number; // pesos ARS — solo en endpoints admin
+  price?: number; // precio de venta calculado por el server — solo en el detalle público
   isActive: boolean;
   categoryId?: string;
   brandId?: string;
@@ -147,8 +148,10 @@ interface RawProduct {
   [key: string]: unknown;
 }
 
-// Precio efectivo de venta: tier de menor cantidad mínima, o el costo si no hay lista
+// Precio efectivo de venta: el que manda el server (detalle público, sin costo)
+// o, en endpoints admin, tier de menor cantidad mínima / costo si no hay lista
 function getEffectivePrice(raw: RawProduct): number {
+  if (raw.price !== undefined) return raw.price;
   const tiers = [...(raw.priceTiers ?? [])].sort((a, b) => a.minQuantity - b.minQuantity);
   return tiers[0]?.unitPrice ?? raw.costPrice ?? 0;
 }
