@@ -13,6 +13,7 @@ import {
   dismissMergeSuggestion,
   displayEmail,
   getMergeSuggestions,
+  type MergeResult,
   type MergeSuggestion
 } from '@/lib/services/user-merge.service';
 import { MergeUsersDialog } from '@/components/admin/user-merge/merge-users-dialog';
@@ -45,6 +46,11 @@ export default function DuplicadosPage() {
     setHasMore(result.hasMore);
     setPage(nextPage);
   }, []);
+
+  const reloadFirstPage = useCallback(
+    () => loadPage(1).catch(() => toast.error('Error al recargar posibles duplicados')),
+    [loadPage]
+  );
 
   useEffect(() => {
     loadPage(1)
@@ -80,6 +86,8 @@ export default function DuplicadosPage() {
       await dismissMergeSuggestion(s.user.id, s.legacyUser.id);
       setSuggestions((prev) => prev.filter((x) => pairKey(x) !== pairKey(s)));
       toast.success('Sugerencia descartada');
+      // La paginación es por offset: sin recargar se saltearía una sugerencia por cada descarte
+      await reloadFirstPage();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'No se pudo descartar');
     } finally {
@@ -87,13 +95,16 @@ export default function DuplicadosPage() {
     }
   };
 
-  // Un merge invalida otras sugerencias de las mismas cuentas: recargar desde la primera página
-  const handleMerged = () => {
+  // Un merge invalida las sugerencias de esas dos cuentas: se sacan ya (aunque falle la recarga)
+  // y se recarga desde la primera página
+  const handleMerged = (result: MergeResult) => {
+    const merged = new Set([result.sourceId, result.targetId]);
     setReviewing(null);
+    setSuggestions((prev) =>
+      prev.filter((s) => !merged.has(s.user.id) && !merged.has(s.legacyUser.id))
+    );
     setLoading(true);
-    loadPage(1)
-      .catch(() => toast.error('Error al recargar posibles duplicados'))
-      .finally(() => setLoading(false));
+    reloadFirstPage().finally(() => setLoading(false));
   };
 
   if (authLoading || !authUser) return null;
