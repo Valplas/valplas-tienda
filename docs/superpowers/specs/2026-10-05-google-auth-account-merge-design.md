@@ -115,10 +115,11 @@ Swagger actualizado para los cuatro.
 
 - **Target legacy sin uso** (`is_legacy AND last_login_at IS NULL`): su username
   autogenerado y su password placeholder no son del cliente. Se toman de la source
-  `username`, `password_hash`, `last_login_at` y `email_verified` (aunque sean NULL,
-  así se elimina el placeholder). `email`: el de la source si el del target es
-  placeholder; si el admin ya cargó uno real y difiere, gana el del target y el de la
-  source se informa como descartado.
+  `username`, `password_hash` y `last_login_at` (aunque sean NULL, así se elimina el
+  placeholder). `email_verified` acompaña al email elegido (si queda el email real que
+  cargó el admin en el target, se mantiene el `email_verified` del target). `email`: el
+  de la source si el del target es placeholder; si el admin ya cargó uno real y difiere,
+  gana el del target y el de la source se informa como descartado.
 - **Resto de los casos:** el target gana en todo valor no nulo; los nulos se rellenan
   con la source.
 - **En ambos casos:** `google_id` del target si tiene, si no el de la source;
@@ -163,8 +164,7 @@ priorice la carga manual.
 
 ### Órdenes
 
-`createOrder` rechaza usuarios con `deleted_at` o `is_active = false` (401) para cerrar
-la ventana de ≤15 min de una cuenta recién absorbida.
+No hace falta un guard extra en `createOrder`: ya exige que la dirección de envío pertenezca al usuario y el merge mueve todas las direcciones al target, así que la cuenta absorbida no puede crear órdenes.
 
 ## 2. Backend: arreglos del flujo Google
 
@@ -228,11 +228,13 @@ email_unverified | account_inactive | oauth_unavailable`.
     legacy (nombre, dirección, cantidad de órdenes), con badge Alta/Media y la
     dirección coincidente.
   - Acciones por fila: "Revisar y fusionar" (abre `MergeUsersDialog`) y "No es la
-    misma persona" (dismiss, con loading).
-  - Cards en mobile, tabla en `md+`.
+    misma persona" (dismiss, con loading). Después de "No es la misma persona", la lista
+    recarga desde la página 1. Después de un merge, los pares que involucren a las dos
+    cuentas fusionadas se eliminan inmediatamente y la lista recarga.
+  - Lista de cards: en `md+` las dos cuentas van lado a lado.
 - **`/admin/usuarios`** (cambios mínimos; el archivo ya tiene 497 líneas, la lógica va
   en componentes nuevos):
-  - Botón "Posibles duplicados" en el header.
+  - Botón "Posibles duplicados" en el header (sin contador, para no sumar una query en cada carga).
   - Acción "Fusionar con…": buscador (`command` de shadcn) para elegir cualquier
     cuenta → `MergeUsersDialog`.
   - Filtro "Sin datos de contacto".
@@ -259,6 +261,7 @@ email_unverified | account_inactive | oauth_unavailable`.
 - Los scripts **no** se re-corren después de abrir a usuarios: un re-run pisaría los
   emails y teléfonos cargados a mano en cuentas sin uso. Queda documentado en el
   header del script.
+- Las cuentas salteadas por el guard tampoco tocan sus direcciones (el script hace delete + insert).
 - El prefijo `VLPL-` de `migrate-orders.ts` va en la tarea de prefijos de órdenes.
 
 ## Tests (API, vitest)
