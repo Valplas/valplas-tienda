@@ -10,6 +10,12 @@ import {
   updateUserPasswordSchema,
   listUsersSchema
 } from './user.validators.js';
+import * as mergeController from './user-merge.controller.js';
+import {
+  mergeBodySchema,
+  mergeIdParamsSchema,
+  mergePreviewQuerySchema
+} from './user-merge.validators.js';
 
 const router = Router();
 
@@ -91,6 +97,91 @@ router.get('/stats', userController.getUserStats);
  *         description: User created
  */
 router.post('/', validate(createUserSchema, 'body'), userController.createUser);
+
+// ============= MERGE DE CUENTAS =============
+// Antes de '/:id' para que las rutas estáticas (merge-suggestions) no se lean como un id.
+
+/**
+ * @swagger
+ * /api/users/{id}/merge-preview:
+ *   get:
+ *     summary: Vista previa del merge de dos cuentas de cliente
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Cuenta que se conserva
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: source_user_id
+ *         required: true
+ *         description: Cuenta que se absorbe
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Identidad resultante, campos descartados y conteos a mover
+ *       404:
+ *         description: Alguna cuenta no existe o ya fue fusionada
+ *       409:
+ *         description: GOOGLE_ID_CONFLICT
+ */
+router.get(
+  '/:id/merge-preview',
+  validate(mergeIdParamsSchema, 'params'),
+  validate(mergePreviewQuerySchema, 'query'),
+  mergeController.getMergePreview
+);
+
+/**
+ * @swagger
+ * /api/users/{id}/merge:
+ *   post:
+ *     summary: Fusiona una cuenta de cliente dentro de otra
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Cuenta que se conserva
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [source_user_id]
+ *             properties:
+ *               source_user_id:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       200:
+ *         description: Merge aplicado (órdenes, direcciones e historial movidos)
+ *       400:
+ *         description: SAME_USER o MERGE_ROLE_NOT_ALLOWED
+ *       404:
+ *         description: Alguna cuenta no existe o ya fue fusionada
+ *       409:
+ *         description: GOOGLE_ID_CONFLICT
+ */
+router.post(
+  '/:id/merge',
+  validate(mergeIdParamsSchema, 'params'),
+  validate(mergeBodySchema, 'body'),
+  mergeController.mergeUser
+);
 
 /**
  * @swagger
