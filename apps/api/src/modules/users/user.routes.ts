@@ -14,7 +14,9 @@ import * as mergeController from './user-merge.controller.js';
 import {
   mergeBodySchema,
   mergeIdParamsSchema,
-  mergePreviewQuerySchema
+  mergePreviewQuerySchema,
+  mergeSuggestionsQuerySchema,
+  dismissSuggestionSchema
 } from './user-merge.validators.js';
 
 const router = Router();
@@ -58,6 +60,11 @@ router.use(requireRole(['admin', 'owner']));
  *         name: search
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: contact_status
+ *         schema:
+ *           type: string
+ *           enum: [missing]
  *     responses:
  *       200:
  *         description: List of users
@@ -100,6 +107,65 @@ router.post('/', validate(createUserSchema, 'body'), userController.createUser);
 
 // ============= MERGE DE CUENTAS =============
 // Antes de '/:id' para que las rutas estáticas (merge-suggestions) no se lean como un id.
+
+/**
+ * @swagger
+ * /api/users/merge-suggestions:
+ *   get:
+ *     summary: Posibles duplicados entre cuentas nuevas y clientes legacy del CRM
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Lista paginada de pares con confianza high/medium
+ */
+router.get(
+  '/merge-suggestions',
+  validate(mergeSuggestionsQuerySchema, 'query'),
+  mergeController.getMergeSuggestions
+);
+
+/**
+ * @swagger
+ * /api/users/merge-suggestions/dismiss:
+ *   post:
+ *     summary: Marca un par sugerido como "No es la misma persona"
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [user_id, legacy_user_id]
+ *             properties:
+ *               user_id:
+ *                 type: string
+ *                 format: uuid
+ *               legacy_user_id:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       200:
+ *         description: Par descartado
+ */
+router.post(
+  '/merge-suggestions/dismiss',
+  validate(dismissSuggestionSchema, 'body'),
+  mergeController.dismissMergeSuggestion
+);
 
 /**
  * @swagger

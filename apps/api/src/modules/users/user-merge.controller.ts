@@ -36,3 +36,30 @@ export async function mergeUser(req: Request, res: Response, next: NextFunction)
     next(error);
   }
 }
+
+/**
+ * GET /api/users/merge-suggestions?page=&limit=
+ */
+export async function getMergeSuggestions(req: Request, res: Response, next: NextFunction) {
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    const { suggestions, total } = await mergeDomain.getMergeSuggestions(page, limit);
+    return res.json(ApiResponse.paginated(suggestions, page, limit, total));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/users/merge-suggestions/dismiss
+ */
+export async function dismissMergeSuggestion(req: Request, res: Response, next: NextFunction) {
+  try {
+    const adminId = (req.user as AuthenticatedUser).userId;
+    await mergeDomain.dismissSuggestion(req.body.user_id, req.body.legacy_user_id, adminId);
+    return res.json(ApiResponse.success({ dismissed: true }));
+  } catch (error) {
+    next(error);
+  }
+}

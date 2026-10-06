@@ -9,6 +9,7 @@ import type {
   MergeCandidate,
   MergePreview,
   MergeResult,
+  MergeSuggestion,
   MergeUserSummary
 } from './user-merge.types.js';
 
@@ -97,4 +98,26 @@ export async function mergeUsers(
 
   logger.info(`User merge: ${sourceId} → ${targetId} (admin ${adminId})`, { moved: result.moved });
   return result;
+}
+
+export async function getMergeSuggestions(
+  page: number,
+  limit: number
+): Promise<{ suggestions: MergeSuggestion[]; total: number }> {
+  return mergeRepository.findMergeSuggestions(page, limit);
+}
+
+export async function dismissSuggestion(
+  userId: string,
+  legacyUserId: string,
+  adminId: string
+): Promise<void> {
+  if (userId === legacyUserId) {
+    throw new AppError('SAME_USER', 'Las dos cuentas son la misma', 400);
+  }
+  const candidates = await mergeRepository.findMergeCandidates([userId, legacyUserId]);
+  if (candidates.length !== 2) {
+    throw new AppError('USER_NOT_FOUND', 'Alguna de las cuentas no existe', 404);
+  }
+  await mergeRepository.insertDismissal(userId, legacyUserId, adminId);
 }
