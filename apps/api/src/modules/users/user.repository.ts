@@ -181,15 +181,30 @@ export async function findUserWithStats(id: string): Promise<UserWithStats | nul
 }
 
 /**
- * Find user by email
+ * Find user by email (case-insensitive)
  */
 export async function findUserByEmail(email: string): Promise<User | null> {
   const result = await query<User>(
     `SELECT id, email, username, phone, first_name, last_name, role,
             is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
      FROM users
-     WHERE email = $1 AND deleted_at IS NULL`,
+     WHERE lower(email) = lower($1) AND deleted_at IS NULL`,
     [email]
+  );
+
+  return result.rows[0] || null;
+}
+
+/**
+ * Find user by phone (E.164)
+ */
+export async function findUserByPhone(phone: string): Promise<User | null> {
+  const result = await query<User>(
+    `SELECT id, email, username, phone, first_name, last_name, role,
+            is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
+     FROM users
+     WHERE phone = $1 AND deleted_at IS NULL`,
+    [phone]
   );
 
   return result.rows[0] || null;
