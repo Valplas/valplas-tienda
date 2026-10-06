@@ -150,3 +150,86 @@ export async function getProductStock(
   );
   return result.rows[0];
 }
+
+/** Sufijo solo con letras: para calles de test (los dígitos romperían el parseo calle/número). */
+export function lettersSuffix(): string {
+  return Array.from({ length: 10 }, () =>
+    String.fromCharCode(97 + Math.floor(Math.random() * 26))
+  ).join('');
+}
+
+/**
+ * Cliente legacy (como lo crea tools/migration/src/migrate-clients.ts): email placeholder,
+ * password placeholder, nunca usó la web. El email `vitest.*@sinmail.local` lo limpia setup.ts.
+ */
+export async function createLegacyUser(
+  overrides: Partial<{
+    firstName: string;
+    lastName: string | null;
+    email: string;
+    phone: string | null;
+  }> = {}
+): Promise<{ id: string; email: string; username: string }> {
+  const suffix = uniqueSuffix();
+  const result = await query<{ id: string; email: string; username: string }>(
+    `INSERT INTO users (email, username, first_name, last_name, phone, password_hash,
+                        role, is_active, is_legacy)
+     VALUES ($1, $2, $3, $4, $5, 'legacy-placeholder-hash', 'customer', true, true)
+     RETURNING id, email, username`,
+    [
+      overrides.email ?? `vitest.${suffix}@sinmail.local`,
+      `vt_legacy_${suffix}`,
+      overrides.firstName ?? 'Legacy',
+      overrides.lastName ?? null,
+      overrides.phone ?? null
+    ]
+  );
+  return result.rows[0];
+}
+
+/** Cuenta creada por Google OAuth: sin password ni username, con google_id. */
+export async function createGoogleUser(
+  overrides: Partial<{ firstName: string; lastName: string; email: string }> = {}
+): Promise<{ id: string; email: string; googleId: string }> {
+  const suffix = uniqueSuffix();
+  const email = overrides.email ?? `google-${suffix}@vitest.local`;
+  const googleId = `vitest-google-${suffix}`;
+  const result = await query<{ id: string }>(
+    `INSERT INTO users (email, first_name, last_name, google_id, role, is_active,
+                        email_verified, last_login_at)
+     VALUES ($1, $2, $3, $4, 'customer', true, true, NOW())
+     RETURNING id`,
+    [email, overrides.firstName ?? 'Google', overrides.lastName ?? 'User', googleId]
+  );
+  return { id: result.rows[0].id, email, googleId };
+}
+
+export async function createRawAddress(
+  userId: string,
+  data: { street: string; streetNumber: string; city: string; isDefault?: boolean }
+): Promise<string> {
+  const result = await query<{ id: string }>(
+    `INSERT INTO user_addresses (user_id, street, street_number, city, province, postcode, is_default)
+     VALUES ($1, $2, $3, $4, 'Buenos Aires', '1744', $5)
+     RETURNING id`,
+    [userId, data.street, data.streetNumber, data.city, data.isDefault ?? false]
+  );
+  return result.rows[0].id;
+}
+
+/** Orden mínima como las del CRM: dirección en texto libre, ciudad fija. */
+export async function createRawOrder(
+  userId: string,
+  shippingStreet = 'Av. Vitest 123'
+): Promise<string> {
+  const result = await query<{ id: string }>(
+    `INSERT INTO orders (user_id, order_number, status, subtotal, shipping_cost, total,
+                         shipping_street, shipping_street_number, shipping_city,
+                         shipping_province, shipping_postcode, payment_method)
+     VALUES ($1, $2, 'delivered', 1000, 0, 1000, $3, 'S/N', 'Buenos Aires',
+             'Buenos Aires', '0000', 'cash')
+     RETURNING id`,
+    [userId, `VT-${uniqueSuffix()}`, shippingStreet]
+  );
+  return result.rows[0].id;
+}
