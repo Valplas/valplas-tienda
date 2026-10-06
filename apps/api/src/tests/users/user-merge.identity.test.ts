@@ -40,7 +40,7 @@ const google = candidate({
 describe('resolveMergedIdentity', () => {
   it('legacy sin uso ↔ Google: toma credenciales e identidad de la cuenta Google', () => {
     const r = resolveMergedIdentity(unusedLegacy, google);
-    expect(r.take_source_password).toBe(true);
+    expect(r.password_strategy).toBe('source');
     expect(r.identity).toEqual({
       email: 'maria@gmail.com',
       username: null,
@@ -79,7 +79,7 @@ describe('resolveMergedIdentity', () => {
       last_login_at: new Date('2026-10-02')
     });
     const r = resolveMergedIdentity(target, source);
-    expect(r.take_source_password).toBe(false);
+    expect(r.password_strategy).toBe('target_or_source');
     expect(r.identity).toMatchObject({
       email: 'a@x.com',
       username: 'a',
@@ -122,9 +122,23 @@ describe('resolveMergedIdentity', () => {
       has_password: true
     });
     const r = resolveMergedIdentity(target, source);
-    expect(r.take_source_password).toBe(false);
+    expect(r.password_strategy).toBe('target_or_source');
     expect(r.identity.has_password).toBe(true);
     expect(r.identity.username).toBe('a2');
     expect(r.identity.google_id).toBe('g-1');
+  });
+
+  it('target Google sin credenciales ↔ source legacy sin uso: nunca hereda password ni username', () => {
+    const target = candidate({
+      id: 't',
+      email: 'maria@gmail.com',
+      google_id: 'g-1',
+      email_verified: true,
+      last_login_at: new Date('2026-10-01')
+    });
+    const r = resolveMergedIdentity(target, { ...unusedLegacy, id: 's' });
+    expect(r.password_strategy).toBe('target');
+    expect(r.identity.has_password).toBe(false);
+    expect(r.identity.username).toBeNull();
   });
 });

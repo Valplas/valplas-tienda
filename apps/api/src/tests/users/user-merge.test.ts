@@ -157,6 +157,37 @@ describe('mergeUsers', () => {
     expect(after.rows[0].password_hash).not.toBeNull();
     expect(after.rows[0].password_hash).toBe(sourceHash);
   });
+
+  it('un source legacy sin uso nunca aporta su password placeholder ni su username', async () => {
+    const target = await createGoogleUser();
+    const source = await createLegacyUser();
+
+    await mergeDomain.mergeUsers(target.id, source.id, ADMIN_ID);
+
+    const after = await query<{ password_hash: string | null; username: string | null }>(
+      'SELECT password_hash, username FROM users WHERE id = $1',
+      [target.id]
+    );
+    expect(after.rows[0].password_hash).toBeNull();
+    expect(after.rows[0].username).toBeNull();
+  });
+
+  it('con dos cuentas con password propio, el target conserva el suyo', async () => {
+    const target = await createTestUser();
+    const source = await createTestUser();
+    const before = await query<{ password_hash: string }>(
+      'SELECT password_hash FROM users WHERE id = $1',
+      [target.id]
+    );
+
+    await mergeDomain.mergeUsers(target.id, source.id, ADMIN_ID);
+
+    const after = await query<{ password_hash: string }>(
+      'SELECT password_hash FROM users WHERE id = $1',
+      [target.id]
+    );
+    expect(after.rows[0].password_hash).toBe(before.rows[0].password_hash);
+  });
 });
 
 describe('previewMerge', () => {

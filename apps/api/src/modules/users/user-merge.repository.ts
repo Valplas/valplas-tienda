@@ -73,9 +73,10 @@ export async function applyMerge(
     `UPDATE users
      SET email = $1, username = $2, phone = $3, google_id = $4, email_verified = $5,
          last_login_at = $6,
-         password_hash = CASE
-           WHEN $7::boolean THEN (SELECT password_hash FROM users WHERE id = $8)
-           ELSE COALESCE(password_hash, (SELECT password_hash FROM users WHERE id = $8))
+         password_hash = CASE $7::text
+           WHEN 'source' THEN (SELECT password_hash FROM users WHERE id = $8)
+           WHEN 'target_or_source' THEN COALESCE(password_hash, (SELECT password_hash FROM users WHERE id = $8))
+           ELSE password_hash
          END,
          updated_at = NOW()
      WHERE id = $9`,
@@ -86,7 +87,7 @@ export async function applyMerge(
       identity.google_id,
       identity.email_verified,
       identity.last_login_at,
-      resolution.take_source_password,
+      resolution.password_strategy,
       sourceId,
       targetId
     ]
