@@ -83,16 +83,16 @@ export async function findUsers(
     `(SELECT MAX(o.created_at) FROM orders o WHERE o.user_id = ${alias}.id) DESC NULLS LAST`;
   const innerOrder =
     contact_status === 'missing'
-      ? lastOrderOrder('users')
+      ? `${lastOrderOrder('users')}, id`
       : sort === 'first_name'
-        ? 'first_name ASC, last_name ASC'
-        : 'created_at DESC';
+        ? 'first_name ASC, last_name ASC, id'
+        : 'created_at DESC, id';
   const outerOrder =
     contact_status === 'missing'
-      ? lastOrderOrder('u')
+      ? `${lastOrderOrder('u')}, u.id`
       : sort === 'first_name'
-        ? 'u.first_name ASC, u.last_name ASC'
-        : 'u.created_at DESC';
+        ? 'u.first_name ASC, u.last_name ASC, u.id'
+        : 'u.created_at DESC, u.id';
 
   const whereClause = conditions.join(' AND ');
 
