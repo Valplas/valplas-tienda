@@ -9,7 +9,8 @@
  *             delete-then-insert for addresses (no CRM address ID to reuse)
  * - is_legacy = true (lo usan las sugerencias de duplicados y el merge de cuentas)
  * - NO re-correr después de abrir la tienda: pisaría emails/teléfonos que el admin cargó a mano
- *   en cuentas que todavía no iniciaron sesión. Las que ya la usaron (last_login_at) se saltean.
+ *   en cuentas que todavía no iniciaron sesión. Las que ya la usaron (last_login_at) o fueron
+ *   absorbidas por un merge (merged_into_id) se saltean.
  */
 import { source, target, closeAll } from './db.ts';
 import bcrypt from 'bcryptjs';
@@ -115,7 +116,7 @@ for (const row of rows.rows) {
         is_active = EXCLUDED.is_active,
         deleted_at = EXCLUDED.deleted_at,
         is_legacy = true
-      WHERE users.last_login_at IS NULL
+      WHERE users.last_login_at IS NULL AND users.merged_into_id IS NULL
       RETURNING (xmax = 0) as inserted`,
       [
         row.ClientID,

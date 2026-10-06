@@ -71,6 +71,7 @@ export async function resolveGoogleUser(
 
     const existing = await authRepository.findUserByEmail(email);
     if (existing) {
+      if (!existing.isActive) return { error: 'account_inactive' };
       await authRepository.linkGoogleId(existing.id, profile.id);
       user = existing;
     } else {

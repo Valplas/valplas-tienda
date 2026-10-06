@@ -67,6 +67,15 @@ describe('resolveGoogleUser', () => {
     expect(result).toEqual({ error: 'account_inactive' });
   });
 
+  it('no vincula google_id a una cuenta inactiva encontrada por email', async () => {
+    const legacy = await createLegacyUser({ email: `legacy-${uniqueSuffix()}@vitest.local` });
+    await query('UPDATE users SET is_active = false WHERE id = $1', [legacy.id]);
+    const result = await resolveGoogleUser(profile({ email: legacy.email }));
+    expect(result).toEqual({ error: 'account_inactive' });
+    const row = await query('SELECT google_id FROM users WHERE id = $1', [legacy.id]);
+    expect(row.rows[0].google_id).toBeNull();
+  });
+
   it('devuelve oauth_failed si Google no manda email', async () => {
     expect(await resolveGoogleUser(profile({ email: null }))).toEqual({ error: 'oauth_failed' });
   });

@@ -120,6 +120,8 @@ Swagger actualizado para los cuatro.
   cargó el admin en el target, se mantiene el `email_verified` del target). `email`: el
   de la source si el del target es placeholder; si el admin ya cargó uno real y difiere,
   gana el del target y el de la source se informa como descartado.
+- **Source legacy sin uso:** su username autogenerado y su password placeholder nunca se
+  heredan al target (ni siquiera para rellenar nulos): se conservan los del target tal cual.
 - **Resto de los casos:** el target gana en todo valor no nulo; los nulos se rellenan
   con la source.
 - **En ambos casos:** `google_id` del target si tiene, si no el de la source;
@@ -290,10 +292,14 @@ email_unverified | account_inactive | oauth_unavailable`.
 ## Deploy
 
 1. Migración 040.
-2. Variables `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_CALLBACK_URL` en
-   Railway; la URI de callback de producción autorizada en Google Cloud Console.
-3. Scripts CRM (sincronización final).
-4. Apertura a usuarios.
+2. Variables `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` y
+   `OWNER_GOOGLE_EMAILS` en Railway; la URI de callback de producción autorizada en
+   Google Cloud Console.
+3. Verificar que exista exactamente una cuenta owner no borrada.
+4. Scripts CRM (sincronización final).
+5. Verificar `SELECT count(*) FROM users WHERE role='customer' AND is_legacy = false`
+   (solo cuentas creadas en la web).
+6. Apertura a usuarios.
 
 ## Fuera de alcance
 

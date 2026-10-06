@@ -71,4 +71,9 @@ describe('CookieStateStore', () => {
     new CookieStateStore().verify(req, provided, META, cb);
     expect(cb).toHaveBeenCalledWith(null, false, { message: 'oauth_state' });
   });
+
+  it('mantiene la aridad que Passport usa para despachar store/verify', () => {
+    expect(CookieStateStore.prototype.store.length).toBe(3);
+    expect(CookieStateStore.prototype.verify.length).toBe(4);
+  });
 });
