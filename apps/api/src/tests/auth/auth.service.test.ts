@@ -94,6 +94,17 @@ describe('Auth Service', () => {
       expect(result.refreshToken).toBeDefined();
     });
 
+    it('should login ignoring email case', async () => {
+      const user = await createTestUser();
+
+      const result = await authService.login({
+        emailOrUsername: user.email.toUpperCase(),
+        password: user.password
+      });
+
+      expect(result.user.id).toBe(user.id);
+    });
+
     it('should login with valid username and password', async () => {
       const user = await createTestUser();
 

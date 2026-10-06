@@ -53,7 +53,7 @@ export async function findUserByUsername(username: string): Promise<User | null>
 export async function findUserByEmailOrUsername(emailOrUsername: string): Promise<User | null> {
   const result = await query<User>(
     `SELECT ${USER_COLUMNS} FROM users
-     WHERE (email = $1 OR username = $1)
+     WHERE (lower(email) = lower($1) OR username = $1)
        AND deleted_at IS NULL
      LIMIT 1`,
     [emailOrUsername]
@@ -72,7 +72,7 @@ export async function findUserByEmailOrUsernameForAuth(
 ): Promise<(User & { password_hash: string }) | null> {
   const result = await query<User & { password_hash: string }>(
     `SELECT ${USER_COLUMNS_WITH_PASSWORD} FROM users
-     WHERE (email = $1 OR username = $1)
+     WHERE (lower(email) = lower($1) OR username = $1)
        AND deleted_at IS NULL
      LIMIT 1`,
     [emailOrUsername]
