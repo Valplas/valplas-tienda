@@ -107,4 +107,24 @@ describe('resolveMergedIdentity', () => {
       expect.objectContaining({ code: 'GOOGLE_ID_CONFLICT', statusCode: 409 })
     );
   });
+
+  it('target real sin contraseña (Google) ↔ source con contraseña: la hereda vía COALESCE', () => {
+    const target = candidate({
+      id: 't',
+      email: 'a@x.com',
+      google_id: 'g-1',
+      last_login_at: new Date('2026-09-01')
+    });
+    const source = candidate({
+      id: 's',
+      email: 'a2@x.com',
+      username: 'a2',
+      has_password: true
+    });
+    const r = resolveMergedIdentity(target, source);
+    expect(r.take_source_password).toBe(false);
+    expect(r.identity.has_password).toBe(true);
+    expect(r.identity.username).toBe('a2');
+    expect(r.identity.google_id).toBe('g-1');
+  });
 });

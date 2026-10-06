@@ -36,7 +36,11 @@ export interface DiscardedField {
 }
 
 export interface MergeResolution {
-  /** true: el password_hash del target se reemplaza por el de la source (aunque sea NULL) */
+  /**
+   * true: el password_hash del target se reemplaza por el de la source (aunque sea NULL).
+   * false: se conserva el del target y, si es NULL, se rellena con el de la source
+   * (COALESCE en applyMerge). `identity.has_password` refleja ese resultado.
+   */
   take_source_password: boolean;
   identity: MergedIdentity;
   discarded: DiscardedField[];
