@@ -7,6 +7,9 @@
  * - ClientAddress + ClientLocality → user_addresses (is_default = true)
  * Idempotent: ON CONFLICT (id) DO UPDATE for users;
  *             delete-then-insert for addresses (no CRM address ID to reuse)
+ * - is_legacy = true (lo usan las sugerencias de duplicados y el merge de cuentas)
+ * - NO re-correr después de abrir la tienda: pisaría emails/teléfonos que el admin cargó a mano
+ *   en cuentas que todavía no iniciaron sesión. Las que ya la usaron (last_login_at) se saltean.
  */
 import { source, target, closeAll } from './db.ts';
 import bcrypt from 'bcryptjs';
@@ -60,6 +63,7 @@ existing.rows.forEach((r) => {
 
 let inserted = 0;
 let updated = 0;
+let skipped = 0;
 let addressesInserted = 0;
 let errors = 0;
 
@@ -99,9 +103,9 @@ for (const row of rows.rows) {
       `INSERT INTO users (
         id, email, username, first_name, last_name,
         phone, password_hash, role,
-        is_active, email_verified, created_at, deleted_at
+        is_active, email_verified, created_at, deleted_at, is_legacy
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,'customer',$8,false,$9,$10)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,'customer',$8,false,$9,$10,true)
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         username = EXCLUDED.username,
@@ -109,7 +113,9 @@ for (const row of rows.rows) {
         last_name = EXCLUDED.last_name,
         phone = EXCLUDED.phone,
         is_active = EXCLUDED.is_active,
-        deleted_at = EXCLUDED.deleted_at
+        deleted_at = EXCLUDED.deleted_at,
+        is_legacy = true
+      WHERE users.last_login_at IS NULL
       RETURNING (xmax = 0) as inserted`,
       [
         row.ClientID,
@@ -124,6 +130,12 @@ for (const row of rows.rows) {
         deletedAt
       ]
     );
+    // El guard del ON CONFLICT no devolvió fila: la cuenta ya se usó en la web.
+    // No tocar sus datos ni sus direcciones.
+    if (res.rows.length === 0) {
+      skipped++;
+      continue;
+    }
     if (res.rows[0].inserted) inserted++;
     else updated++;
 
@@ -153,7 +165,7 @@ for (const row of rows.rows) {
 }
 
 console.log(
-  `\n✅ Clients: ${inserted} inserted, ${updated} updated, ${errors} errors` +
+  `\n✅ Clients: ${inserted} inserted, ${updated} updated, ${skipped} skipped (ya usadas en la web), ${errors} errors` +
     `\n✅ Addresses: ${addressesInserted} inserted`
 );
 await closeAll();
