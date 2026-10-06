@@ -77,7 +77,9 @@ export function googleCallback(req: Request, res: Response, next: NextFunction):
       info?: { message?: string; state?: OAuthStateInfo }
     ) => {
       if (err) {
-        logger.error('Google OAuth callback error', { error: { message: err.message } });
+        logger.error('Google OAuth callback error', {
+          error: { message: err.message, stack: err.stack, name: err.name }
+        });
         redirectToLogin(res, 'oauth_failed');
         return;
       }
@@ -92,7 +94,11 @@ export function googleCallback(req: Request, res: Response, next: NextFunction):
         const path = sanitizeRedirect(info?.state?.redirect) ?? defaultRedirectForRole(user.role);
         res.redirect(`${env.FRONTEND_URL}${path}`);
       } catch (callbackError) {
-        next(callbackError);
+        const e = callbackError as Error;
+        logger.error('Google OAuth: no se pudo emitir la sesión', {
+          error: { message: e.message, stack: e.stack, name: e.name }
+        });
+        redirectToLogin(res, 'oauth_failed');
       }
     }
   )(req, res, next);
