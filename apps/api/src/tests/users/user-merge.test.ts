@@ -37,7 +37,7 @@ describe('mergeUsers', () => {
     await createRawOrder(legacy.id);
     const googleOrder = await createRawOrder(google.id);
     await query(
-      `INSERT INTO order_status_history (order_id, status, changed_by) VALUES ($1, 'delivered', $2)`,
+      "INSERT INTO order_status_history (order_id, status, changed_by) VALUES ($1, 'delivered', $2)",
       [googleOrder, google.id]
     );
     await query(
@@ -105,7 +105,7 @@ describe('mergeUsers', () => {
   it('rechaza cuentas que no son de clientes (400 MERGE_ROLE_NOT_ALLOWED)', async () => {
     const legacy = await createLegacyUser();
     const other = await createLegacyUser();
-    await query(`UPDATE users SET role = 'admin' WHERE id = $1`, [other.id]);
+    await query("UPDATE users SET role = 'admin' WHERE id = $1", [other.id]);
     await expect(mergeDomain.mergeUsers(legacy.id, other.id, ADMIN_ID)).rejects.toMatchObject({
       code: 'MERGE_ROLE_NOT_ALLOWED',
       statusCode: 400

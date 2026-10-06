@@ -75,7 +75,7 @@ export async function findUsers(
 
   // Legacy a completar a mano: email placeholder del CRM y sin teléfono
   if (contact_status === 'missing') {
-    conditions.push(`email LIKE '%@sinmail.local' AND phone IS NULL`);
+    conditions.push("email LIKE '%@sinmail.local' AND phone IS NULL");
   }
 
   // Con contact_status=missing se prioriza a quien compró más recientemente
