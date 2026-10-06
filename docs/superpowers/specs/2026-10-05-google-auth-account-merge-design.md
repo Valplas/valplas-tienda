@@ -192,6 +192,14 @@ la ventana de ≤15 min de una cuenta recién absorbida.
    - Login exitoso → `updateLastLogin` (hoy el callback no lo llama; sin esto una
      legacy vinculada por Google seguiría pareciendo "sin uso" para el merge y el
      guard del script).
+   - **Whitelist de owner (`OWNER_GOOGLE_EMAILS`, emails separados por coma):** si el email
+     de Google (verificado, comparado en minúsculas) está en la lista, el login entra a **la
+     cuenta owner existente**, compartida. No crea ni vincula cuentas: `google_id` es una sola
+     columna y la lista puede tener varios emails. Se evalúa antes del lookup por `google_id`,
+     así ningún vínculo previo desvía esos emails a otra cuenta. Si no hay exactamente una
+     cuenta owner no borrada → `oauth_failed` + log de error (fail closed). Owner inactivo →
+     `account_inactive`. Cada ingreso queda en el log con el email de Google (`logger.info`):
+     es la única traza de quién entró, porque la cuenta es compartida.
 4. **Errores:** el callback redirige a
    `${FRONTEND_URL}/login?error=<code>` con `oauth_failed | oauth_state |
 email_unverified | account_inactive | oauth_unavailable`.

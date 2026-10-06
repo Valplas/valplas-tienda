@@ -2565,14 +2565,15 @@ EOF
 **Files:**
 
 - Create: `apps/api/src/modules/auth/oauth.service.ts`
-- Modify: `apps/api/src/modules/auth/auth.repository.ts` (`findUserByEmail`, `linkGoogleId`, `createOAuthUser`)
+- Modify: `apps/api/src/modules/auth/auth.repository.ts` (`findUserByEmail`, `linkGoogleId`, `createOAuthUser`, nueva `findOwnerAccounts`)
+- Modify: `apps/api/src/env.ts` (`OWNER_GOOGLE_EMAILS`), `apps/api/.env.example`
 - Modify (reescritura): `apps/api/src/modules/auth/oauth.controller.ts`
-- Test: `apps/api/src/tests/auth/oauth.service.test.ts`
+- Test: `apps/api/src/tests/auth/oauth.service.test.ts`, `apps/api/src/tests/auth/oauth-owner.test.ts`
 
 **Interfaces:**
 
 - Consumes: `issueSession`, `setAuthCookies` (Task 6); `CookieStateStore`, `sanitizeRedirect`, `defaultRedirectForRole` (Task 7); helpers de Task 1.
-- Produces: `OAuthErrorCode`, `toOAuthErrorCode(value: unknown): OAuthErrorCode`, `resolveGoogleUser(profile: GoogleProfileInput): Promise<{ user: User } | { error: OAuthErrorCode }>`; `isGoogleOAuthConfigured`.
+- Produces: `OAuthErrorCode`, `toOAuthErrorCode(value: unknown): OAuthErrorCode`, `resolveGoogleUser(profile: GoogleProfileInput, ownerEmails?: readonly string[]): Promise<{ user: User } | { error: OAuthErrorCode }>` (`ownerEmails` por defecto `env.OWNER_GOOGLE_EMAILS`); `authRepository.findOwnerAccounts(): Promise<User[]>`; `env.OWNER_GOOGLE_EMAILS: string[]`; `isGoogleOAuthConfigured`.
 
 - [ ] **Step 1: Tests (fallan)**
 
@@ -2662,7 +2663,94 @@ describe('toOAuthErrorCode', () => {
 });
 ```
 
-Run: `cd apps/api && bunx vitest run src/tests/auth/oauth.service.test.ts`
+`apps/api/src/tests/auth/oauth-owner.test.ts` (repositorio y logger mockeados: controla cuántas cuentas owner hay sin tocar la DB):
+
+```ts
+// apps/api/src/tests/auth/oauth-owner.test.ts
+//
+// Whitelist OWNER_GOOGLE_EMAILS: esos emails entran a LA cuenta owner existente (compartida).
+// Repositorio mockeado para controlar cuántas cuentas owner hay; logger mockeado para verificar
+// la traza de auditoría y mantener la salida limpia.
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../modules/auth/auth.repository.js', () => ({
+  findOwnerAccounts: vi.fn(),
+  findUserByGoogleId: vi.fn(),
+  findUserByEmail: vi.fn(),
+  linkGoogleId: vi.fn(),
+  createOAuthUser: vi.fn()
+}));
+
+vi.mock('../../infrastructure/logger/index.js', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+}));
+
+import * as authRepository from '../../modules/auth/auth.repository.js';
+import { logger } from '../../infrastructure/logger/index.js';
+import { resolveGoogleUser } from '../../modules/auth/oauth.service.js';
+
+const OWNER = { id: 'owner-1', email: 'dueno@valplas.net', role: 'owner', isActive: true };
+const WHITELIST = ['socio@gmail.com'];
+
+function profile(email: string, verified = true) {
+  return { id: 'google-socio', emails: [{ value: email }], _json: { email_verified: verified } };
+}
+
+describe('resolveGoogleUser — whitelist de owner', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('un email de la whitelist (sin importar mayúsculas) entra a la cuenta owner existente', async () => {
+    vi.mocked(authRepository.findOwnerAccounts).mockResolvedValue([OWNER] as never);
+
+    const result = await resolveGoogleUser(profile('Socio@Gmail.com'), WHITELIST);
+
+    expect(result).toEqual({ user: OWNER });
+    expect(authRepository.findUserByGoogleId).not.toHaveBeenCalled();
+    expect(authRepository.linkGoogleId).not.toHaveBeenCalled();
+    expect(authRepository.createOAuthUser).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('socio@gmail.com'));
+  });
+
+  it('exige email verificado', async () => {
+    const result = await resolveGoogleUser(profile('socio@gmail.com', false), WHITELIST);
+    expect(result).toEqual({ error: 'email_unverified' });
+    expect(authRepository.findOwnerAccounts).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['ninguna cuenta owner', []],
+    ['más de una cuenta owner', [OWNER, { ...OWNER, id: 'owner-2' }]]
+  ])('falla cerrado con %s', async (_name, owners) => {
+    vi.mocked(authRepository.findOwnerAccounts).mockResolvedValue(owners as never);
+    const result = await resolveGoogleUser(profile('socio@gmail.com'), WHITELIST);
+    expect(result).toEqual({ error: 'oauth_failed' });
+    expect(logger.error).toHaveBeenCalled();
+  });
+
+  it('owner inactivo → account_inactive', async () => {
+    vi.mocked(authRepository.findOwnerAccounts).mockResolvedValue([
+      { ...OWNER, isActive: false }
+    ] as never);
+    const result = await resolveGoogleUser(profile('socio@gmail.com'), WHITELIST);
+    expect(result).toEqual({ error: 'account_inactive' });
+  });
+
+  it('un email fuera de la whitelist sigue el flujo normal', async () => {
+    const customer = { id: 'c-1', email: 'otro@gmail.com', role: 'customer', isActive: true };
+    vi.mocked(authRepository.findUserByGoogleId).mockResolvedValue(customer as never);
+
+    const result = await resolveGoogleUser(profile('otro@gmail.com'), WHITELIST);
+
+    expect(result).toEqual({ user: customer });
+    expect(authRepository.findOwnerAccounts).not.toHaveBeenCalled();
+  });
+});
+```
+
+Run: `cd apps/api && bunx vitest run src/tests/auth/oauth.service.test.ts src/tests/auth/oauth-owner.test.ts`
 Expected: FAIL (módulo inexistente).
 
 - [ ] **Step 2: Repositorio de auth**
@@ -2700,12 +2788,51 @@ export async function linkGoogleId(userId: string, googleId: string): Promise<vo
      RETURNING ${USER_COLUMNS}`,
 ```
 
+4. Agregar al final del archivo:
+
+```ts
+/**
+ * Cuentas owner no borradas (hasta 2: alcanza para detectar ambigüedad).
+ * La usa el login con Google para la whitelist OWNER_GOOGLE_EMAILS.
+ */
+export async function findOwnerAccounts(): Promise<User[]> {
+  const result = await query<User>(
+    `SELECT ${USER_COLUMNS} FROM users
+     WHERE role = 'owner' AND deleted_at IS NULL
+     ORDER BY created_at
+     LIMIT 2`
+  );
+  return result.rows;
+}
+```
+
+- [ ] **Step 2b: Variable de entorno `OWNER_GOOGLE_EMAILS`**
+
+En `apps/api/src/env.ts`, debajo de `GOOGLE_CALLBACK_URL: getEnv(...)`, agregar:
+
+```ts
+  // Emails (separados por coma) que al entrar con Google acceden a LA cuenta owner existente
+  OWNER_GOOGLE_EMAILS: getEnv('OWNER_GOOGLE_EMAILS', '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
+```
+
+En `apps/api/.env.example`, debajo de `GOOGLE_CALLBACK_URL=...`, agregar:
+
+```env
+# Emails separados por coma que al entrar con Google acceden a la cuenta owner (ej: a@gmail.com,b@gmail.com)
+OWNER_GOOGLE_EMAILS=
+```
+
 - [ ] **Step 3: `oauth.service.ts`**
 
 ```ts
 // apps/api/src/modules/auth/oauth.service.ts
 
 import type { User } from '@valplas/shared/types';
+import { env } from '../../env.js';
+import { logger } from '../../infrastructure/logger/index.js';
 import * as authRepository from './auth.repository.js';
 
 const OAUTH_ERROR_CODES = [
@@ -2735,16 +2862,37 @@ export interface GoogleProfileInput {
 
 /**
  * Busca o crea el usuario de un login con Google:
+ * 0. Whitelist OWNER_GOOGLE_EMAILS (email verificado): entra a LA cuenta owner existente.
  * 1. Por google_id (cuenta ya vinculada).
  * 2. Por email, solo si Google lo verificó: vincula la cuenta existente.
  * 3. Si no existe, crea una cuenta customer sin password ni username.
  * Las cuentas legacy con email placeholder no matchean acá: las une el admin con el merge.
  */
 export async function resolveGoogleUser(
-  profile: GoogleProfileInput
+  profile: GoogleProfileInput,
+  ownerEmails: readonly string[] = env.OWNER_GOOGLE_EMAILS
 ): Promise<{ user: User } | { error: OAuthErrorCode }> {
   const email = profile.emails?.[0]?.value?.trim().toLowerCase();
   if (!email) return { error: 'oauth_failed' };
+
+  // Antes del lookup por google_id: ningún vínculo previo puede desviar estos emails a otra
+  // cuenta. No se vincula google_id (una sola columna; la lista puede tener varios emails).
+  if (ownerEmails.includes(email)) {
+    if (profile._json.email_verified !== true) return { error: 'email_unverified' };
+
+    const owners = await authRepository.findOwnerAccounts();
+    if (owners.length !== 1) {
+      logger.error(
+        `Google OAuth: whitelist de owner con ${owners.length} cuentas owner (se espera 1)`
+      );
+      return { error: 'oauth_failed' };
+    }
+    if (!owners[0].isActive) return { error: 'account_inactive' };
+
+    // La cuenta owner es compartida: este log es la única traza de quién entró
+    logger.info(`Owner login via Google: ${email}`);
+    return { user: owners[0] };
+  }
 
   let user = await authRepository.findUserByGoogleId(profile.id);
 
@@ -2772,8 +2920,8 @@ export async function resolveGoogleUser(
 
 - [ ] **Step 4: Correr los tests del service**
 
-Run: `cd apps/api && bunx vitest run src/tests/auth/oauth.service.test.ts`
-Expected: PASS (7 tests).
+Run: `cd apps/api && bunx vitest run src/tests/auth/oauth.service.test.ts src/tests/auth/oauth-owner.test.ts`
+Expected: PASS (7 + 6 tests).
 
 - [ ] **Step 5: Reescribir `oauth.controller.ts`**
 
@@ -2891,7 +3039,7 @@ Expected: typecheck sin errores; tests en PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add apps/api/src/modules/auth/oauth.service.ts apps/api/src/modules/auth/auth.repository.ts apps/api/src/modules/auth/oauth.controller.ts apps/api/src/tests/auth/oauth.service.test.ts
+git add apps/api/src/modules/auth/oauth.service.ts apps/api/src/modules/auth/auth.repository.ts apps/api/src/modules/auth/oauth.controller.ts apps/api/src/env.ts apps/api/.env.example apps/api/src/tests/auth/oauth.service.test.ts apps/api/src/tests/auth/oauth-owner.test.ts
 git commit -m "$(cat <<'EOF'
 fix(auth): harden Google OAuth (verified email, state, redirect, typed errors)
 
