@@ -11,6 +11,7 @@
     "migrate:clients": "bun run src/migrate-clients.ts",
     "migrate:orders": "bun run src/migrate-orders.ts",
     "migrate:order-items": "bun run src/migrate-order-items.ts",
+    "create-admin": "bun run src/create-admin.ts",
     "validate": "bun run src/validate.ts"
   },
   "dependencies": {

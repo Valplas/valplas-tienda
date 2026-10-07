@@ -2,6 +2,8 @@
 //
 // Limpieza post-test SCOPED a datos creados por los tests:
 // - usuarios `*@vitest.local` (ver helpers.ts)
+// - usuarios legacy de test `vitest.*@sinmail.local` (createLegacyUser)
+// - cuentas absorbidas en un merge de test (email NULL, merged_into_id → usuario de test)
 // - carriers/zonas de envío con prefijo `vitest-`
 //
 // IMPORTANTE: no borrar por `%test.com` — los usuarios seed (cliente@test.com,
@@ -11,7 +13,9 @@
 import { afterEach } from 'vitest';
 import { query } from '../infrastructure/database/client.js';
 
-const TEST_USERS = "SELECT id FROM users WHERE email LIKE '%@vitest.local'";
+const TEST_USER_MATCH = "(email LIKE '%@vitest.local' OR email LIKE 'vitest.%@sinmail.local')";
+const TEST_USERS = `SELECT id FROM users WHERE ${TEST_USER_MATCH}
+  OR merged_into_id IN (SELECT id FROM users WHERE ${TEST_USER_MATCH})`;
 const TEST_ORDERS = `SELECT id FROM orders WHERE user_id IN (${TEST_USERS})`;
 
 afterEach(async () => {
@@ -21,7 +25,11 @@ afterEach(async () => {
   await query(`DELETE FROM order_status_history WHERE order_id IN (${TEST_ORDERS})`);
   await query(`DELETE FROM orders WHERE user_id IN (${TEST_USERS})`);
   await query(`DELETE FROM user_addresses WHERE user_id IN (${TEST_USERS})`);
-  await query("DELETE FROM users WHERE email LIKE '%@vitest.local'");
+  // Absorbidas primero: su merged_into_id apunta a usuarios de test
+  await query(
+    `DELETE FROM users WHERE merged_into_id IN (SELECT id FROM users WHERE ${TEST_USER_MATCH})`
+  );
+  await query(`DELETE FROM users WHERE ${TEST_USER_MATCH}`);
   // shipping_rates cae por CASCADE al borrar el carrier
   await query("DELETE FROM shipping_carriers WHERE code LIKE 'vitest-%'");
   await query("DELETE FROM shipping_zones WHERE name LIKE 'vitest-%'");

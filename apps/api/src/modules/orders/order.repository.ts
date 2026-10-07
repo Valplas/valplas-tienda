@@ -244,9 +244,14 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
 
   // Get items, user, and status history in parallel
   const [itemsResult, userResult, historyResult] = await Promise.all([
+    // Columnas explícitas: cost_price_snapshot y revenue (margen) nunca
+    // salen en el detalle — esta query la ven también los clientes.
     query(
       `SELECT
-        oi.*,
+        oi.id, oi.order_id, oi.product_id, oi.product_image_url,
+        oi.quantity, oi.bundle_size_snapshot, oi.real_quantity,
+        oi.unit_price, oi.subtotal, oi.price_list_id,
+        oi.created_at, oi.updated_at,
         p.name as product_name,
         p.sku as product_sku,
         (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as product_image

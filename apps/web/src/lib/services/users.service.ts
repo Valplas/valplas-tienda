@@ -43,6 +43,7 @@ export interface GetAdminUsersParams {
   isActive?: boolean;
   sort?: 'firstName' | 'createdAt';
   includeAddresses?: boolean;
+  contactStatus?: 'missing';
 }
 
 export async function getAdminUsers(
@@ -56,6 +57,7 @@ export async function getAdminUsers(
   if (params?.isActive !== undefined) query.set('is_active', String(params.isActive));
   if (params?.sort) query.set('sort', params.sort);
   if (params?.includeAddresses) query.set('include_addresses', 'true');
+  if (params?.contactStatus) query.set('contact_status', params.contactStatus);
 
   const qs = query.toString();
   const res = await get<AdminUser[]>(`/users${qs ? `?${qs}` : ''}`);

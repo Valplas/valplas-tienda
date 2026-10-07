@@ -18,6 +18,19 @@ export interface ApiResponse<T> {
   };
 }
 
+/** Error HTTP de la API con el código y los detalles que manda el backend. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string,
+    public details?: unknown
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 // eslint-disable-next-line no-undef
 export interface FetchOptions extends RequestInit {
   silentErrors?: boolean; // No loggear errores en consola
@@ -95,9 +108,14 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<Ap
     }
   }
 
-  const errorData = await res.json().catch(() => ({}));
+  const errorData = (await res.json().catch(() => ({}))) as ApiResponse<unknown>;
   if (!silentErrors) console.error('API Error:', errorData);
-  throw new Error((errorData as ApiResponse<unknown>).error?.message || 'Error de conexión');
+  throw new ApiError(
+    errorData.error?.message || 'Error de conexión',
+    res.status,
+    errorData.error?.code,
+    errorData.error?.details
+  );
 }
 
 /**

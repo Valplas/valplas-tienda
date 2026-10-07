@@ -23,6 +23,7 @@ export async function findUsers(
     is_active,
     email_verified,
     search,
+    contact_status,
     page = 1,
     limit = 20,
     sort = 'first_name',
@@ -72,6 +73,27 @@ export async function findUsers(
     }
   }
 
+  // Legacy a completar a mano: email placeholder del CRM y sin teléfono
+  if (contact_status === 'missing') {
+    conditions.push("email LIKE '%@sinmail.local' AND phone IS NULL");
+  }
+
+  // Con contact_status=missing se prioriza a quien compró más recientemente
+  const lastOrderOrder = (alias: string) =>
+    `(SELECT MAX(o.created_at) FROM orders o WHERE o.user_id = ${alias}.id) DESC NULLS LAST`;
+  const innerOrder =
+    contact_status === 'missing'
+      ? `${lastOrderOrder('users')}, id`
+      : sort === 'first_name'
+        ? 'first_name ASC, last_name ASC, id'
+        : 'created_at DESC, id';
+  const outerOrder =
+    contact_status === 'missing'
+      ? `${lastOrderOrder('u')}, u.id`
+      : sort === 'first_name'
+        ? 'u.first_name ASC, u.last_name ASC, u.id'
+        : 'u.created_at DESC, u.id';
+
   const whereClause = conditions.join(' AND ');
 
   // Count total
@@ -86,13 +108,11 @@ export async function findUsers(
   let usersRows: User[] | UserWithAddresses[];
 
   if (includeAddresses) {
-    const orderBy =
-      sort === 'first_name' ? 'u.first_name ASC, u.last_name ASC' : 'u.created_at DESC';
     const result = await query<UserWithAddresses>(
       `WITH paged_users AS (
          SELECT id FROM users
          WHERE ${whereClause}
-         ORDER BY ${sort === 'first_name' ? 'first_name ASC, last_name ASC' : 'created_at DESC'}
+         ORDER BY ${innerOrder}
          LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
        )
        SELECT
@@ -122,7 +142,7 @@ export async function findUsers(
          ON a.user_id = u.id AND a.deleted_at IS NULL AND a.is_active = true
        GROUP BY u.id, u.email, u.username, u.phone, u.first_name, u.last_name, u.role,
                 u.is_active, u.email_verified, u.phone_verified, u.created_at, u.updated_at, u.deleted_at
-       ORDER BY ${orderBy}`,
+       ORDER BY ${outerOrder}`,
       [...params, limit, offset]
     );
     usersRows = result.rows;
@@ -132,7 +152,7 @@ export async function findUsers(
               is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
        FROM users
        WHERE ${whereClause}
-       ORDER BY ${sort === 'first_name' ? 'first_name ASC, last_name ASC' : 'created_at DESC'}
+       ORDER BY ${innerOrder}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
@@ -181,15 +201,30 @@ export async function findUserWithStats(id: string): Promise<UserWithStats | nul
 }
 
 /**
- * Find user by email
+ * Find user by email (case-insensitive)
  */
 export async function findUserByEmail(email: string): Promise<User | null> {
   const result = await query<User>(
     `SELECT id, email, username, phone, first_name, last_name, role,
             is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
      FROM users
-     WHERE email = $1 AND deleted_at IS NULL`,
+     WHERE lower(email) = lower($1) AND deleted_at IS NULL`,
     [email]
+  );
+
+  return result.rows[0] || null;
+}
+
+/**
+ * Find user by phone (E.164)
+ */
+export async function findUserByPhone(phone: string): Promise<User | null> {
+  const result = await query<User>(
+    `SELECT id, email, username, phone, first_name, last_name, role,
+            is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
+     FROM users
+     WHERE phone = $1 AND deleted_at IS NULL`,
+    [phone]
   );
 
   return result.rows[0] || null;

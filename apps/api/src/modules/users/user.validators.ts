@@ -48,5 +48,6 @@ export const listUsersSchema = z.object({
   role: z.enum(USER_ROLES).optional(),
   is_active: z.enum(['true', 'false']).optional(),
   email_verified: z.enum(['true', 'false']).optional(),
-  search: z.string().optional()
+  search: z.string().optional(),
+  contact_status: z.enum(['missing']).optional()
 });

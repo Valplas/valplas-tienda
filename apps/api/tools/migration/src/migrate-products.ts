@@ -1,6 +1,6 @@
 /**
  * Migrate: Products → products
- * - base_price = cost_price = CostPrice (pesos ARS, NUMERIC(12,2))
+ * - cost_price = CostPrice (pesos ARS, NUMERIC(12,2)); no base_price column (dropped in migration 038)
  * - SKU from Code field (or auto-generated)
  * - slug from Name (unique-ified)
  * - brand_id from brand-mapping.json
@@ -27,7 +27,8 @@ const { general: categoryId } = JSON.parse(
 
 const rows = await source.query(`
   SELECT "ProductID", "Name", "Description", "Manufacturer",
-         "Code", "CostPrice", "Quantity", "IsDeleted"
+         "Code", "CostPrice", "Quantity", "IsDeleted",
+         "WeightKg", "Width", "Long", "Height", "Origin"
   FROM "Products"
   ORDER BY "Code" NULLS LAST
 `);
@@ -77,14 +78,22 @@ for (const row of rows.rows) {
     // Deleted
     const deletedAt = row.IsDeleted ? new Date().toISOString() : null;
 
+    // Dimensions: nullable in source, pass through as-is
+    const weight = row.WeightKg != null ? parseFloat(row.WeightKg) : null;
+    const width = row.Width != null ? parseFloat(row.Width) : null;
+    const length = row.Long != null ? parseFloat(row.Long) : null;
+    const height = row.Height != null ? parseFloat(row.Height) : null;
+    const origin = row.Origin?.trim() || null;
+
     const res = await target.query(
       `INSERT INTO products (
         id, sku, name, slug, description,
         category_id, brand_id,
-        base_price, cost_price,
-        stock, is_active, deleted_at
+        cost_price,
+        stock, is_active, deleted_at,
+        weight, width, length, height, origin
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       ON CONFLICT (id) DO UPDATE SET
         sku = EXCLUDED.sku,
         name = EXCLUDED.name,
@@ -92,11 +101,15 @@ for (const row of rows.rows) {
         description = EXCLUDED.description,
         category_id = EXCLUDED.category_id,
         brand_id = EXCLUDED.brand_id,
-        base_price = EXCLUDED.base_price,
         cost_price = EXCLUDED.cost_price,
         stock = EXCLUDED.stock,
         is_active = EXCLUDED.is_active,
-        deleted_at = EXCLUDED.deleted_at
+        deleted_at = EXCLUDED.deleted_at,
+        weight = EXCLUDED.weight,
+        width = EXCLUDED.width,
+        length = EXCLUDED.length,
+        height = EXCLUDED.height,
+        origin = EXCLUDED.origin
       RETURNING (xmax = 0) as inserted`,
       [
         row.ProductID,
@@ -107,10 +120,14 @@ for (const row of rows.rows) {
         categoryId,
         brandId,
         costPrice,
-        costPrice,
         Math.max(Number(row.Quantity) || 0, 0),
         !row.IsDeleted,
-        deletedAt
+        deletedAt,
+        weight,
+        width,
+        length,
+        height,
+        origin
       ]
     );
     if (res.rows[0].inserted) inserted++;

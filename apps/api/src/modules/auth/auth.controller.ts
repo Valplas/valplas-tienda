@@ -1,42 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
-import ms, { type StringValue } from 'ms';
 import * as authService from './auth.service.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
-import { env } from '../../env.js';
-
-const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
-const ACCESS_TOKEN_COOKIE_NAME = 'accessToken';
-// maxAge derivado de la config de JWT para que la cookie no expire antes que el token.
-// Antes estaba hardcodeado a 30 min, lo que cerraba la sesión a los 30 min sin importar
-// JWT_REFRESH_EXPIRES_IN (p.ej. 7d) y disparaba el flujo de "sesión expirada".
-const REFRESH_TOKEN_MAX_AGE = ms(env.JWT_REFRESH_EXPIRES_IN as StringValue);
-const ACCESS_TOKEN_MAX_AGE = ms(env.JWT_EXPIRES_IN as StringValue);
-
-// Cookies cross-site (frontend y API en dominios distintos, ej: Vercel + Railway) requieren
-// SameSite=None; Secure, o el browser no las manda en los fetch a la API. Se activa en
-// producción o explícitamente con COOKIE_CROSS_SITE=true — necesario en deploys HTTPS que
-// corren con NODE_ENV=development (el deploy dev usa esa var para otra lógica).
-const USE_CROSS_SITE_COOKIES = env.IS_PRODUCTION || env.COOKIE_CROSS_SITE;
-const COOKIE_SAME_SITE: 'none' | 'lax' = USE_CROSS_SITE_COOKIES ? 'none' : 'lax';
-
-// Cookie options para refresh token
-const getCookieOptions = () => ({
-  httpOnly: true,
-  secure: USE_CROSS_SITE_COOKIES, // Secure obligatorio cuando SameSite=None
-  sameSite: COOKIE_SAME_SITE,
-  maxAge: REFRESH_TOKEN_MAX_AGE,
-  path: '/'
-});
-
-// Cookie options para access token
-const getAccessTokenCookieOptions = () => ({
-  httpOnly: true,
-  secure: USE_CROSS_SITE_COOKIES,
-  sameSite: COOKIE_SAME_SITE,
-  maxAge: ACCESS_TOKEN_MAX_AGE,
-  path: '/'
-});
+import { REFRESH_TOKEN_COOKIE_NAME, clearAuthCookies, setAuthCookies } from './auth.cookies.js';
 
 /**
  * POST /api/auth/register
@@ -47,8 +13,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
     const result = await authService.register(req.body);
 
     // Establecer tokens en cookies HttpOnly
-    res.cookie(ACCESS_TOKEN_COOKIE_NAME, result.accessToken, getAccessTokenCookieOptions());
-    res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, getCookieOptions());
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
     // Retornar solo usuario (accessToken va en cookie)
     return res.status(201).json(ApiResponse.success({ user: result.user }));
@@ -66,8 +31,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     const result = await authService.login(req.body);
 
     // Establecer tokens en cookies HttpOnly
-    res.cookie(ACCESS_TOKEN_COOKIE_NAME, result.accessToken, getAccessTokenCookieOptions());
-    res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, getCookieOptions());
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
     // Retornar solo usuario (accessToken va en cookie)
     return res.json(ApiResponse.success({ user: result.user }));
@@ -88,12 +52,8 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
       await authService.revokeRefreshToken(refreshTokenValue);
     }
 
-    // Limpiar ambas cookies (clearCookie no acepta maxAge, lo removemos)
-    const cookieOptions = getCookieOptions();
-    const { maxAge: _r, ...clearRefreshOptions } = cookieOptions;
-    const { maxAge: _a, ...clearAccessOptions } = getAccessTokenCookieOptions();
-    res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, clearRefreshOptions);
-    res.clearCookie(ACCESS_TOKEN_COOKIE_NAME, clearAccessOptions);
+    // Limpiar ambas cookies
+    clearAuthCookies(res);
 
     return res.json(
       ApiResponse.success({
@@ -139,8 +99,7 @@ export async function refreshToken(req: Request, res: Response, next: NextFuncti
     // Rotar tokens: revocar el viejo y emitir nuevos
     const { accessToken: newAccessToken, newRefreshToken } =
       await authService.refreshAccessToken(refreshToken);
-    res.cookie(ACCESS_TOKEN_COOKIE_NAME, newAccessToken, getAccessTokenCookieOptions());
-    res.cookie(REFRESH_TOKEN_COOKIE_NAME, newRefreshToken, getCookieOptions());
+    setAuthCookies(res, newAccessToken, newRefreshToken);
 
     return res.json(ApiResponse.success({ message: 'Token renovado' }));
   } catch (error) {

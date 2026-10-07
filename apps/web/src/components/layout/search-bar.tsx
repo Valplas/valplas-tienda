@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 /**
@@ -11,8 +10,8 @@ import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useDebounce } from '@/hooks/use-debounce';
-import { getProducts } from '@/services';
-import { Product } from '@/types';
+import { getCatalogProducts } from '@/services';
+import type { ProductPublic } from '@/types';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/formatters';
@@ -22,7 +21,7 @@ export function SearchBar() {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [results, setResults] = useState<Product[]>([]);
+  const [results, setResults] = useState<ProductPublic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const debouncedQuery = useDebounce(query, 300);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,13 +37,14 @@ export function SearchBar() {
 
       setIsLoading(true);
       try {
-        const response = await getProducts({
+        // Catálogo público: trae el precio efectivo (tier o costo) e imageUrl
+        const response = await getCatalogProducts({
           search: debouncedQuery,
           limit: 5
         });
 
         if (response.success && response.data) {
-          setResults(response.data as any);
+          setResults(response.data);
           setIsOpen(true);
         }
       } catch (error) {
@@ -149,9 +149,7 @@ export function SearchBar() {
                     {/* Product Info */}
                     <div className="flex-1 overflow-hidden">
                       <p className="truncate text-sm font-medium">{product.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatPrice(product.finalPrice)}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{formatPrice(product.price)}</p>
                     </div>
                   </Link>
                 </li>
