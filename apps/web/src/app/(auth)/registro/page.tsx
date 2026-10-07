@@ -15,6 +15,7 @@ import { safeRedirect } from '@/lib/utils';
 import { FormField } from '@/components/ui/form-field';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { GoogleAuthButton } from '@/components/auth/google-auth-button';
+import { OAuthErrorToast } from '@/components/auth/oauth-error-toast';
 
 function RegistroForm() {
   const router = useRouter();
@@ -66,6 +67,7 @@ function RegistroForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-muted/30">
+      <OAuthErrorToast />
       <div className="w-full max-w-md">
         <div className="bg-card rounded-lg shadow-lg p-6 sm:p-8">
           {/* Header */}
@@ -177,7 +179,10 @@ function RegistroForm() {
             </div>
           </div>
 
-          <GoogleAuthButton label="Registrarse con Google" />
+          <GoogleAuthButton
+            label="Registrarse con Google"
+            redirect={searchParams.get('redirect')}
+          />
 
           {/* Footer Links */}
           <div className="text-center text-sm">

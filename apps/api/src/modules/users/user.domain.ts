@@ -3,6 +3,8 @@
 import * as userRepository from './user.repository.js';
 import { hashPassword } from '../auth/auth.service.js';
 import { ROLE_HIERARCHY } from './user.types.js';
+import { AppError } from '../../shared/middleware/error.middleware.js';
+import { normalizePhone } from '../../shared/utils/phone.js';
 import type {
   User,
   UserWithStats,
@@ -34,6 +36,21 @@ function canCreateRole(requesterRole: UserRole, targetRole: UserRole): boolean {
   }
 
   return false;
+}
+
+/**
+ * 409 con la cuenta que ya tiene el dato: el admin puede ofrecer fusionarlas.
+ */
+function contactConflict(
+  code: 'EMAIL_IN_USE' | 'PHONE_IN_USE',
+  message: string,
+  other: User
+): AppError {
+  return new AppError(code, message, 409, {
+    conflict_user_id: other.id,
+    conflict_user_name: `${other.first_name} ${other.last_name ?? ''}`.trim(),
+    conflict_user_created_at: other.created_at
+  });
 }
 
 /**
@@ -167,23 +184,39 @@ export async function updateUser(
     }
   }
 
-  // If changing email, check it's not in use
-  if (data.email && data.email !== user.email) {
-    const existingEmail = await userRepository.findUserByEmail(data.email);
-    if (existingEmail) {
-      throw new Error('El email ya está en uso');
+  const changes: UpdateUserInput = { ...data };
+  if (changes.email) changes.email = changes.email.trim().toLowerCase();
+  if (changes.phone) {
+    const normalized = normalizePhone(changes.phone);
+    if (!normalized) {
+      throw new AppError('INVALID_PHONE', 'Teléfono inválido', 400);
+    }
+    changes.phone = normalized;
+  }
+
+  if (changes.email && changes.email !== user.email) {
+    const existing = await userRepository.findUserByEmail(changes.email);
+    if (existing && existing.id !== id) {
+      throw contactConflict('EMAIL_IN_USE', 'El email ya pertenece a otra cuenta', existing);
+    }
+  }
+
+  if (changes.phone && changes.phone !== user.phone) {
+    const existing = await userRepository.findUserByPhone(changes.phone);
+    if (existing && existing.id !== id) {
+      throw contactConflict('PHONE_IN_USE', 'El teléfono ya pertenece a otra cuenta', existing);
     }
   }
 
   // If changing username, check it's not in use
-  if (data.username && data.username !== user.username) {
-    const existingUsername = await userRepository.findUserByUsername(data.username);
+  if (changes.username && changes.username !== user.username) {
+    const existingUsername = await userRepository.findUserByUsername(changes.username);
     if (existingUsername) {
       throw new Error('El nombre de usuario ya está en uso');
     }
   }
 
-  const updated = await userRepository.updateUser(id, data);
+  const updated = await userRepository.updateUser(id, changes);
 
   if (!updated) {
     throw new Error('Error al actualizar usuario');

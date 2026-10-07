@@ -74,6 +74,7 @@ export interface UserFilters {
   is_active?: boolean;
   email_verified?: boolean;
   search?: string;
+  contact_status?: 'missing';
   page?: number;
   limit?: number;
   sort?: 'first_name' | 'created_at';

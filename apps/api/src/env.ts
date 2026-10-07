@@ -72,6 +72,11 @@ export const env = {
     'GOOGLE_CALLBACK_URL',
     'http://localhost:3001/api/auth/google/callback'
   ),
+  // Emails (separados por coma) que al entrar con Google acceden a LA cuenta owner existente
+  OWNER_GOOGLE_EMAILS: getEnv('OWNER_GOOGLE_EMAILS', '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
 
   // Mercado Pago
   MP_ACCESS_TOKEN: requireEnv('MP_ACCESS_TOKEN'),

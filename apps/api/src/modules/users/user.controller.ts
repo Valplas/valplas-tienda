@@ -11,8 +11,17 @@ import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-respon
  */
 export async function getAllUsers(req: Request, res: Response, next: NextFunction) {
   try {
-    const { page, limit, role, is_active, email_verified, search, sort, include_addresses } =
-      req.query;
+    const {
+      page,
+      limit,
+      role,
+      is_active,
+      email_verified,
+      search,
+      contact_status,
+      sort,
+      include_addresses
+    } = req.query;
 
     const result = await userDomain.getAllUsers({
       page: Number(page) || 1,
@@ -22,6 +31,7 @@ export async function getAllUsers(req: Request, res: Response, next: NextFunctio
       email_verified:
         email_verified === 'true' ? true : email_verified === 'false' ? false : undefined,
       search: search as string,
+      contact_status: contact_status === 'missing' ? 'missing' : undefined,
       sort: (sort === 'created_at' ? 'created_at' : 'first_name') as 'first_name' | 'created_at',
       includeAddresses: include_addresses === 'true'
     });

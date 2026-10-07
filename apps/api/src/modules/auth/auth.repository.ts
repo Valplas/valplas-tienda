@@ -18,12 +18,12 @@ const USER_COLUMNS = `
 const USER_COLUMNS_WITH_PASSWORD = `${USER_COLUMNS}, password_hash`;
 
 /**
- * Buscar usuario por email
+ * Buscar usuario por email (case-insensitive)
  */
 export async function findUserByEmail(email: string): Promise<User | null> {
   const result = await query<User>(
     `SELECT ${USER_COLUMNS} FROM users
-     WHERE email = $1
+     WHERE lower(email) = lower($1)
        AND deleted_at IS NULL
      LIMIT 1`,
     [email]
@@ -53,7 +53,7 @@ export async function findUserByUsername(username: string): Promise<User | null>
 export async function findUserByEmailOrUsername(emailOrUsername: string): Promise<User | null> {
   const result = await query<User>(
     `SELECT ${USER_COLUMNS} FROM users
-     WHERE (email = $1 OR username = $1)
+     WHERE (lower(email) = lower($1) OR username = $1)
        AND deleted_at IS NULL
      LIMIT 1`,
     [emailOrUsername]
@@ -72,7 +72,7 @@ export async function findUserByEmailOrUsernameForAuth(
 ): Promise<(User & { password_hash: string }) | null> {
   const result = await query<User & { password_hash: string }>(
     `SELECT ${USER_COLUMNS_WITH_PASSWORD} FROM users
-     WHERE (email = $1 OR username = $1)
+     WHERE (lower(email) = lower($1) OR username = $1)
        AND deleted_at IS NULL
      LIMIT 1`,
     [emailOrUsername]
@@ -170,13 +170,21 @@ export async function findUserByGoogleId(googleId: string): Promise<User | null>
 }
 
 /**
- * Vincular Google ID a usuario existente
+ * Vincular Google ID a usuario existente. Google ya verificó el email.
+ * Si es una cuenta legacy que nunca se usó en la web, además anula su password_hash: es el
+ * placeholder compartido que generó la migración del CRM.
  */
 export async function linkGoogleId(userId: string, googleId: string): Promise<void> {
-  await query('UPDATE users SET google_id = $1, updated_at = NOW() WHERE id = $2', [
-    googleId,
-    userId
-  ]);
+  await query(
+    `UPDATE users
+     SET google_id = $1,
+         email_verified = true,
+         password_hash = CASE WHEN is_legacy AND last_login_at IS NULL THEN NULL
+                              ELSE password_hash END,
+         updated_at = NOW()
+     WHERE id = $2`,
+    [googleId, userId]
+  );
 }
 
 /**
@@ -189,10 +197,24 @@ export async function createOAuthUser(data: {
   googleId: string;
 }): Promise<User> {
   const result = await query<User>(
-    `INSERT INTO users (email, first_name, last_name, google_id, role, is_active)
-     VALUES ($1, $2, $3, $4, 'customer', true)
+    `INSERT INTO users (email, first_name, last_name, google_id, role, is_active, email_verified)
+     VALUES (lower($1), $2, $3, $4, 'customer', true, true)
      RETURNING ${USER_COLUMNS}`,
     [data.email, data.firstName, data.lastName, data.googleId]
   );
   return result.rows[0];
+}
+
+/**
+ * Cuentas owner no borradas (hasta 2: alcanza para detectar ambigüedad).
+ * La usa el login con Google para la whitelist OWNER_GOOGLE_EMAILS.
+ */
+export async function findOwnerAccounts(): Promise<User[]> {
+  const result = await query<User>(
+    `SELECT ${USER_COLUMNS} FROM users
+     WHERE role = 'owner' AND deleted_at IS NULL
+     ORDER BY created_at
+     LIMIT 2`
+  );
+  return result.rows;
 }

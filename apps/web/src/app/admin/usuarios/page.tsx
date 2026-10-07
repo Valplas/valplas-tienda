@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
-import { Pencil, Plus, Trash2, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { GitMerge, Pencil, Plus, Trash2, Loader2, Users } from 'lucide-react';
+import { useUserMerge } from '@/components/admin/user-merge/use-user-merge';
 import { DataTable } from '@/components/admin/data-table';
 import { RoleBadge } from '@/components/admin/role-badge';
 import { Button } from '@/components/ui/button';
@@ -68,6 +70,7 @@ export default function UsuariosPage() {
   const [createdUserId, setCreatedUserId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [sortBy, setSortBy] = useState<'firstName' | 'createdAt'>('firstName');
+  const [contactFilter, setContactFilter] = useState<'all' | 'missing'>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -91,6 +94,7 @@ export default function UsuariosPage() {
           limit: PAGE_SIZE,
           role: roleFilter === 'all' ? undefined : roleFilter,
           search: searchTerm || undefined,
+          contactStatus: contactFilter === 'missing' ? 'missing' : undefined,
           sort: sortBy,
           includeAddresses: true
         });
@@ -106,8 +110,13 @@ export default function UsuariosPage() {
         }
       }
     },
-    [roleFilter, sortBy]
+    [roleFilter, sortBy, contactFilter]
   );
+
+  const { openMergeWith, handleSaveConflict, mergeDialogs } = useUserMerge(() => {
+    setSheetOpen(false);
+    loadUsers(search);
+  });
 
   const loadMore = useCallback(
     async (nextPage: number) => {
@@ -118,6 +127,7 @@ export default function UsuariosPage() {
           limit: PAGE_SIZE,
           role: roleFilter === 'all' ? undefined : roleFilter,
           search: search || undefined,
+          contactStatus: contactFilter === 'missing' ? 'missing' : undefined,
           sort: sortBy,
           includeAddresses: true
         });
@@ -135,7 +145,7 @@ export default function UsuariosPage() {
         }
       }
     },
-    [roleFilter, search, sortBy]
+    [roleFilter, search, sortBy, contactFilter]
   );
 
   useEffect(() => {
@@ -214,6 +224,8 @@ export default function UsuariosPage() {
         setCreatedUserId(newUser.id);
       }
     } catch (err) {
+      // Email/teléfono de otra cuenta: ofrecer fusionarlas en vez de un toast de error
+      if (selectedUser && handleSaveConflict(err, selectedUser)) return;
       const message = err instanceof Error ? err.message : 'Error al guardar usuario';
       toast.error(message);
     } finally {
@@ -328,6 +340,18 @@ export default function UsuariosPage() {
           const isCurrentUser = currentUser && row.original.id === currentUser.id;
           return (
             <div className="flex items-center gap-2 justify-end">
+              {row.original.role === UserRole.CUSTOMER && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => openMergeWith(row.original)}
+                  className="h-8 w-8 p-0"
+                  title="Fusionar con…"
+                  aria-label="Fusionar con otra cuenta"
+                >
+                  <GitMerge className="h-4 w-4" />
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
@@ -351,7 +375,7 @@ export default function UsuariosPage() {
         enableSorting: false
       }
     ],
-    [currentUser, handleDelete]
+    [currentUser, handleDelete, openMergeWith]
   );
 
   if (authLoading || !authUser) return null;
@@ -365,8 +389,8 @@ export default function UsuariosPage() {
         </p>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <Select
             value={roleFilter}
             onValueChange={(value) => setRoleFilter(value as UserRole | 'all')}
@@ -382,7 +406,11 @@ export default function UsuariosPage() {
               <SelectItem value={UserRole.CUSTOMER}>Clientes</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
+          <Select
+            value={sortBy}
+            onValueChange={(value) => setSortBy(value as typeof sortBy)}
+            disabled={contactFilter === 'missing'}
+          >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Ordenar por" />
             </SelectTrigger>
@@ -391,12 +419,32 @@ export default function UsuariosPage() {
               <SelectItem value="createdAt">Fecha de creación</SelectItem>
             </SelectContent>
           </Select>
+          <Select
+            value={contactFilter}
+            onValueChange={(value) => setContactFilter(value as typeof contactFilter)}
+          >
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Datos de contacto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los contactos</SelectItem>
+              <SelectItem value="missing">Sin datos de contacto</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <Button onClick={handleCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Usuario
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/usuarios/duplicados">
+              <Users className="mr-2 h-4 w-4" />
+              Posibles duplicados
+            </Link>
+          </Button>
+          <Button onClick={handleCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Usuario
+          </Button>
+        </div>
       </div>
 
       <DataTable
@@ -492,6 +540,8 @@ export default function UsuariosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {mergeDialogs}
     </div>
   );
 }

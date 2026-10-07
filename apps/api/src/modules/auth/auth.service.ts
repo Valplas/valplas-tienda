@@ -20,6 +20,25 @@ function hashToken(token: string): string {
 }
 
 /**
+ * Emite una sesión: access + refresh token (persistido como hash) y actualiza last_login_at.
+ * La usan el login con password y el callback de Google.
+ */
+export async function issueSession(user: {
+  id: string;
+  email: string | null;
+  role: string;
+}): Promise<{ accessToken: string; refreshToken: string }> {
+  await authRepository.updateLastLogin(user.id);
+
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user.id);
+  const expiresAt = new Date(Date.now() + ms(env.JWT_REFRESH_EXPIRES_IN as StringValue));
+  await refreshTokenRepository.saveRefreshToken(user.id, hashToken(refreshToken), expiresAt);
+
+  return { accessToken, refreshToken };
+}
+
+/**
  * Registrar nuevo usuario
  */
 export async function register(data: RegisterData): Promise<AuthResponse> {
@@ -89,6 +108,11 @@ export async function login(data: LoginData): Promise<AuthResponse> {
     throw new AppError('USER_INACTIVE', 'Usuario inactivo. Contacta a soporte.', 403);
   }
 
+  // Cuentas creadas con Google (o legacy con placeholder anulado) no tienen contraseña
+  if (!user.password_hash) {
+    throw new AppError('INVALID_CREDENTIALS', 'Credenciales inválidas', 401);
+  }
+
   // Comparar contraseña
   const isPasswordValid = await bcrypt.compare(data.password, user.password_hash);
 
@@ -96,17 +120,8 @@ export async function login(data: LoginData): Promise<AuthResponse> {
     throw new AppError('INVALID_CREDENTIALS', 'Credenciales inválidas', 401);
   }
 
-  // Actualizar último login
-  await authRepository.updateLastLogin(user.id);
-
-  // Generar tokens
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user.id);
-
-  // Guardar refresh token en DB
-  const tokenHash = hashToken(refreshToken);
-  const expiresAt = new Date(Date.now() + ms(env.JWT_REFRESH_EXPIRES_IN as StringValue));
-  await refreshTokenRepository.saveRefreshToken(user.id, tokenHash, expiresAt);
+  // Emitir sesión
+  const { accessToken, refreshToken } = await issueSession(user);
 
   // Remover password_hash del usuario antes de devolverlo
   const { password_hash: _, ...userWithoutPassword } = user;

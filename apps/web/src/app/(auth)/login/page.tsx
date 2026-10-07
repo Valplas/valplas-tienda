@@ -17,6 +17,7 @@ import { LoadingButton } from '@/components/ui/loading-button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { GoogleAuthButton } from '@/components/auth/google-auth-button';
+import { OAuthErrorToast } from '@/components/auth/oauth-error-toast';
 
 function LoginForm() {
   const router = useRouter();
@@ -63,6 +64,7 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-muted/30">
+      <OAuthErrorToast />
       <div className="w-full max-w-md">
         <div className="bg-card rounded-lg shadow-lg p-6 sm:p-8">
           {/* Header */}
@@ -125,7 +127,10 @@ function LoginForm() {
             </div>
           </div>
 
-          <GoogleAuthButton label="Iniciar sesión con Google" />
+          <GoogleAuthButton
+            label="Iniciar sesión con Google"
+            redirect={searchParams.get('redirect')}
+          />
 
           {/* Footer Links */}
           <div className="space-y-4 text-center text-sm">

@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import * as authService from '../../modules/auth/auth.service.js';
 import { query } from '../../infrastructure/database/client.js';
-import { createTestUser, uniqueSuffix } from '../helpers.js';
+import { createTestUser, createGoogleUser, uniqueSuffix } from '../helpers.js';
 
 describe('Auth Service', () => {
   describe('register', () => {
@@ -92,6 +92,17 @@ describe('Auth Service', () => {
       expect(result.user.email).toBe(user.email);
       expect(result.accessToken).toBeDefined();
       expect(result.refreshToken).toBeDefined();
+    });
+
+    it('should login ignoring email case', async () => {
+      const user = await createTestUser();
+
+      const result = await authService.login({
+        emailOrUsername: user.email.toUpperCase(),
+        password: user.password
+      });
+
+      expect(result.user.id).toBe(user.id);
     });
 
     it('should login with valid username and password', async () => {
@@ -197,6 +208,41 @@ describe('Auth Service', () => {
       await expect(authService.refreshAccessToken('invalid.token.here')).rejects.toMatchObject({
         code: 'INVALID_TOKEN'
       });
+    });
+  });
+
+  describe('issueSession', () => {
+    it('emite tokens, guarda el refresh token y actualiza last_login_at', async () => {
+      const user = await createTestUser();
+      await query('UPDATE users SET last_login_at = NULL WHERE id = $1', [user.id]);
+
+      const session = await authService.issueSession({
+        id: user.id,
+        email: user.email,
+        role: 'customer'
+      });
+
+      expect(session.accessToken).toBeTruthy();
+      expect(session.refreshToken).toBeTruthy();
+      const row = await query<{ last_login_at: Date | null }>(
+        'SELECT last_login_at FROM users WHERE id = $1',
+        [user.id]
+      );
+      expect(row.rows[0].last_login_at).not.toBeNull();
+      const tokens = await query(
+        'SELECT 1 FROM refresh_tokens WHERE user_id = $1 AND revoked_at IS NULL',
+        [user.id]
+      );
+      expect(tokens.rowCount).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe('login de cuenta sin contraseña', () => {
+    it('responde credenciales inválidas (no 500) si password_hash es NULL', async () => {
+      const google = await createGoogleUser();
+      await expect(
+        authService.login({ emailOrUsername: google.email, password: 'Cualquiera123!' })
+      ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS', statusCode: 401 });
     });
   });
 });
