@@ -49,7 +49,12 @@ export async function deleteImageObjectsBestEffort(
   try {
     await deleteImageObjects(existing);
   } catch (error) {
-    console.error(`[${logPrefix}] No se pudieron borrar objetos de Storage ${existing}:`, error);
+    console.error(
+      '[%s] No se pudieron borrar objetos de Storage %s:',
+      logPrefix,
+      JSON.stringify(existing),
+      error
+    );
   }
 }
 
