@@ -79,6 +79,7 @@
 - [ ] Add request deduplication
 - [ ] Add rate limiting for API calls
 - [ ] Implement proper authentication with refresh tokens
+- [ ] Adoptar `eslint-plugin-react-hooks` 7.1+ y sacar el pin a 7.0.1 de `overrides` en el `package.json` raíz. La 7.1 marca `react-hooks/set-state-in-effect` como error en 23 efectos de carga de datos (páginas admin, cuenta, checkout, `useProducts`, `delete-confirm-modal`, `quantity-selector`, entre otros). Arreglar sin `setState` sincrónico dentro del effect: estado derivado, `key` para resetear, o setear en el callback async. Listado: `bun lint` en `apps/web` sin el pin
 
 ---
 
