@@ -96,6 +96,7 @@
 - [ ] HttpOnly cookies para refresh token
 - [ ] Rate limiting en endpoints de auth
 - [ ] Bloqueo de cuenta tras intentos fallidos
+- [ ] Configurar `CSRF_SECRET` en Railway (servicio API, un valor distinto por entorno: prod y dev/staging). Generar con `openssl rand -hex 32`, distinto de `JWT_SECRET`. Opcional (sin él firma con `JWT_SECRET`); cambiarlo no desloguea a nadie, el front pide un token CSRF nuevo solo
 
 ### Authorization
 
