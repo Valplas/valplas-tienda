@@ -4,8 +4,15 @@ import type { PoolClient } from 'pg';
 import { query } from '../../infrastructure/database/client.js';
 import type { MergeCandidate, MergeResolution, MergeSuggestion } from './user-merge.types.js';
 
-/** FKs a users que maneja el merge. El test de guard falla si aparece una nueva. */
+/**
+ * FKs a users que maneja el merge. El test de guard falla si aparece una nueva.
+ * banners.created_by y store_settings.updated_by se ignoran a propósito: son
+ * autoría de staff, la source queda soft-deleted (la FK sigue válida) y
+ * merged_into_id ya traza a qué cuenta pasó.
+ */
 export const MERGE_HANDLED_FOREIGN_KEYS = [
+  'banners.created_by',
+  'store_settings.updated_by',
   'order_status_history.changed_by',
   'orders.user_id',
   'refresh_tokens.user_id',

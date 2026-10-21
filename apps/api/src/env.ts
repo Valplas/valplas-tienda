@@ -30,6 +30,10 @@ export const env = {
   PORT: getEnvNumber('PORT', 3001),
   API_URL: getEnv('API_URL', `http://localhost:${getEnvNumber('PORT', 3001)}`),
   FRONTEND_URL: getEnv('FRONTEND_URL', 'http://localhost:3000'),
+  // Secreto compartido con la web (misma variable en Vercel) para pedirle que
+  // revalide su cache al cambiar banners/logo. Vacío = no se revalida on-demand
+  // y los cambios se ven al vencer el TTL del fetch en la web.
+  REVALIDATE_SECRET: getEnv('REVALIDATE_SECRET', ''),
   // URLs permitidas para CORS (separadas por comas)
   ALLOWED_ORIGINS: getEnv('ALLOWED_ORIGINS', 'http://localhost:3000')
     .split(',')

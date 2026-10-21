@@ -231,6 +231,14 @@ const options: swaggerJsdoc.Options = {
       {
         name: 'Users',
         description: 'Gestión de usuarios (Admin)'
+      },
+      {
+        name: 'Banners',
+        description: 'Banners de la home'
+      },
+      {
+        name: 'Settings',
+        description: 'Configuración de la tienda (logo)'
       }
     ]
   },

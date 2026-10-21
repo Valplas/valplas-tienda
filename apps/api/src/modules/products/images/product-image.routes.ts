@@ -3,7 +3,7 @@ import * as controller from './product-image.controller.js';
 import { validate } from '../../../shared/middleware/validation.middleware.js';
 import { authMiddleware, requireRole } from '../../../shared/middleware/auth.middleware.js';
 import { apiRateLimiter } from '../../../shared/middleware/rate-limit.middleware.js';
-import { uploadSingleImage } from './image-upload.middleware.js';
+import { uploadSingleImage } from '../../../shared/middleware/image-upload.middleware.js';
 import {
   tempIdParamSchema,
   productIdParamSchema,

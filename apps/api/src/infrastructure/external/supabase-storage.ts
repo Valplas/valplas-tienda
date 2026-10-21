@@ -37,6 +37,22 @@ export async function deleteImageObjects(paths: string[]): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Para limpiezas posteriores a un cambio ya persistido en DB (la fila es lo
+ * que ve el usuario): un fallo solo se loguea, nunca rompe la respuesta.
+ */
+export async function deleteImageObjectsBestEffort(
+  paths: Array<string | null | undefined>,
+  logPrefix: string
+): Promise<void> {
+  const existing = paths.filter((path): path is string => Boolean(path));
+  try {
+    await deleteImageObjects(existing);
+  } catch (error) {
+    console.error(`[${logPrefix}] No se pudieron borrar objetos de Storage ${existing}:`, error);
+  }
+}
+
 export function getPublicUrl(path: string): string {
   return bucket().getPublicUrl(path).data.publicUrl;
 }

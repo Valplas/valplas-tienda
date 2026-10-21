@@ -14,9 +14,7 @@ import {
   deleteProductImage,
   reorderProductImages
 } from '@/services';
-
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
-const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+import { ACCEPTED_IMAGE_TYPES, getImageFileError } from '@/lib/image-files';
 
 export interface ImageUploadProps {
   images: ProductImage[];
@@ -54,12 +52,9 @@ export function ImageUpload({
       toast.error(`Máximo ${maxImages} imágenes`);
       return;
     }
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      toast.error('Formato no soportado (usar JPEG, PNG, WebP o AVIF)');
-      return;
-    }
-    if (file.size > MAX_SIZE_BYTES) {
-      toast.error('El archivo supera el límite de 10MB');
+    const fileError = getImageFileError(file);
+    if (fileError) {
+      toast.error(fileError);
       return;
     }
 
@@ -158,7 +153,7 @@ export function ImageUpload({
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPTED_TYPES.join(',')}
+        accept={ACCEPTED_IMAGE_TYPES.join(',')}
         className="hidden"
         onChange={handleFileSelected}
       />

@@ -17,7 +17,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Percent,
-  Calculator
+  Calculator,
+  GalleryHorizontal,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -79,6 +81,18 @@ const navItems: NavItem[] = [
     title: 'Envíos',
     href: '/admin/envios',
     icon: Truck
+  },
+  {
+    title: 'Banners',
+    href: '/admin/banners',
+    icon: GalleryHorizontal,
+    roles: [UserRole.ADMIN, UserRole.OWNER]
+  },
+  {
+    title: 'Configuración',
+    href: '/admin/configuracion',
+    icon: Settings,
+    roles: [UserRole.ADMIN, UserRole.OWNER]
   }
 ];
 
