@@ -1,14 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, MapPin, Star, Trash2, Loader2 } from 'lucide-react';
+import { Plus, MapPin, Star, Trash2, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { ApiError } from '@/lib/api';
+import { getShippingZonesAdmin } from '@/lib/services/shipping-admin.service';
 import {
   type Address,
   type CreateAddressInput,
@@ -16,6 +19,12 @@ import {
   adminCreateUserAddress,
   deleteAddress
 } from '@/lib/services/addresses.service';
+
+const SHIPPING_ADMIN_PATH = '/admin/envios';
+
+function openShippingAdmin() {
+  window.open(SHIPPING_ADMIN_PATH, '_blank', 'noopener');
+}
 
 interface UserAddressesSectionProps {
   userId: string;
@@ -42,6 +51,8 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<CreateAddressInput>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof CreateAddressInput, string>>>({});
+  // null = todavía no se chequeó. Sin zonas activas el backend rechaza toda dirección.
+  const [zonesMissing, setZonesMissing] = useState<boolean | null>(null);
 
   const loadAddresses = useCallback(async () => {
     setIsLoading(true);
@@ -58,6 +69,16 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
   useEffect(() => {
     loadAddresses();
   }, [loadAddresses]);
+
+  const openForm = async () => {
+    setShowForm(true);
+    try {
+      const { total } = await getShippingZonesAdmin({ isActive: true, limit: 1 });
+      setZonesMissing(total === 0);
+    } catch {
+      // Si falla el chequeo, el backend igual valida al guardar
+    }
+  };
 
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof CreateAddressInput, string>> = {};
@@ -88,9 +109,26 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
       setForm(EMPTY_FORM);
       setErrors({});
       setShowForm(false);
+      setZonesMissing(false);
       await loadAddresses();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al guardar dirección');
+      const code = err instanceof ApiError ? err.code : undefined;
+      if (code === 'NO_SHIPPING_ZONES') {
+        setZonesMissing(true);
+        toast.error('No hay zonas de envío activas', {
+          description: 'Configurá al menos una zona en Envíos y volvé a guardar.',
+          action: { label: 'Configurar envíos', onClick: openShippingAdmin }
+        });
+      } else if (code === 'POSTCODE_NOT_COVERED') {
+        const message = (err as ApiError).message;
+        setErrors((prev) => ({ ...prev, postcode: message }));
+        toast.error(message, {
+          description: 'Ninguna zona activa cubre ese código postal (o lo excluye).',
+          action: { label: 'Ver zonas', onClick: openShippingAdmin }
+        });
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Error al guardar dirección');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -126,7 +164,7 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
           )}
         </div>
         {!showForm && (
-          <Button type="button" size="sm" variant="outline" onClick={() => setShowForm(true)}>
+          <Button type="button" size="sm" variant="outline" onClick={openForm}>
             <Plus className="h-3.5 w-3.5 mr-1" />
             Agregar
           </Button>
@@ -183,6 +221,23 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
       {showForm && (
         <form onSubmit={handleSubmit} className="space-y-3 p-4 border rounded-lg bg-muted/20">
           <p className="text-sm font-medium">Nueva dirección</p>
+
+          {zonesMissing && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>No hay zonas de envío configuradas</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p>
+                  Sin al menos una zona de envío activa no se pueden cargar direcciones. Configurala
+                  y después guardá esta dirección.
+                </p>
+                <Button type="button" size="sm" variant="outline" onClick={openShippingAdmin}>
+                  Configurar envíos
+                  <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="space-y-1">
             <Label htmlFor="addr-alias" className="text-xs">

@@ -1,6 +1,8 @@
 // apps/api/src/modules/orders/order.domain.ts
 
 import * as orderRepository from './order.repository.js';
+import { AppError } from '../../shared/middleware/error.middleware.js';
+import { noCoverageError } from '../shipping/shipping-coverage.js';
 import { createOrderPreference } from '../../infrastructure/external/mercadopago.js';
 import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
@@ -50,12 +52,12 @@ export async function getOrderById(
   const order = await orderRepository.findOrderWithDetails(id);
 
   if (!order) {
-    throw new Error('Orden no encontrada');
+    throw new AppError('ORDER_NOT_FOUND', 'Orden no encontrada', 404);
   }
 
   // Check ownership unless admin
   if (!isAdmin && order.user_id !== userId) {
-    throw new Error('No tienes permiso para ver esta orden');
+    throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para ver esta orden', 403);
   }
 
   return order;
@@ -72,18 +74,18 @@ export async function getOrderByNumber(
   const order = await orderRepository.findOrderByNumber(orderNumber);
 
   if (!order) {
-    throw new Error('Orden no encontrada');
+    throw new AppError('ORDER_NOT_FOUND', 'Orden no encontrada', 404);
   }
 
   const orderWithDetails = await orderRepository.findOrderWithDetails(order.id);
 
   if (!orderWithDetails) {
-    throw new Error('Error al obtener detalles de la orden');
+    throw new AppError('ORDER_OPERATION_FAILED', 'Error al obtener detalles de la orden', 500);
   }
 
   // Check ownership unless admin
   if (!isAdmin && orderWithDetails.user_id !== userId) {
-    throw new Error('No tienes permiso para ver esta orden');
+    throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para ver esta orden', 403);
   }
 
   return orderWithDetails;
@@ -99,13 +101,13 @@ export async function createOrder(
   // Validate address belongs to user and is active
   const address = await addressRepository.findAddressById(data.shipping_address_id);
   if (!address || address.user_id !== userId || !address.is_active) {
-    throw new Error('Dirección de envío inválida');
+    throw new AppError('INVALID_SHIPPING_ADDRESS', 'Dirección de envío inválida', 400);
   }
 
   // Validate shipping carrier exists and is active
   const carrier = await shippingRepository.findCarrierById(data.shipping_carrier_id);
   if (!carrier || !carrier.is_active) {
-    throw new Error('Transportista inválido');
+    throw new AppError('INVALID_CARRIER', 'Transportista inválido', 400);
   }
 
   // Validate items and calculate totals.
@@ -128,11 +130,11 @@ export async function createOrder(
     const product = productMap.get(item.product_id);
 
     if (!product) {
-      throw new Error(`Producto ${item.product_id} no encontrado`);
+      throw new AppError('PRODUCT_NOT_FOUND', `Producto ${item.product_id} no encontrado`, 400);
     }
 
     if (!product.isActive) {
-      throw new Error(`Producto ${product.name} no está disponible`);
+      throw new AppError('PRODUCT_UNAVAILABLE', `Producto ${product.name} no está disponible`, 400);
     }
 
     // Semántica de bultos: quantity = bultos; bundleSize = unidades por bulto.
@@ -149,8 +151,10 @@ export async function createOrder(
     // El stock se controla en unidades reales, no en bultos.
     const availableStock = product.stock - product.reservedStock;
     if (availableStock < realQuantity) {
-      throw new Error(
-        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, solicitado: ${realQuantity}`
+      throw new AppError(
+        'INSUFFICIENT_STOCK',
+        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, solicitado: ${realQuantity}`,
+        409
       );
     }
 
@@ -172,7 +176,7 @@ export async function createOrder(
   // Get shipping cost — mismas zonas/tarifas que la cotización pública
   const zones = await shippingRepository.findZonesByPostcode(address.postcode);
   if (zones.length === 0) {
-    throw new Error('No hay envíos disponibles para este código postal');
+    throw await noCoverageError(address.postcode);
   }
 
   const rates = await shippingRepository.findRatesByZonesAndAmount(
@@ -182,7 +186,11 @@ export async function createOrder(
   const selectedRate = rates.find((r) => r.carrier_id === data.shipping_carrier_id);
 
   if (!selectedRate) {
-    throw new Error('Tarifa de envío no encontrada para este transportista');
+    throw new AppError(
+      'SHIPPING_RATE_NOT_FOUND',
+      'Tarifa de envío no encontrada para este transportista',
+      400
+    );
   }
 
   // max_amount = umbral de envío gratis (igual que en la cotización)
@@ -216,7 +224,7 @@ export async function createOrder(
   const orderWithDetails = await orderRepository.findOrderWithDetails(order.id);
 
   if (!orderWithDetails) {
-    throw new Error('Error al crear orden');
+    throw new AppError('ORDER_OPERATION_FAILED', 'Error al crear orden', 500);
   }
 
   let paymentUrl: string | undefined;
@@ -263,20 +271,22 @@ export async function updateOrderStatus(
   const order = await orderRepository.findOrderById(orderId);
 
   if (!order) {
-    throw new Error('Orden no encontrada');
+    throw new AppError('ORDER_NOT_FOUND', 'Orden no encontrada', 404);
   }
 
   // Check ownership unless admin
   if (!isAdmin && order.user_id !== userId) {
-    throw new Error('No tienes permiso para modificar esta orden');
+    throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para modificar esta orden', 403);
   }
 
   // Validate status transition
   const validTransitions = VALID_STATUS_TRANSITIONS[order.status];
   if (!validTransitions.includes(data.status)) {
-    throw new Error(
+    throw new AppError(
+      'INVALID_STATUS_TRANSITION',
       `Transición de estado inválida: ${order.status} -> ${data.status}. ` +
-        `Estados válidos: ${validTransitions.join(', ')}`
+        `Estados válidos: ${validTransitions.join(', ')}`,
+      400
     );
   }
 
@@ -284,7 +294,7 @@ export async function updateOrderStatus(
   const updated = await orderRepository.updateOrderStatus(orderId, data, userId);
 
   if (!updated) {
-    throw new Error('Error al actualizar estado de la orden');
+    throw new AppError('ORDER_OPERATION_FAILED', 'Error al actualizar estado de la orden', 500);
   }
 
   return updated;
@@ -302,25 +312,29 @@ export async function cancelOrder(
   const order = await orderRepository.findOrderById(orderId);
 
   if (!order) {
-    throw new Error('Orden no encontrada');
+    throw new AppError('ORDER_NOT_FOUND', 'Orden no encontrada', 404);
   }
 
   // Check ownership unless admin
   if (!isAdmin && order.user_id !== userId) {
-    throw new Error('No tienes permiso para cancelar esta orden');
+    throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para cancelar esta orden', 403);
   }
 
   // Check if cancellation is allowed
   const validTransitions = VALID_STATUS_TRANSITIONS[order.status];
   if (!validTransitions.includes('cancelled')) {
-    throw new Error(`No se puede cancelar una orden en estado: ${order.status}`);
+    throw new AppError(
+      'ORDER_NOT_CANCELLABLE',
+      `No se puede cancelar una orden en estado: ${order.status}`,
+      400
+    );
   }
 
   // Cancel order
   const cancelled = await orderRepository.cancelOrder(orderId, notes, userId);
 
   if (!cancelled) {
-    throw new Error('Error al cancelar orden');
+    throw new AppError('ORDER_OPERATION_FAILED', 'Error al cancelar orden', 500);
   }
 
   return cancelled;
@@ -347,7 +361,7 @@ export async function createAdminOrder(
   if (data.shipping_address_id) {
     const address = await addressRepository.findAddressById(data.shipping_address_id);
     if (!address || address.user_id !== data.user_id || !address.is_active) {
-      throw new Error('Dirección de envío inválida');
+      throw new AppError('INVALID_SHIPPING_ADDRESS', 'Dirección de envío inválida', 400);
     }
     addressSnapshot = {
       shipping_street: address.street,
@@ -367,7 +381,11 @@ export async function createAdminOrder(
   for (const item of data.items) {
     const product = await findProductById(item.product_id);
     if (!product || !product.isActive) {
-      throw new Error(`Producto ${item.product_id} no encontrado o inactivo`);
+      throw new AppError(
+        'PRODUCT_NOT_FOUND',
+        `Producto ${item.product_id} no encontrado o inactivo`,
+        400
+      );
     }
 
     const availableStock = product.stock - product.reservedStock;
@@ -383,8 +401,10 @@ export async function createAdminOrder(
     const realQuantity = item.quantity * bundleSizeSnapshot;
 
     if (availableStock < realQuantity) {
-      throw new Error(
-        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, requerido: ${realQuantity}`
+      throw new AppError(
+        'INSUFFICIENT_STOCK',
+        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, requerido: ${realQuantity}`,
+        409
       );
     }
 
@@ -416,7 +436,11 @@ export async function createAdminOrder(
 
   const orderWithDetails = await orderRepository.findOrderWithDetails(order.id);
   if (!orderWithDetails) {
-    throw new Error('Error al obtener detalles de la orden creada');
+    throw new AppError(
+      'ORDER_OPERATION_FAILED',
+      'Error al obtener detalles de la orden creada',
+      500
+    );
   }
 
   return orderWithDetails;
@@ -431,28 +455,40 @@ export async function updateAdminOrder(
   adminId: string
 ): Promise<OrderWithDetails> {
   const order = await orderRepository.findOrderById(orderId);
-  if (!order) throw new Error('Orden no encontrada');
+  if (!order) throw new AppError('ORDER_NOT_FOUND', 'Orden no encontrada', 404);
   if (order.status !== 'processing') {
-    throw new Error('Solo se pueden editar órdenes en estado "En proceso"');
+    throw new AppError(
+      'ORDER_NOT_EDITABLE',
+      'Solo se pueden editar órdenes en estado "En proceso"',
+      400
+    );
   }
 
   // Validate address belongs to the order's user and is active
   const address = await addressRepository.findAddressById(data.shipping_address_id);
   if (!address || address.user_id !== order.user_id || !address.is_active) {
-    throw new Error('Dirección de envío inválida');
+    throw new AppError('INVALID_SHIPPING_ADDRESS', 'Dirección de envío inválida', 400);
   }
 
   // Filter out items with quantity = 0, validate and calculate prices server-side
   const activeItems = data.items.filter((i) => i.quantity > 0);
   if (activeItems.length === 0) {
-    throw new Error('El pedido debe tener al menos un producto con cantidad mayor a 0');
+    throw new AppError(
+      'EMPTY_ORDER',
+      'El pedido debe tener al menos un producto con cantidad mayor a 0',
+      400
+    );
   }
 
   const enrichedItems = [];
   for (const item of activeItems) {
     const product = await findProductById(item.product_id);
     if (!product || !product.isActive) {
-      throw new Error(`Producto ${item.product_id} no encontrado o inactivo`);
+      throw new AppError(
+        'PRODUCT_NOT_FOUND',
+        `Producto ${item.product_id} no encontrado o inactivo`,
+        400
+      );
     }
     // Admin orders bypass tier requirement — default bundle size to 1 if no tier exists
     let bundleSizeSnapshot = 1;
@@ -493,10 +529,11 @@ export async function updateAdminOrder(
     adminId
   );
 
-  if (!updated) throw new Error('Error al actualizar pedido');
+  if (!updated) throw new AppError('ORDER_OPERATION_FAILED', 'Error al actualizar pedido', 500);
 
   const orderWithDetails = await orderRepository.findOrderWithDetails(orderId);
-  if (!orderWithDetails) throw new Error('Error al obtener pedido actualizado');
+  if (!orderWithDetails)
+    throw new AppError('ORDER_OPERATION_FAILED', 'Error al obtener pedido actualizado', 500);
   return orderWithDetails;
 }
 
