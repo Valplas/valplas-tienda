@@ -239,62 +239,7 @@ Los preview deployments se generan automáticamente para cada PR.
 
 ### Workflow de GitHub Actions
 
-El workflow en `.github/workflows/deploy-preview.yml` está configurado para:
-
-1. Hacer build del frontend cuando se abre/actualiza un PR
-2. Comentar en el PR con el link de preview generado por Vercel
-
-```yaml
-name: Deploy Preview
-
-on:
-  pull_request:
-    branches: [main, develop]
-    types: [opened, synchronize, reopened]
-
-jobs:
-  deploy-preview:
-    name: Deploy Preview to Vercel
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build frontend
-        working-directory: apps/web
-        run: bun run build
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.STAGING_API_URL }}
-          NEXT_PUBLIC_MP_PUBLIC_KEY: ${{ secrets.MP_PUBLIC_KEY_TEST }}
-
-      - name: Deploy to Vercel Preview
-        id: deploy
-        run: |
-          cd apps/web
-          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} > deployment-url.txt
-          echo "url=$(cat deployment-url.txt)" >> $GITHUB_OUTPUT
-
-      - name: Comment PR with preview URL
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const url = '${{ steps.deploy.outputs.url }}';
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `🚀 Preview deployment listo!\n\n🔗 **URL:** ${url}\n\n✅ Revisa los cambios antes de hacer merge.`
-            })
-```
+Los preview deployments los genera la **integración de Vercel con GitHub** (deploy + comentario en el PR). El workflow `deploy-preview.yml` se eliminó: duplicaba esa integración y fallaba sin los secrets de Vercel en Actions.
 
 ### Comportamiento de Preview Deployments
 

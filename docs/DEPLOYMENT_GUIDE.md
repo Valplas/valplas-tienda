@@ -237,7 +237,6 @@ JWT_SECRET=xxx
 .github/
 └── workflows/
     ├── ci.yml                    # Tests y linting en cada PR
-    ├── deploy-preview.yml        # Preview deployment para PRs
     ├── deploy-staging.yml        # Deploy a staging (develop)
     ├── deploy-production.yml     # Deploy a producción (main)
     └── tests.yml                 # Tests específicos
@@ -303,77 +302,9 @@ jobs:
           NODE_ENV: test
 ```
 
-### 2. Preview Deployment (`deploy-preview.yml`)
+### 2. Preview Deployment
 
-Se ejecuta cuando abres o actualizas un **PR**:
-
-```yaml
-name: Deploy Preview
-
-on:
-  pull_request:
-    branches: [main, develop]
-    types: [opened, synchronize, reopened]
-
-jobs:
-  deploy-preview:
-    name: Deploy Preview to Vercel
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build frontend
-        working-directory: apps/web
-        run: bun run build
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.STAGING_API_URL }}
-          NEXT_PUBLIC_MP_PUBLIC_KEY: ${{ secrets.MP_PUBLIC_KEY_TEST }}
-          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          NEXT_PUBLIC_SENTRY_ENVIRONMENT: preview
-
-      - name: Deploy to Vercel Preview
-        id: deploy
-        working-directory: apps/web
-        run: |
-          npm install -g vercel
-          URL=$(vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} 2>&1 | grep -o 'https://[^ ]*')
-          echo "url=$URL" >> $GITHUB_OUTPUT
-
-      - name: Comment PR with preview URL
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const url = '${{ steps.deploy.outputs.url }}';
-            const body = `## 🚀 Preview Deployment Ready!
-
-            **Preview URL:** ${url}
-
-            ✅ Revisa los cambios antes de hacer merge.
-
-            ### Testing Checklist
-            - [ ] UI/UX funciona correctamente
-            - [ ] No hay errores en consola
-            - [ ] Performance aceptable (Lighthouse)
-            - [ ] Mobile responsive
-            `;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
-```
+Los preview deployments los genera la **integración de Vercel con GitHub** (deploy + comentario en el PR). El workflow `deploy-preview.yml` se eliminó: duplicaba esa integración y fallaba sin los secrets de Vercel en Actions.
 
 ### 3. Deploy to Staging (`deploy-staging.yml`)
 

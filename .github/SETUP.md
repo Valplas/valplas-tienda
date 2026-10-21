@@ -27,9 +27,9 @@ Se ejecuta solo en Pull Requests.
 - **size-check**: Alerta si el PR es muy grande (>500 líneas)
 - **migration-check**: ⚠️ **CRÍTICO** - Asegura que no se modifiquen migraciones existentes
 
-### 3. Deploy Preview (`.github/workflows/deploy-preview.yml`)
+### 3. Preview Deployments
 
-Se ejecuta en Pull Requests para generar preview deployments.
+Los preview deployments los genera la **integración de Vercel con GitHub** (deploy + comentario en el PR). El workflow `deploy-preview.yml` se eliminó: duplicaba esa integración y fallaba sin los secrets de Vercel en Actions.
 
 ## Secrets Necesarios
 
