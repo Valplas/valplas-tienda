@@ -44,6 +44,13 @@ const options: swaggerJsdoc.Options = {
           in: 'cookie',
           name: 'refresh_token',
           description: 'Refresh token en cookie HttpOnly'
+        },
+        csrfToken: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-csrf-token',
+          description:
+            'Obligatorio en todo POST/PUT/PATCH/DELETE (salvo el webhook de Mercado Pago). Pedirlo a GET /api/auth/csrf-token con las mismas cookies; si la sesión cambia (login, logout, refresh) hay que pedir uno nuevo. Sin token: 403 CSRF_INVALID.'
         }
       },
       schemas: {

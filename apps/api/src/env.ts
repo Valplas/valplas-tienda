@@ -62,6 +62,10 @@ export const env = {
   // Si no se define, cae a JWT_SECRET por compatibilidad. Al establecer un valor distinto
   // se invalidan los refresh tokens previos (los usuarios deben reloguear). Ver OBS-15.
   JWT_REFRESH_SECRET: getEnv('JWT_REFRESH_SECRET') || requireEnv('JWT_SECRET'),
+  // Secreto para firmar (HMAC) los tokens CSRF. Si no se define, cae a JWT_SECRET;
+  // definirlo aparte es defensa en profundidad. Cambiarlo invalida los tokens CSRF
+  // emitidos (el front pide uno nuevo solo, sin desloguear).
+  CSRF_SECRET: getEnv('CSRF_SECRET') || requireEnv('JWT_SECRET'),
   JWT_EXPIRES_IN: getEnv('JWT_EXPIRES_IN', '15m'),
   JWT_REFRESH_EXPIRES_IN: getEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
   // Fuerza cookies de sesión a SameSite=None; Secure para deploys cross-site (frontend y API

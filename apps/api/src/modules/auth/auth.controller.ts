@@ -3,6 +3,7 @@ import * as authService from './auth.service.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import { REFRESH_TOKEN_COOKIE_NAME, clearAuthCookies, setAuthCookies } from './auth.cookies.js';
+import { issueCsrfToken } from '../../shared/middleware/csrf.middleware.js';
 
 /**
  * POST /api/auth/register
@@ -102,6 +103,21 @@ export async function refreshToken(req: Request, res: Response, next: NextFuncti
     setAuthCookies(res, newAccessToken, newRefreshToken);
 
     return res.json(ApiResponse.success({ message: 'Token renovado' }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/auth/csrf-token
+ * Token CSRF para la sesión actual (anónima o logueada). El front lo manda en
+ * el header x-csrf-token de cada request que modifica algo.
+ */
+export function getCsrfToken(req: Request, res: Response, next: NextFunction) {
+  try {
+    const csrfToken = issueCsrfToken(req, res);
+    res.set('Cache-Control', 'no-store');
+    return res.json(ApiResponse.success({ csrfToken }));
   } catch (error) {
     next(error);
   }
