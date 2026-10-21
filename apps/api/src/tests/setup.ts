@@ -33,4 +33,8 @@ afterEach(async () => {
   // shipping_rates cae por CASCADE al borrar el carrier
   await query("DELETE FROM shipping_carriers WHERE code LIKE 'vitest-%'");
   await query("DELETE FROM shipping_zones WHERE name LIKE 'vitest-%'");
+  // Banners antes que categorías (link_category_id es SET NULL, pero así no
+  // quedan banners de test apuntando a nada)
+  await query("DELETE FROM banners WHERE title LIKE 'vitest-%'");
+  await query("DELETE FROM categories WHERE slug LIKE 'vitest-%'");
 });

@@ -54,15 +54,21 @@ export function ProductsBrowser({
   const sortBy = useFilterStore((state) => state.sortBy);
   const setCategoryId = useFilterStore((state) => state.setCategoryId);
   const setBrandId = useFilterStore((state) => state.setBrandId);
+  const setSearch = useFilterStore((state) => state.setSearch);
 
   // Sincronizar filtros de la URL con el store (soporta camelCase y snake_case,
-  // p.ej. el link de categorías del home usa category_id).
+  // p.ej. el link de categorías del home usa category_id). Un link con filtros
+  // (categorías del home, banners) define el filtro completo: lo que no viene
+  // en la URL se limpia, para no heredar filtros de una visita anterior (el
+  // store sobrevive a la navegación client-side).
   useEffect(() => {
     const categoryParam = searchParams.get('categoryId') ?? searchParams.get('category_id');
     const brandParam = searchParams.get('brandId') ?? searchParams.get('brand_id');
-    if (categoryParam) setCategoryId(categoryParam);
-    if (brandParam) setBrandId(brandParam);
-  }, [searchParams, setCategoryId, setBrandId]);
+    if (!categoryParam && !brandParam) return;
+    setCategoryId(categoryParam ?? undefined);
+    setBrandId(brandParam ?? undefined);
+    setSearch(searchParams.get('search') ?? '');
+  }, [searchParams, setCategoryId, setBrandId, setSearch]);
 
   const fetchWithFilters = useCallback(
     async (page: number) => {

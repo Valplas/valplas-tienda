@@ -15,8 +15,15 @@ import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useState } from 'react';
 import { MobileNav } from './mobile-nav';
+import { StoreLogo } from './store-logo';
+import type { StoreSettings } from '@/types';
 
-export function Header() {
+interface HeaderProps {
+  /** Configuración de la tienda (logo), cargada en el layout server */
+  settings?: StoreSettings | null;
+}
+
+export function Header({ settings }: HeaderProps) {
   const itemCount = useCartStore((state) => state.itemCount);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -38,8 +45,8 @@ export function Header() {
             </Button>
 
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-2">
-              <span className="text-xl font-bold text-primary">Valplas</span>
+            <Link href="/" className="flex shrink-0 items-center" aria-label="Ir al inicio">
+              <StoreLogo settings={settings} />
             </Link>
 
             {/* Desktop Search Bar */}

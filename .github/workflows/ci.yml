@@ -79,6 +79,10 @@ jobs:
             exit 1
           fi
 
+          # El patrón busca un identificador con secret/password/token ASIGNADO
+          # (`=` o `:`) a un string literal de 8+ caracteres. Comparaciones
+          # (`passwordStrategy === 'source'`) y SQL (`refresh_tokens WHERE id = $1`)
+          # no matchean: no son valores hardcodeados.
           # Excluir:
           # - scripts/check-secrets.js (contiene los patrones de búsqueda)
           # - req.cookies, req.headers (código que LEE tokens de requests)
@@ -88,7 +92,7 @@ jobs:
           # - showPassword, name="password", type="password" (UI components)
           # - as string (type assertions)
           # - formData.get('password') (form data extractions)
-          if git grep -i -E "(secret|password|token).*=.*['\"][^'\"]+" -- '*.ts' '*.tsx' '*.js' '*.jsx' \
+          if git grep -i -E "(secret|password|token)[a-z0-9_]*['\"]?\s*[:=]\s*['\"][^'\"]{8,}" -- '*.ts' '*.tsx' '*.js' '*.jsx' \
               | grep -v "scripts/check-secrets.js" \
               | grep -v "req\." \
               | grep -v "pattern:" \

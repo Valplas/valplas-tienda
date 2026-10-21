@@ -25,7 +25,19 @@ const ALLOW = new Map([
   ['GHSA-7r86-cg39-jmmj', 'minimatch: ReDoS — solo glob de build tooling'],
   ['GHSA-23c5-xmqv-rm74', 'minimatch: ReDoS — solo glob de build tooling'],
   ['GHSA-3v7f-55p6-f55p', 'picomatch: glob matching — solo build tooling'],
-  ['GHSA-c2c7-rcm5-vvqj', 'picomatch: ReDoS — solo build tooling']
+  ['GHSA-c2c7-rcm5-vvqj', 'picomatch: ReDoS — solo build tooling'],
+  // brace-expansion 1.x/2.x/5.x conviven (minimatch 3/9/10): bun no permite
+  // override por major. Llega por eslint/typescript-eslint/lint-staged y, en
+  // runtime, por swagger-jsdoc → glob@7 con el patrón fijo de config/swagger.ts.
+  ['GHSA-mh99-v99m-4gvg', 'brace-expansion: DoS por longitud — solo globs hardcodeados'],
+  ['GHSA-rgw5-rvv9-x895', 'brace-expansion: DoS arrays intermedios — solo globs hardcodeados'],
+  ['GHSA-3jxr-9vmj-r5cp', 'brace-expansion: DoS grupos {} — solo globs hardcodeados'],
+  ['GHSA-qhr7-859c-m2p7', 'brace-expansion: recursión anidada — solo globs hardcodeados'],
+  ['GHSA-6j4f-fj2g-mc7p', 'brace-expansion: recursión parseCommaParts — solo globs hardcodeados'],
+  ['GHSA-q2hr-2g5m-vwhr', 'brace-expansion: tiempo cuadrático — solo globs hardcodeados'],
+  // braces 3.0.3 es la última versión publicada (sin fix). Llega solo por
+  // micromatch de tooling: tsc-alias (build), eslint-config-next, lint-staged.
+  ['GHSA-vfj7-8cjw-p6xm', 'braces: stack exhaustion — sin fix publicado, solo build tooling']
 ]);
 
 let raw = '';

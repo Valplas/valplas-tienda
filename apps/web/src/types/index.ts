@@ -331,6 +331,52 @@ export interface CatalogFilters {
 }
 
 // ============================================================================
+// BANNERS & STORE SETTINGS
+// ============================================================================
+
+/**
+ * Banner público (activo y vigente). Destino: linkProductSlug → ficha del
+ * producto; si no, catálogo filtrado por linkCategoryId y/o linkBrandId;
+ * ninguno → sin link. El backend ya manda null si el destino está inactivo.
+ */
+export interface PublicBanner {
+  id: string;
+  title: string;
+  desktopImageUrl: string;
+  desktopWidth: number;
+  desktopHeight: number;
+  mobileImageUrl: string | null;
+  mobileWidth: number | null;
+  mobileHeight: number | null;
+  linkProductSlug: string | null;
+  linkCategoryId: string | null;
+  linkBrandId: string | null;
+}
+
+/** Banner del backoffice (incluye inactivos, vigencia y nombres del destino) */
+export interface AdminBanner extends PublicBanner {
+  linkCategoryName: string | null;
+  linkCategoryIsActive: boolean | null;
+  linkBrandName: string | null;
+  linkBrandIsActive: boolean | null;
+  linkProductId: string | null;
+  linkProductName: string | null;
+  linkProductIsActive: boolean | null;
+  displayOrder: number;
+  isActive: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreSettings {
+  logoUrl: string | null;
+  logoWidth: number | null;
+  logoHeight: number | null;
+}
+
+// ============================================================================
 // FRONTEND-SPECIFIC TYPES
 // ============================================================================
 

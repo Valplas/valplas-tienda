@@ -32,6 +32,12 @@ router.post('/logout', authController.logout);
 router.get('/me', authMiddleware, authController.getCurrentUser);
 
 /**
+ * GET /api/auth/csrf-token
+ * Token CSRF de la sesión actual (header x-csrf-token en POST/PUT/PATCH/DELETE)
+ */
+router.get('/csrf-token', authController.getCsrfToken);
+
+/**
  * POST /api/auth/refresh
  * Renovar access token
  */

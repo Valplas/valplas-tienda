@@ -1,18 +1,22 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { StoreLogo } from '@/components/layout/store-logo';
+import { getStoreSettings } from '@/lib/services/settings.service';
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children
 }: Readonly<{
   children: ReactNode;
 }>) {
+  const settings = await getStoreSettings();
+
   return (
     <div className="flex min-h-screen flex-col">
       {/* Simple header with logo */}
       <header className="border-b">
         <div className="container mx-auto flex h-16 items-center px-4">
-          <Link href="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold text-primary">Valplas</span>
+          <Link href="/" className="flex items-center" aria-label="Ir al inicio">
+            <StoreLogo settings={settings} />
           </Link>
         </div>
       </header>
