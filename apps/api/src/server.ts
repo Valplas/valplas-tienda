@@ -8,6 +8,7 @@ import swaggerUi from 'swagger-ui-express';
 import { errorHandler } from './shared/middleware/error.middleware.js';
 import { apiRateLimiter } from './shared/middleware/rate-limit.middleware.js';
 import { camelCaseResponse } from './shared/middleware/camel-case.middleware.js';
+import { csrfProtection } from './shared/middleware/csrf.middleware.js';
 import { env, validateEnv } from './env.js';
 import { swaggerSpec } from './config/swagger.js';
 import './modules/auth/oauth.controller.js';
@@ -71,6 +72,10 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+// CSRF: la sesión va en cookies SameSite=None (front y API en sitios distintos),
+// así que todo POST/PUT/PATCH/DELETE exige además el header x-csrf-token
+// (token de GET /api/auth/csrf-token). Exento: webhook de Mercado Pago.
+app.use(csrfProtection);
 app.use(passport.initialize());
 app.use(camelCaseResponse);
 
@@ -111,6 +116,8 @@ import accountingRoutes from './modules/accounting/accounting.routes.js';
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js';
 import catalogRoutes from './modules/catalog/catalog.routes.js';
 import paymentsRoutes from './modules/payments/payments.routes.js';
+import bannerRoutes from './modules/banners/banner.routes.js';
+import settingsRoutes from './modules/settings/settings.routes.js';
 import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.js';
 import { scheduleStaleOrderCancellation } from './infrastructure/jobs/cancel-stale-orders.job.js';
 import { scheduleStagedImageCleanup } from './infrastructure/jobs/cleanup-staged-images.job.js';
@@ -130,6 +137,8 @@ app.use('/api/accounting', accountingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/banners', bannerRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Swagger documentation
 app.use(

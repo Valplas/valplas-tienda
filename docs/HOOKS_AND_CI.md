@@ -240,22 +240,9 @@ docs: update setup instructions
 
 ---
 
-### 3. deploy-preview.yml - Preview Deployments
+### 3. Preview Deployments (integración de Vercel)
 
-**Triggers:**
-
-- Pull Request opened/updated a `main` o `develop`
-
-**Qué hace:**
-
-1. Build frontend con env staging
-2. Comenta en el PR con URL de preview
-3. Deploy a Vercel preview (comentado, listo para activar)
-
-**Variables necesarias:**
-
-- `STAGING_API_URL`
-- `VERCEL_TOKEN` (opcional)
+Los preview deployments los genera la **integración de Vercel con GitHub** (deploy + comentario en el PR). El workflow `deploy-preview.yml` se eliminó: duplicaba esa integración y fallaba sin los secrets de Vercel en Actions.
 
 ---
 
@@ -468,7 +455,7 @@ git push --no-verify
 
 6. Crear PR:
    ├─ pr-checks.yml: title format, size, migrations ✅
-   └─ deploy-preview.yml: preview deployment ✅
+   └─ Vercel (integración GitHub): preview deployment ✅
 
 7. Merge a main:
    └─ deploy-production.yml: deploy API + Web ✅

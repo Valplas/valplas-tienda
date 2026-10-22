@@ -7,12 +7,17 @@ import { ProductGrid } from '@/components/product';
 import { getCatalogProducts } from '@/lib/services/catalog.service';
 import { getCategories } from '@/services';
 import { Card, CardContent } from '@/components/ui/card';
+import { BannerCarousel } from '@/components/home/banner-carousel';
+import { getPublicBanners } from '@/lib/services/banners.service';
 import type { Category, ProductPublic } from '@/types';
 
 export default async function Home() {
   let featuredProducts: ProductPublic[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let categories: any[] = [];
+  // En paralelo con el resto; nunca rechaza, así un fallo de productos no
+  // se lleva puestos los banners
+  const bannersPromise = getPublicBanners();
 
   try {
     const [productsRes, categoriesRes] = await Promise.all([
@@ -30,23 +35,34 @@ export default async function Home() {
     console.error('Error loading home page data:', error);
   }
 
+  const banners = await bannersPromise;
+
   return (
     <main className="container mx-auto px-4 py-4 space-y-6">
-      {/* Hero Section */}
-      <section className="text-center space-y-2 py-4">
-        <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-4xl">Valplas</h1>
-        <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
-          Distribuidora de Artículos Plásticos, Productos de Limpieza y Electrodomésticos
-        </p>
-        <div className="flex justify-center gap-4 pt-1">
-          <Button asChild size="sm">
-            <Link href="/productos">
-              Ver Catálogo
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-      </section>
+      {/* Hero: banners administrables; sin banners activos, el hero de texto */}
+      {banners.length > 0 ? (
+        <>
+          <h1 className="sr-only">
+            Valplas: Distribuidora de Artículos Plásticos, Productos de Limpieza y Electrodomésticos
+          </h1>
+          <BannerCarousel banners={banners} />
+        </>
+      ) : (
+        <section className="text-center space-y-2 py-4">
+          <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-4xl">Valplas</h1>
+          <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
+            Distribuidora de Artículos Plásticos, Productos de Limpieza y Electrodomésticos
+          </p>
+          <div className="flex justify-center gap-4 pt-1">
+            <Button asChild size="sm">
+              <Link href="/productos">
+                Ver Catálogo
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </section>
+      )}
 
       {/* Categories Section */}
       {categories.length > 0 && (

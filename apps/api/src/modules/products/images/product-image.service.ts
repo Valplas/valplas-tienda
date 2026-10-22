@@ -7,9 +7,8 @@ import * as productImageRepository from './product-image.repository.js';
 import type { ProductImageRow } from './product-image.repository.js';
 import {
   processImage,
-  MAX_IMAGES_PER_PRODUCT,
   type MulterFile
-} from './image-upload.middleware.js';
+} from '../../../shared/middleware/image-upload.middleware.js';
 import {
   uploadImageObject,
   moveImageObject,
@@ -19,6 +18,8 @@ import {
   buildImageFilename
 } from '../../../infrastructure/external/supabase-storage.js';
 import type { StorageObjectInfo } from '../../../infrastructure/external/supabase-storage.js';
+
+export const MAX_IMAGES_PER_PRODUCT = 5;
 
 export interface StagedImage {
   tempPath: string;
