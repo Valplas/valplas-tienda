@@ -67,6 +67,17 @@ export async function findZoneById(id: string): Promise<ShippingZone | null> {
   return result.rows[0] || null;
 }
 
+/**
+ * Cantidad de zonas activas. Sin ninguna no se puede validar cobertura de
+ * ningún código postal (el admin todavía no configuró envíos).
+ */
+export async function countActiveZones(): Promise<number> {
+  const result = await query<{ count: string }>(
+    'SELECT COUNT(*) AS count FROM shipping_zones WHERE is_active = true AND deleted_at IS NULL'
+  );
+  return parseInt(result.rows[0].count, 10);
+}
+
 export async function findZoneByPostcode(postcode: string): Promise<ShippingZone | null> {
   const result = await query(
     'SELECT * FROM shipping_zones WHERE is_active = true AND deleted_at IS NULL',
