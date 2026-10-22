@@ -17,7 +17,8 @@
       "mcp__mercadopago__search_documentation",
       "mcp__mercadopago__create_test_user",
       "mcp__mercadopago__notifications_history",
-      "mcp__mercadopago__add_money_test_user"
+      "mcp__mercadopago__add_money_test_user",
+      "mcp__supabase-db__execute_sql"
     ],
     "deny": [
       "Bash(git push:*)"
