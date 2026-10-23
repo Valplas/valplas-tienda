@@ -112,7 +112,7 @@ router.post('/', validate(createUserSchema, 'body'), userController.createUser);
  * @swagger
  * /api/users/merge-suggestions:
  *   get:
- *     summary: Posibles duplicados entre cuentas nuevas y clientes legacy del CRM
+ *     summary: Posibles duplicados entre cuentas nuevas y clientes sin uso en la web (del CRM o cargados por el admin)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -127,7 +127,7 @@ router.post('/', validate(createUserSchema, 'body'), userController.createUser);
  *           type: integer
  *     responses:
  *       200:
- *         description: Lista paginada de pares con confianza high/medium
+ *         description: Lista paginada de pares con confianza high/medium (legacy_user.is_legacy = migrado del CRM)
  */
 router.get(
   '/merge-suggestions',
