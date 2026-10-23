@@ -31,17 +31,20 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
           name: carrier.name,
           code: carrier.code,
           logoUrl: carrier.logoUrl ?? '',
-          isActive: carrier.isActive
+          isActive: carrier.isActive,
+          isExternal: carrier.isExternal ?? false
         }
       : {
           name: '',
           code: '',
           logoUrl: '',
-          isActive: true
+          isActive: true,
+          isExternal: false
         }
   });
 
   const isActive = useWatch({ control, name: 'isActive' });
+  const isExternal = useWatch({ control, name: 'isExternal' });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -100,6 +103,25 @@ export function CarrierForm({ carrier, onSubmit, onCancel, isLoading }: CarrierF
         <Label htmlFor="isActive" className="cursor-pointer font-normal">
           Carrier activo
         </Label>
+      </div>
+
+      {/* Is External */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="isExternal"
+            checked={isExternal}
+            onCheckedChange={(checked) => setValue('isExternal', !!checked)}
+            disabled={isLoading}
+          />
+          <Label htmlFor="isExternal" className="cursor-pointer font-normal">
+            Proveedor externo
+          </Label>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Envío gestionado por una integración (ej: Andreani). En sus pedidos no se puede cambiar la
+          dirección de entrega.
+        </p>
       </div>
 
       {/* Actions */}

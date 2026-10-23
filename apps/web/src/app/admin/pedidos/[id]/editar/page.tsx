@@ -25,14 +25,31 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
-import { ArrowLeft, Search, Trash2, Plus, Loader2, MapPin, Package, Pencil } from 'lucide-react';
+import {
+  ArrowLeft,
+  Search,
+  Trash2,
+  Plus,
+  Loader2,
+  MapPin,
+  Package,
+  Pencil,
+  AlertTriangle,
+  Lock,
+  Truck
+} from 'lucide-react';
 import { getAdminUserAddresses } from '@/lib/services/addresses.service';
 import { getAdminProducts } from '@/lib/services/products.service';
 import { getPriceLists, calculatePrice } from '@/lib/services/price-lists.service';
 import { getAdminOrderById, adminUpdateOrder } from '@/lib/services/orders.service';
+import { quoteShipping } from '@/lib/services/shipping.service';
+import { AdminAddressForm } from '@/components/admin/admin-address-form';
 import { formatCurrency } from '@/lib/utils';
 import type { Address } from '@/lib/services/addresses.service';
+import type { OrderShippingAddress, ShippingCostMode } from '@/lib/services/orders.service';
 import type { PriceList } from '@/types';
 
 interface OrderItem {
@@ -53,6 +70,54 @@ interface ProductSearchResult {
   availableStock: number;
 }
 
+/** Datos de envío del pedido al cargarlo (snapshot + carrier) */
+interface OrderShipping {
+  address: OrderShippingAddress | null;
+  carrierId: string | null;
+  carrierName: string | null;
+  carrierIsExternal: boolean;
+  cost: number;
+}
+
+/** null = form cerrado, 'new' = alta, Address = edición */
+type AddressFormTarget = null | 'new' | Address;
+
+type ShippingQuoteState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ok'; cost: number }
+  | { status: 'unavailable'; message: string };
+
+const ADDRESS_FIELDS = [
+  'street',
+  'streetNumber',
+  'floor',
+  'apartment',
+  'city',
+  'province',
+  'postcode'
+] as const;
+
+/** Misma dirección que el snapshot del pedido (mismo id y mismos datos) */
+function isOrderAddress(address: Address, orderAddress: OrderShippingAddress | null): boolean {
+  if (!orderAddress || address.id !== orderAddress.id) return false;
+  return ADDRESS_FIELDS.every((field) => (address[field] ?? '') === (orderAddress[field] ?? ''));
+}
+
+function formatAddressLine(a: {
+  street: string;
+  streetNumber: string;
+  floor?: string | null;
+  apartment?: string | null;
+  city: string;
+  province: string;
+  postcode: string;
+}): string {
+  return `${a.street} ${a.streetNumber}${a.floor ? `, Piso ${a.floor}` : ''}${
+    a.apartment ? ` ${a.apartment}` : ''
+  }, ${a.city}, ${a.province} (${a.postcode})`;
+}
+
 export default function EditarPedidoPage({
   params: paramsPromise
 }: {
@@ -67,11 +132,24 @@ export default function EditarPedidoPage({
   // Page state
   const [isLoadingOrder, setIsLoadingOrder] = useState(true);
   const [orderNumber, setOrderNumber] = useState('');
+  const [orderUserId, setOrderUserId] = useState('');
+  const [orderShipping, setOrderShipping] = useState<OrderShipping>({
+    address: null,
+    carrierId: null,
+    carrierName: null,
+    carrierIsExternal: false,
+    cost: 0
+  });
 
   // Address
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
+  const [addressFormTarget, setAddressFormTarget] = useState<AddressFormTarget>(null);
+
+  // Shipping cost when the address changes
+  const [shippingQuote, setShippingQuote] = useState<ShippingQuoteState>({ status: 'idle' });
+  const [shippingCostMode, setShippingCostMode] = useState<ShippingCostMode | null>(null);
 
   // Products
   const [productSearch, setProductSearch] = useState('');
@@ -112,6 +190,14 @@ export default function EditarPedidoPage({
         }
 
         setOrderNumber(order.orderNumber);
+        setOrderUserId(order.userId);
+        setOrderShipping({
+          address: order.shippingAddress ?? null,
+          carrierId: order.shippingCarrierId ?? null,
+          carrierName: order.carrierName ?? null,
+          carrierIsExternal: order.shippingCarrierIsExternal ?? false,
+          cost: Number(order.shippingCost ?? 0)
+        });
 
         if (priceListsRes.success && priceListsRes.data) {
           setPriceLists(priceListsRes.data.priceLists);
@@ -124,15 +210,19 @@ export default function EditarPedidoPage({
           const active = addrs.filter((a) => a.isActive);
           setAddresses(active);
 
-          // Pre-select address matching the order's shipping fields
-          const match = active.find(
-            (a) =>
-              a.street === order.shippingAddress?.street &&
-              a.streetNumber === order.shippingAddress?.streetNumber &&
-              a.postcode === order.shippingAddress?.postcode
-          );
+          // Pre-select the order's address: by id (shipping_address_id), then by fields
+          const current = order.shippingAddress;
+          const match =
+            active.find((a) => a.id === current?.id) ??
+            active.find(
+              (a) =>
+                a.street === current?.street &&
+                a.streetNumber === current?.streetNumber &&
+                a.postcode === current?.postcode
+            );
           if (match) setSelectedAddressId(match.id);
-          else if (active.length === 1) setSelectedAddressId(active[0].id);
+          // Sin dirección en el pedido y una sola guardada: proponerla
+          else if (!current && active.length === 1) setSelectedAddressId(active[0].id);
         }
 
         // Pre-populate items (availableStock is conservative, backend validates)
@@ -305,8 +395,78 @@ export default function EditarPedidoPage({
 
   const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
+  const addressLocked = orderShipping.carrierIsExternal;
+  const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+  const addressChanged =
+    !addressLocked &&
+    selectedAddress !== undefined &&
+    !isOrderAddress(selectedAddress, orderShipping.address);
+  // El costo depende de la zona (CP): solo se recotiza si cambia el CP de un pedido con carrier
+  const quoteCarrierId =
+    addressChanged &&
+    orderShipping.carrierId &&
+    selectedAddress?.postcode !== orderShipping.address?.postcode
+      ? orderShipping.carrierId
+      : null;
+  const quotePostcode = quoteCarrierId ? selectedAddress?.postcode : undefined;
+
+  useEffect(() => {
+    setShippingCostMode(null);
+    if (!quoteCarrierId || !quotePostcode) {
+      setShippingQuote({ status: 'idle' });
+      return;
+    }
+    let cancelled = false;
+    setShippingQuote({ status: 'loading' });
+    const timer = setTimeout(() => {
+      quoteShipping({ postalCode: quotePostcode, cartTotal: subtotal })
+        .then((res) => {
+          if (cancelled) return;
+          const quote = res.data?.find((q) => q.carrierId === quoteCarrierId);
+          setShippingQuote(
+            quote
+              ? { status: 'ok', cost: quote.price }
+              : {
+                  status: 'unavailable',
+                  message: 'El transportista del pedido no tiene tarifa para la nueva dirección.'
+                }
+          );
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          setShippingQuote({
+            status: 'unavailable',
+            message: error instanceof Error ? error.message : 'No se pudo cotizar el envío.'
+          });
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [quoteCarrierId, quotePostcode, subtotal]);
+
+  const quotedCost = shippingQuote.status === 'ok' ? shippingQuote.cost : null;
+  const costDiffers = quotedCost !== null && quotedCost !== orderShipping.cost;
+  // El admin elige explícitamente si se mantiene el costo o el cliente paga la diferencia
+  const needsCostChoice = costDiffers && shippingCostMode === null;
+  const effectiveShippingCost =
+    costDiffers && shippingCostMode === 'recalculate' && quotedCost !== null
+      ? quotedCost
+      : orderShipping.cost;
+
+  const handleAddressSaved = (saved: Address) => {
+    setAddresses((prev) =>
+      prev.some((a) => a.id === saved.id)
+        ? prev.map((a) => (a.id === saved.id ? saved : a))
+        : [...prev, saved]
+    );
+    setSelectedAddressId(saved.id);
+    setAddressFormTarget(null);
+  };
+
   const handleSubmit = useCallback(async () => {
-    if (!selectedAddressId) {
+    if (!selectedAddressId && !orderShipping.address) {
       toast.error('Seleccioná una dirección de entrega');
       return;
     }
@@ -318,7 +478,10 @@ export default function EditarPedidoPage({
     setIsSubmitting(true);
     try {
       await adminUpdateOrder(id, {
-        shippingAddressId: selectedAddressId,
+        // Sin cambios se conserva el snapshot del pedido
+        shippingAddressId: addressChanged ? selectedAddressId : undefined,
+        shippingCostMode:
+          costDiffers && shippingCostMode === 'recalculate' ? 'recalculate' : 'keep',
         items: items.map((i) => ({
           productId: i.productId,
           priceListId: i.priceListId,
@@ -332,9 +495,16 @@ export default function EditarPedidoPage({
     } finally {
       setIsSubmitting(false);
     }
-  }, [id, selectedAddressId, items, router]);
-
-  const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+  }, [
+    id,
+    selectedAddressId,
+    orderShipping.address,
+    addressChanged,
+    costDiffers,
+    shippingCostMode,
+    items,
+    router
+  ]);
 
   if (authLoading || !user) return null;
 
@@ -368,7 +538,7 @@ export default function EditarPedidoPage({
         </div>
       </div>
 
-      {/* Address selector */}
+      {/* Address */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -376,44 +546,194 @@ export default function EditarPedidoPage({
             Dirección de entrega
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {isLoadingAddresses ? (
+        <CardContent className="space-y-3">
+          {addressLocked ? (
+            <div className="space-y-2">
+              <p className="text-sm">
+                {orderShipping.address
+                  ? formatAddressLine(orderShipping.address)
+                  : 'Sin información de dirección'}
+              </p>
+              <Alert>
+                <Lock className="h-4 w-4" />
+                <AlertDescription>
+                  El envío lo gestiona {orderShipping.carrierName ?? 'un proveedor externo'}: la
+                  dirección de entrega no se puede modificar.
+                </AlertDescription>
+              </Alert>
+            </div>
+          ) : isLoadingAddresses ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Cargando direcciones...
             </div>
-          ) : addresses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Este usuario no tiene direcciones registradas.
-            </p>
           ) : (
-            <div className="space-y-2">
-              <Select value={selectedAddressId} onValueChange={setSelectedAddressId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccioná una dirección" />
-                </SelectTrigger>
-                <SelectContent>
-                  {addresses.map((addr) => (
-                    <SelectItem key={addr.id} value={addr.id}>
-                      {addr.street} {addr.streetNumber}
-                      {addr.floor ? `, Piso ${addr.floor}` : ''}
-                      {addr.apartment ? ` ${addr.apartment}` : ''} — {addr.city} ({addr.postcode})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedAddress && (
-                <p className="text-xs text-muted-foreground">
-                  {selectedAddress.street} {selectedAddress.streetNumber}
-                  {selectedAddress.floor ? `, Piso ${selectedAddress.floor}` : ''}
-                  {selectedAddress.apartment ? ` ${selectedAddress.apartment}` : ''},{' '}
-                  {selectedAddress.city}, {selectedAddress.province} ({selectedAddress.postcode})
+            <>
+              {addresses.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {orderShipping.address
+                    ? `${formatAddressLine(orderShipping.address)}. El cliente no tiene direcciones guardadas: agregá una para cambiarla.`
+                    : 'Este usuario no tiene direcciones registradas. Agregá una para el pedido.'}
                 </p>
+              ) : (
+                <div className="space-y-2">
+                  <Select
+                    value={selectedAddressId}
+                    onValueChange={setSelectedAddressId}
+                    disabled={addressFormTarget !== null}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccioná una dirección" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {addresses.map((addr) => (
+                        <SelectItem key={addr.id} value={addr.id}>
+                          {addr.street} {addr.streetNumber}
+                          {addr.floor ? `, Piso ${addr.floor}` : ''}
+                          {addr.apartment ? ` ${addr.apartment}` : ''} — {addr.city} (
+                          {addr.postcode}){addr.isDeliverable === false ? ' · sin cobertura' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedAddress && (
+                    <p className="text-xs text-muted-foreground">
+                      {formatAddressLine(selectedAddress)}
+                    </p>
+                  )}
+                  {!selectedAddress && orderShipping.address && (
+                    <p className="text-xs text-muted-foreground">
+                      Actual: {formatAddressLine(orderShipping.address)}
+                    </p>
+                  )}
+                </div>
               )}
-            </div>
+
+              {selectedAddress?.isDeliverable === false && (
+                <Alert variant="warning">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Ninguna zona de envío cubre el código postal {selectedAddress.postcode}. Podés
+                    guardar el pedido igual si la entrega la coordinás por tu cuenta.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {addressFormTarget ? (
+                <AdminAddressForm
+                  key={addressFormTarget === 'new' ? 'new' : addressFormTarget.id}
+                  userId={orderUserId}
+                  address={addressFormTarget === 'new' ? undefined : addressFormTarget}
+                  isFirst={addresses.length === 0}
+                  onSaved={handleAddressSaved}
+                  onCancel={() => setAddressFormTarget(null)}
+                />
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setAddressFormTarget('new')}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Nueva dirección
+                  </Button>
+                  {selectedAddress && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAddressFormTarget(selectedAddress)}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1" />
+                      Editar dirección
+                    </Button>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Shipping cost when the address changes */}
+      {quoteCarrierId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Truck className="h-4 w-4" />
+              Costo de envío
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {shippingQuote.status === 'loading' && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cotizando {orderShipping.carrierName ?? 'envío'} para la nueva dirección...
+              </div>
+            )}
+            {shippingQuote.status === 'unavailable' && (
+              <Alert variant="warning">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>No se puede cotizar el envío</AlertTitle>
+                <AlertDescription>
+                  {shippingQuote.message} Se mantiene el costo actual de{' '}
+                  {formatCurrency(orderShipping.cost)}.
+                </AlertDescription>
+              </Alert>
+            )}
+            {shippingQuote.status === 'ok' && !costDiffers && (
+              <p className="text-muted-foreground">
+                El costo de envío con {orderShipping.carrierName ?? 'el transportista'} no cambia (
+                {formatCurrency(orderShipping.cost)}).
+              </p>
+            )}
+            {shippingQuote.status === 'ok' && costDiffers && (
+              <>
+                <Alert variant="warning">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>El costo de envío cambia con la nueva dirección</AlertTitle>
+                  <AlertDescription>
+                    Costo actual {formatCurrency(orderShipping.cost)} · Nuevo costo{' '}
+                    {formatCurrency(shippingQuote.cost)} · Diferencia{' '}
+                    {shippingQuote.cost > orderShipping.cost ? '+' : '−'}
+                    {formatCurrency(Math.abs(shippingQuote.cost - orderShipping.cost))}
+                  </AlertDescription>
+                </Alert>
+                <RadioGroup
+                  value={shippingCostMode ?? ''}
+                  onValueChange={(value) => setShippingCostMode(value as ShippingCostMode)}
+                  className="gap-3"
+                >
+                  <div className="flex items-start gap-2">
+                    <RadioGroupItem value="keep" id="shipping-cost-keep" className="mt-0.5" />
+                    <Label htmlFor="shipping-cost-keep" className="font-normal cursor-pointer">
+                      Mantener el costo actual ({formatCurrency(orderShipping.cost)})
+                    </Label>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <RadioGroupItem
+                      value="recalculate"
+                      id="shipping-cost-recalculate"
+                      className="mt-0.5"
+                    />
+                    <Label
+                      htmlFor="shipping-cost-recalculate"
+                      className="font-normal cursor-pointer"
+                    >
+                      Aplicar el nuevo costo ({formatCurrency(shippingQuote.cost)}):{' '}
+                      {shippingQuote.cost > orderShipping.cost
+                        ? 'el cliente paga la diferencia'
+                        : 'la diferencia queda a favor del cliente'}
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Products */}
       <Card>
@@ -607,9 +927,21 @@ export default function EditarPedidoPage({
                   </TableBody>
                 </Table>
               </div>
-              <div className="flex justify-end text-sm">
-                <span className="text-muted-foreground mr-4">Total:</span>
-                <span className="font-bold text-base">{formatCurrency(subtotal)}</span>
+              <div className="ml-auto max-w-xs space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>{formatCurrency(subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Envío:</span>
+                  <span>{formatCurrency(effectiveShippingCost)}</span>
+                </div>
+                <div className="flex justify-between border-t pt-1">
+                  <span className="text-muted-foreground">Total:</span>
+                  <span className="font-bold text-base">
+                    {formatCurrency(subtotal + effectiveShippingCost)}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -618,7 +950,12 @@ export default function EditarPedidoPage({
 
       {/* Actions */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-3">
+          {needsCostChoice && (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Elegí qué hacer con el costo de envío para guardar.
+            </p>
+          )}
           <div className="flex gap-3">
             <Button
               variant="outline"
@@ -631,7 +968,14 @@ export default function EditarPedidoPage({
             <Button
               className="flex-1"
               onClick={handleSubmit}
-              disabled={isSubmitting || items.length === 0 || !selectedAddressId}
+              disabled={
+                isSubmitting ||
+                items.length === 0 ||
+                (!selectedAddressId && !orderShipping.address) ||
+                addressFormTarget !== null ||
+                shippingQuote.status === 'loading' ||
+                needsCostChoice
+              }
             >
               {isSubmitting ? (
                 <>

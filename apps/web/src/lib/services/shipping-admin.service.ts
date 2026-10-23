@@ -24,6 +24,8 @@ export interface AdminCarrier {
   code: string;
   logoUrl: string | null;
   isActive: boolean;
+  /** Envío gestionado por un proveedor externo integrado: la dirección del pedido queda fija */
+  isExternal: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -105,6 +107,7 @@ export interface CarrierBody {
   code: string;
   logo_url?: string;
   is_active?: boolean;
+  is_external?: boolean;
 }
 
 export async function createCarrier(data: CarrierBody) {

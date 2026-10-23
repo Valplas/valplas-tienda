@@ -5,6 +5,7 @@ import { hashPassword } from '../auth/auth.service.js';
 import { ROLE_HIERARCHY } from './user.types.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import { normalizePhone } from '../../shared/utils/phone.js';
+import { withDeliverability } from '../shipping/shipping-coverage.js';
 import type {
   User,
   UserWithStats,
@@ -12,6 +13,7 @@ import type {
   UpdateUserInput,
   UpdateUserPasswordInput,
   UserFilters,
+  UserWithAddresses,
   UserRole,
   UserStats
 } from './user.types.js';
@@ -57,7 +59,17 @@ function contactConflict(
  * Get all users (admin/owner only)
  */
 export async function getAllUsers(filters: UserFilters) {
-  return userRepository.findUsers(filters);
+  const result = await userRepository.findUsers(filters);
+  if (!filters.includeAddresses) return result;
+
+  // Cobertura de envío de las direcciones embebidas: una sola query de zonas para toda la página
+  const users = result.users as UserWithAddresses[];
+  const annotated = await withDeliverability(users.flatMap((u) => u.addresses));
+  let index = 0;
+  return {
+    ...result,
+    users: users.map((u) => ({ ...u, addresses: u.addresses.map(() => annotated[index++]) }))
+  };
 }
 
 /**

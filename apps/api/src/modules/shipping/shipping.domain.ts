@@ -1,6 +1,8 @@
 // apps/api/src/modules/shipping/shipping.domain.ts
 
 import * as shippingRepository from './shipping.repository.js';
+import { findZonesCoveringPostcode, noCoverageError } from './shipping-coverage.js';
+import { rateShippingPrice } from './shipping-cost.js';
 import type {
   ShippingZone,
   ShippingCarrier,
@@ -171,9 +173,9 @@ export async function getShippingQuote(request: ShippingQuoteRequest): Promise<S
   const { postcode, cart_total } = request;
 
   // Todas las zonas activas que sirven este CP (no depender de "la primera")
-  const zones = await shippingRepository.findZonesByPostcode(postcode);
+  const zones = await findZonesCoveringPostcode(postcode);
   if (zones.length === 0) {
-    throw new Error('No hay envíos disponibles para este código postal');
+    throw await noCoverageError(postcode);
   }
   const zoneNameById = new Map(zones.map((z) => [z.id, z.name]));
 
@@ -192,9 +194,7 @@ export async function getShippingQuote(request: ShippingQuoteRequest): Promise<S
     const carrier = await shippingRepository.findCarrierById(rate.carrier_id);
     if (!carrier || !carrier.is_active) continue;
 
-    // max_amount = umbral de envío gratis: si el carrito lo alcanza, precio 0
-    const isFreeShipping = rate.max_amount != null && cart_total >= rate.max_amount;
-    const price = isFreeShipping ? 0 : rate.price;
+    const price = rateShippingPrice(rate, cart_total);
 
     quotes.push({
       carrier_id: carrier.id,

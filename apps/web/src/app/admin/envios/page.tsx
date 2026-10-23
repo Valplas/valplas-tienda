@@ -149,7 +149,8 @@ export default function EnviosPage() {
         name: data.name,
         code: data.code,
         logo_url: data.logoUrl || undefined,
-        is_active: data.isActive
+        is_active: data.isActive,
+        is_external: data.isExternal
       };
       if (selectedCarrier) {
         await updateCarrier(selectedCarrier.id, body);
@@ -364,7 +365,10 @@ export default function EnviosPage() {
             carriers.map((c) => (
               <div key={c.id} className="border rounded-md flex items-center gap-4 p-4">
                 <div className="flex-1">
-                  <h3 className="font-medium">{c.name}</h3>
+                  <h3 className="flex items-center gap-2 font-medium">
+                    {c.name}
+                    {c.isExternal && <Badge variant="outline">Externo</Badge>}
+                  </h3>
                   <p className="text-sm text-muted-foreground">{c.code}</p>
                 </div>
                 <Badge variant={c.isActive ? 'default' : 'secondary'}>

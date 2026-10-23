@@ -28,7 +28,8 @@ export const carrierSchema = z.object({
     .min(2, 'Mínimo 2 caracteres')
     .regex(/^[a-z0-9_-]+$/, 'Solo minúsculas, números, guiones y guiones bajos'),
   logoUrl: z.union([z.string().url('URL inválida'), z.literal('')]).optional(),
-  isActive: z.boolean()
+  isActive: z.boolean(),
+  isExternal: z.boolean()
 });
 
 export const rateSchema = z

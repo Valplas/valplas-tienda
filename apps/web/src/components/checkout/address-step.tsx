@@ -3,6 +3,8 @@
  * Step 1: Selección / alta / edición de la dirección de envío.
  * Persiste contra la API (createAddress / updateAddress) y entrega al
  * siguiente paso una Address con id real (UUID), requerido por la orden.
+ * Una dirección sin cobertura de envío se guarda igual en la cuenta, pero no
+ * se puede continuar con ella: se avisa que no hacemos entregas a esa zona.
  */
 
 'use client';
@@ -10,7 +12,7 @@
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Pencil, Plus } from 'lucide-react';
+import { AlertTriangle, Loader2, Pencil, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { addressSchema, AddressFormData, ARGENTINA_PROVINCES } from '@/lib/validations/checkout';
 import {
@@ -24,6 +26,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -65,7 +69,7 @@ export function AddressStep({
   const [mode, setMode] = useState<Mode>(savedAddresses.length === 0 ? 'form' : 'list');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    savedAddresses.length > 0 ? savedAddresses[0].id : null
+    (savedAddresses.find((a) => a.isDeliverable !== false) ?? savedAddresses[0])?.id ?? null
   );
   const [saving, setSaving] = useState(false);
 
@@ -115,6 +119,16 @@ export function AddressStep({
       const input = formToInput(data);
       const saved = editingId ? await updateAddress(editingId, input) : await createAddress(input);
       onAddressSaved?.(saved);
+      if (saved.isDeliverable === false) {
+        // Queda guardada en la cuenta, pero no se puede seguir con el envío
+        toast.warning(editingId ? 'Dirección actualizada' : 'Dirección guardada', {
+          description: `Por el momento no realizamos entregas al código postal ${saved.postcode}.`
+        });
+        setSelectedAddressId(saved.id);
+        setEditingId(null);
+        setMode('list');
+        return;
+      }
       toast.success(editingId ? 'Dirección actualizada' : 'Dirección guardada');
       onNext(saved);
     } catch (error) {
@@ -124,10 +138,12 @@ export function AddressStep({
     }
   };
 
+  const selectedAddress = savedAddresses.find((addr) => addr.id === selectedAddressId);
+  const selectedNotDeliverable = selectedAddress?.isDeliverable === false;
+
   const handleContinueWithSaved = () => {
-    const selected = savedAddresses.find((addr) => addr.id === selectedAddressId);
-    if (selected) {
-      onNext(selected);
+    if (selectedAddress && !selectedNotDeliverable) {
+      onNext(selectedAddress);
     }
   };
 
@@ -157,7 +173,12 @@ export function AddressStep({
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="font-medium">{address.alias}</div>
+                          <div className="flex flex-wrap items-center gap-2 font-medium">
+                            {address.alias}
+                            {address.isDeliverable === false && (
+                              <Badge variant="warning">Sin envíos a esta zona</Badge>
+                            )}
+                          </div>
                           <div className="text-sm text-muted-foreground mt-1">
                             {address.street} {address.streetNumber}
                             {address.floor && `, Piso ${address.floor}`}
@@ -186,6 +207,18 @@ export function AddressStep({
               </div>
             ))}
           </RadioGroup>
+
+          {selectedNotDeliverable && selectedAddress && (
+            <Alert variant="warning">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>No realizamos entregas a esta dirección</AlertTitle>
+              <AlertDescription>
+                Por el momento no hacemos envíos al código postal {selectedAddress.postcode}. La
+                dirección quedó guardada en tu cuenta: elegí otra o contactanos para coordinar la
+                entrega.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <Button type="button" variant="outline" onClick={openNewForm} className="w-full">
             <Plus className="h-4 w-4 mr-2" />
@@ -319,7 +352,7 @@ export function AddressStep({
           <Button
             type="button"
             onClick={handleContinueWithSaved}
-            disabled={!selectedAddressId}
+            disabled={!selectedAddress || selectedNotDeliverable}
             className="ml-auto"
           >
             Continuar

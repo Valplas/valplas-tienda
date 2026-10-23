@@ -25,6 +25,7 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -35,7 +36,8 @@ import {
   User,
   MapPin,
   Package,
-  Pencil
+  Pencil,
+  AlertTriangle
 } from 'lucide-react';
 import { getAdminUsers } from '@/lib/services/users.service';
 import { getAdminProducts } from '@/lib/services/products.service';
@@ -462,6 +464,7 @@ export default function NuevoPedidoPage() {
                         {addr.street} {addr.streetNumber}
                         {addr.floor ? `, Piso ${addr.floor}` : ''}
                         {addr.apartment ? ` ${addr.apartment}` : ''} — {addr.city} ({addr.postcode})
+                        {addr.isDeliverable === false ? ' · sin cobertura' : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -473,6 +476,15 @@ export default function NuevoPedidoPage() {
                     {selectedAddress.apartment ? ` ${selectedAddress.apartment}` : ''},{' '}
                     {selectedAddress.city}, {selectedAddress.province} ({selectedAddress.postcode})
                   </p>
+                )}
+                {selectedAddress?.isDeliverable === false && (
+                  <Alert variant="warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Ninguna zona de envío cubre el código postal {selectedAddress.postcode}. Podés
+                      crear el pedido igual si la entrega la coordinás por tu cuenta.
+                    </AlertDescription>
+                  </Alert>
                 )}
               </div>
             )}
