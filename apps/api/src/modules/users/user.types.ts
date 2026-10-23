@@ -36,6 +36,8 @@ export interface EmbeddedAddress {
   postcode: string;
   is_default: boolean;
   is_active: boolean;
+  /** Alguna zona activa cubre el CP (lo agrega el domain) */
+  is_deliverable?: boolean;
 }
 
 export interface UserWithAddresses extends User {

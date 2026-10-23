@@ -22,6 +22,9 @@ export interface UserAddress {
   deleted_at: Date | null;
 }
 
+/** Dirección con cobertura de envío calculada (alguna zona activa cubre su CP). */
+export type UserAddressWithDelivery = UserAddress & { is_deliverable: boolean };
+
 export interface CreateAddressInput {
   alias: string;
   street: string;

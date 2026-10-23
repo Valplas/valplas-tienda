@@ -275,6 +275,43 @@ router.post(
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [items]
+ *             properties:
+ *               shipping_address_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Nueva dirección del cliente. Si se omite se conserva la actual. No se valida cobertura de zona.
+ *               shipping_cost_mode:
+ *                 type: string
+ *                 enum: [keep, recalculate]
+ *                 default: keep
+ *                 description: keep mantiene el costo de envío cobrado; recalculate cotiza el carrier del pedido para la nueva dirección
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     product_id: { type: string, format: uuid }
+ *                     price_list_id: { type: string, format: uuid }
+ *                     quantity: { type: integer, minimum: 0 }
+ *     responses:
+ *       200:
+ *         description: Pedido actualizado (total = subtotal + costo de envío)
+ *       400:
+ *         description: ORDER_NOT_EDITABLE, INVALID_SHIPPING_ADDRESS, SHIPPING_ADDRESS_LOCKED (carrier externo), SHIPPING_COST_NOT_RECALCULABLE, SHIPPING_RATE_NOT_FOUND
  */
 router.patch(
   '/admin/:id',

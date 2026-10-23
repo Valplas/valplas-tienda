@@ -1,57 +1,42 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, MapPin, Star, Trash2, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
+import {
+  Plus,
+  MapPin,
+  Star,
+  Trash2,
+  Loader2,
+  AlertTriangle,
+  ExternalLink,
+  Pencil
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { ApiError } from '@/lib/api';
 import { getShippingZonesAdmin } from '@/lib/services/shipping-admin.service';
 import {
   type Address,
-  type CreateAddressInput,
   getAdminUserAddresses,
-  adminCreateUserAddress,
   deleteAddress
 } from '@/lib/services/addresses.service';
-
-const SHIPPING_ADMIN_PATH = '/admin/envios';
-
-function openShippingAdmin() {
-  window.open(SHIPPING_ADMIN_PATH, '_blank', 'noopener');
-}
+import { AdminAddressForm, openShippingAdmin } from '@/components/admin/admin-address-form';
 
 interface UserAddressesSectionProps {
   userId: string;
   userName: string;
 }
 
-const EMPTY_FORM: CreateAddressInput = {
-  alias: '',
-  street: '',
-  streetNumber: '',
-  floor: '',
-  apartment: '',
-  city: '',
-  province: '',
-  postcode: '',
-  notes: '',
-  isDefault: false
-};
+/** null = form cerrado, 'new' = alta, Address = edición */
+type FormTarget = null | 'new' | Address;
 
 export function UserAddressesSection({ userId, userName }: UserAddressesSectionProps) {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [form, setForm] = useState<CreateAddressInput>(EMPTY_FORM);
-  const [errors, setErrors] = useState<Partial<Record<keyof CreateAddressInput, string>>>({});
-  // null = todavía no se chequeó. Sin zonas activas el backend rechaza toda dirección.
+  const [formTarget, setFormTarget] = useState<FormTarget>(null);
+  // null = todavía no se chequeó. Sin zonas activas la dirección se guarda pero no hay envíos web.
   const [zonesMissing, setZonesMissing] = useState<boolean | null>(null);
 
   const loadAddresses = useCallback(async () => {
@@ -70,68 +55,19 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
     loadAddresses();
   }, [loadAddresses]);
 
-  const openForm = async () => {
-    setShowForm(true);
+  const openForm = async (target: 'new' | Address) => {
+    setFormTarget(target);
     try {
       const { total } = await getShippingZonesAdmin({ isActive: true, limit: 1 });
       setZonesMissing(total === 0);
     } catch {
-      // Si falla el chequeo, el backend igual valida al guardar
+      // Solo informativo: la dirección se guarda igual
     }
   };
 
-  const validate = (): boolean => {
-    const newErrors: Partial<Record<keyof CreateAddressInput, string>> = {};
-    if (!form.alias.trim()) newErrors.alias = 'Requerido';
-    if (!form.street.trim()) newErrors.street = 'Requerido';
-    if (!form.streetNumber.trim()) newErrors.streetNumber = 'Requerido';
-    if (!form.city.trim()) newErrors.city = 'Requerido';
-    if (!form.province.trim()) newErrors.province = 'Requerido';
-    if (!form.postcode.trim()) newErrors.postcode = 'Requerido';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-
-    setIsSaving(true);
-    try {
-      await adminCreateUserAddress(userId, {
-        ...form,
-        floor: form.floor || undefined,
-        apartment: form.apartment || undefined,
-        notes: form.notes || undefined,
-        isDefault: addresses.length === 0 ? true : form.isDefault
-      });
-      toast.success('Dirección agregada');
-      setForm(EMPTY_FORM);
-      setErrors({});
-      setShowForm(false);
-      setZonesMissing(false);
-      await loadAddresses();
-    } catch (err) {
-      const code = err instanceof ApiError ? err.code : undefined;
-      if (code === 'NO_SHIPPING_ZONES') {
-        setZonesMissing(true);
-        toast.error('No hay zonas de envío activas', {
-          description: 'Configurá al menos una zona en Envíos y volvé a guardar.',
-          action: { label: 'Configurar envíos', onClick: openShippingAdmin }
-        });
-      } else if (code === 'POSTCODE_NOT_COVERED') {
-        const message = (err as ApiError).message;
-        setErrors((prev) => ({ ...prev, postcode: message }));
-        toast.error(message, {
-          description: 'Ninguna zona activa cubre ese código postal (o lo excluye).',
-          action: { label: 'Ver zonas', onClick: openShippingAdmin }
-        });
-      } else {
-        toast.error(err instanceof Error ? err.message : 'Error al guardar dirección');
-      }
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSaved = async () => {
+    setFormTarget(null);
+    await loadAddresses();
   };
 
   const handleDelete = async (id: string) => {
@@ -143,12 +79,6 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
       toast.error(err instanceof Error ? err.message : 'Error al eliminar dirección');
     }
   };
-
-  const field = (key: keyof CreateAddressInput) => ({
-    value: form[key] as string,
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm((prev) => ({ ...prev, [key]: e.target.value }))
-  });
 
   return (
     <div className="space-y-4">
@@ -163,8 +93,8 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
             </Badge>
           )}
         </div>
-        {!showForm && (
-          <Button type="button" size="sm" variant="outline" onClick={openForm}>
+        {!formTarget && (
+          <Button type="button" size="sm" variant="outline" onClick={() => openForm('new')}>
             <Plus className="h-3.5 w-3.5 mr-1" />
             Agregar
           </Button>
@@ -176,7 +106,7 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
         <div className="flex justify-center py-4">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         </div>
-      ) : addresses.length === 0 && !showForm ? (
+      ) : addresses.length === 0 && !formTarget ? (
         <p className="text-sm text-muted-foreground text-center py-2">
           Sin direcciones. Agregá una para poder crear pedidos.
         </p>
@@ -188,9 +118,10 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
               className="flex items-start justify-between p-3 rounded-lg border bg-muted/30 text-sm"
             >
               <div className="space-y-0.5">
-                <div className="flex items-center gap-2 font-medium">
+                <div className="flex flex-wrap items-center gap-2 font-medium">
                   {addr.alias}
                   {addr.isDefault && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
+                  {addr.isDeliverable === false && <Badge variant="warning">Sin cobertura</Badge>}
                 </div>
                 <div className="text-muted-foreground">
                   {addr.street} {addr.streetNumber}
@@ -202,34 +133,45 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
                 </div>
                 {addr.notes && <div className="text-muted-foreground italic">{addr.notes}</div>}
               </div>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
-                aria-label={`Eliminar ${addr.alias}`}
-                onClick={() => handleDelete(addr.id)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              <div className="flex shrink-0 gap-1">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  aria-label={`Editar ${addr.alias}`}
+                  disabled={formTarget !== null}
+                  onClick={() => openForm(addr)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                  aria-label={`Eliminar ${addr.alias}`}
+                  onClick={() => handleDelete(addr.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Add address form */}
-      {showForm && (
-        <form onSubmit={handleSubmit} className="space-y-3 p-4 border rounded-lg bg-muted/20">
-          <p className="text-sm font-medium">Nueva dirección</p>
-
+      {/* Add / edit address form */}
+      {formTarget && (
+        <div className="space-y-3">
           {zonesMissing && (
-            <Alert variant="destructive">
+            <Alert variant="warning">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>No hay zonas de envío configuradas</AlertTitle>
               <AlertDescription className="space-y-2">
                 <p>
-                  Sin al menos una zona de envío activa no se pueden cargar direcciones. Configurala
-                  y después guardá esta dirección.
+                  La dirección se guarda igual, pero hasta que configures una zona activa no se
+                  pueden hacer envíos web a ningún código postal.
                 </p>
                 <Button type="button" size="sm" variant="outline" onClick={openShippingAdmin}>
                   Configurar envíos
@@ -238,141 +180,15 @@ export function UserAddressesSection({ userId, userName }: UserAddressesSectionP
               </AlertDescription>
             </Alert>
           )}
-
-          <div className="space-y-1">
-            <Label htmlFor="addr-alias" className="text-xs">
-              Alias *
-            </Label>
-            <Input
-              id="addr-alias"
-              placeholder="Casa, Oficina..."
-              className="h-8 text-sm"
-              {...field('alias')}
-            />
-            {errors.alias && <p className="text-xs text-red-500">{errors.alias}</p>}
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2 space-y-1">
-              <Label htmlFor="addr-street" className="text-xs">
-                Calle *
-              </Label>
-              <Input
-                id="addr-street"
-                placeholder="Av. Corrientes"
-                className="h-8 text-sm"
-                {...field('street')}
-              />
-              {errors.street && <p className="text-xs text-red-500">{errors.street}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="addr-number" className="text-xs">
-                Número *
-              </Label>
-              <Input
-                id="addr-number"
-                placeholder="1234"
-                className="h-8 text-sm"
-                {...field('streetNumber')}
-              />
-              {errors.streetNumber && <p className="text-xs text-red-500">{errors.streetNumber}</p>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <Label htmlFor="addr-floor" className="text-xs">
-                Piso
-              </Label>
-              <Input id="addr-floor" placeholder="3" className="h-8 text-sm" {...field('floor')} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="addr-apt" className="text-xs">
-                Depto
-              </Label>
-              <Input
-                id="addr-apt"
-                placeholder="B"
-                className="h-8 text-sm"
-                {...field('apartment')}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="addr-city" className="text-xs">
-              Ciudad *
-            </Label>
-            <Input
-              id="addr-city"
-              placeholder="Buenos Aires"
-              className="h-8 text-sm"
-              {...field('city')}
-            />
-            {errors.city && <p className="text-xs text-red-500">{errors.city}</p>}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <Label htmlFor="addr-province" className="text-xs">
-                Provincia *
-              </Label>
-              <Input
-                id="addr-province"
-                placeholder="Buenos Aires"
-                className="h-8 text-sm"
-                {...field('province')}
-              />
-              {errors.province && <p className="text-xs text-red-500">{errors.province}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="addr-postcode" className="text-xs">
-                Código postal *
-              </Label>
-              <Input
-                id="addr-postcode"
-                placeholder="1043"
-                className="h-8 text-sm"
-                {...field('postcode')}
-              />
-              {errors.postcode && <p className="text-xs text-red-500">{errors.postcode}</p>}
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="addr-notes" className="text-xs">
-              Notas
-            </Label>
-            <Textarea
-              id="addr-notes"
-              placeholder="Entre calles, color del negocio, horario de atención..."
-              className="text-sm resize-none"
-              rows={2}
-              value={form.notes ?? ''}
-              onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-            />
-          </div>
-
-          <div className="flex gap-2 pt-1">
-            <Button type="submit" size="sm" disabled={isSaving} className="flex-1">
-              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-              Guardar dirección
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setShowForm(false);
-                setErrors({});
-                setForm(EMPTY_FORM);
-              }}
-              disabled={isSaving}
-            >
-              Cancelar
-            </Button>
-          </div>
-        </form>
+          <AdminAddressForm
+            key={formTarget === 'new' ? 'new' : formTarget.id}
+            userId={userId}
+            address={formTarget === 'new' ? undefined : formTarget}
+            isFirst={addresses.length === 0}
+            onSaved={handleSaved}
+            onCancel={() => setFormTarget(null)}
+          />
+        </div>
       )}
     </div>
   );

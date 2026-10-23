@@ -32,6 +32,8 @@ export interface AdminUserWithAddresses extends AdminUser {
     postcode: string;
     isDefault: boolean;
     isActive: boolean;
+    /** Alguna zona de envío activa cubre el CP */
+    isDeliverable?: boolean;
   }[];
 }
 

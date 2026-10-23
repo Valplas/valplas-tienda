@@ -20,6 +20,8 @@ export interface Address {
   notes: string | null;
   isDefault: boolean;
   isActive: boolean;
+  /** Alguna zona de envío activa cubre el CP. La dirección se guarda igual si es false. */
+  isDeliverable?: boolean;
   createdAt: string;
   updatedAt: string;
 }

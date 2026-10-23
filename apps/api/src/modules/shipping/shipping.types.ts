@@ -17,6 +17,8 @@ export interface ShippingCarrier {
   code: string;
   logo_url: string | null;
   is_active: boolean;
+  /** Envío gestionado por un proveedor externo integrado: la dirección del pedido queda fija */
+  is_external: boolean;
   config: Record<string, unknown> | null;
   created_at: Date;
   updated_at: Date;
@@ -71,6 +73,7 @@ export interface CreateShippingCarrierInput {
   code: string;
   logo_url?: string;
   is_active?: boolean;
+  is_external?: boolean;
   config?: Record<string, unknown>;
 }
 
@@ -79,6 +82,7 @@ export interface UpdateShippingCarrierInput {
   code?: string;
   logo_url?: string;
   is_active?: boolean;
+  is_external?: boolean;
   config?: Record<string, unknown>;
 }
 

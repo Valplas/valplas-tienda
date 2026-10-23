@@ -83,7 +83,7 @@ router.get('/me/default', addressController.getDefaultAddress);
  *             type: object
  *     responses:
  *       201:
- *         description: Address created
+ *         description: Address created (is_deliverable = false si ninguna zona activa cubre el CP; se guarda igual)
  */
 router.post('/', validate(createAddressSchema, 'body'), addressController.createAddress);
 
@@ -129,7 +129,7 @@ router.get('/:id', addressController.getAddressById);
  *             type: object
  *     responses:
  *       200:
- *         description: Address updated
+ *         description: Address updated (is_deliverable = false si ninguna zona activa cubre el CP; se guarda igual)
  */
 router.patch('/:id', validate(updateAddressSchema, 'body'), addressController.updateAddress);
 
@@ -207,6 +207,30 @@ router.get(
   addressController.getAllAddresses
 );
 
+/**
+ * @swagger
+ * /api/addresses/admin/user/{userId}:
+ *   post:
+ *     summary: Create address for a user (admin only)
+ *     tags: [Addresses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       201:
+ *         description: Address created (is_deliverable = false si ninguna zona activa cubre el CP; se guarda igual)
+ */
 router.post(
   '/admin/user/:userId',
   requireRole(['admin', 'owner']),
