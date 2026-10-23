@@ -121,7 +121,8 @@ export default function DuplicadosPage() {
         </Link>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Posibles duplicados</h1>
         <p className="text-muted-foreground">
-          Cuentas nuevas que comparten dirección con un cliente migrado del CRM.
+          Cuentas nuevas que comparten dirección con un cliente migrado del CRM o cargado por el
+          admin que nunca entró a la web.
         </p>
       </div>
 
@@ -164,7 +165,7 @@ export default function DuplicadosPage() {
                   </div>
                   <div className="space-y-0.5 text-sm">
                     <p className="text-xs font-medium uppercase text-muted-foreground">
-                      Cliente del CRM
+                      {s.legacyUser.isLegacy ? 'Cliente del CRM' : 'Cargado por el admin'}
                     </p>
                     <p className="font-semibold">{fullName(s.legacyUser)}</p>
                     <p className="break-all">{displayEmail(s.legacyUser.email)}</p>

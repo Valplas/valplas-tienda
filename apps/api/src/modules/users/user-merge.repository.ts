@@ -143,10 +143,12 @@ export async function applyMerge(
   };
 }
 
-// Cuentas nuevas (no legacy) con dirección, cruzadas con legacy nunca usadas en la web por
-// calle + número normalizados. La ciudad se compara solo si ambas son conocidas: las órdenes
-// del CRM tienen la ciudad fija en 'Buenos Aires' (migrate-orders.ts), así que cuentan como
-// desconocida. Alta = además comparten una palabra del nombre de 3+ letras.
+// Cuentas nuevas con dirección, cruzadas por calle + número normalizados con cuentas que el
+// cliente nunca usó en la web: migradas del CRM o cargadas por el admin (legacy_users). Una
+// cargada por el admin que ya inició sesión pasa a ser cuenta nueva. La ciudad se compara solo
+// si ambas son conocidas: las órdenes del CRM tienen la ciudad fija en 'Buenos Aires'
+// (migrate-orders.ts), así que cuentan como desconocida. Alta = además comparten una palabra
+// del nombre de 3+ letras.
 const SUGGESTIONS_SQL = `
   WITH new_addresses AS (
     SELECT a.user_id, a.street, a.street_number, a.city,
@@ -156,11 +158,12 @@ const SUGGESTIONS_SQL = `
     FROM user_addresses a
     JOIN users u ON u.id = a.user_id
     WHERE u.role = 'customer' AND u.is_legacy = false AND u.deleted_at IS NULL
+      AND (u.is_admin_created = false OR u.last_login_at IS NOT NULL)
       AND a.deleted_at IS NULL AND a.is_active = true
   ),
   legacy_users AS (
     SELECT id FROM users
-    WHERE role = 'customer' AND is_legacy = true
+    WHERE role = 'customer' AND (is_legacy = true OR is_admin_created = true)
       AND deleted_at IS NULL AND last_login_at IS NULL
   ),
   legacy_addresses AS (
@@ -203,7 +206,7 @@ const SUGGESTIONS_SQL = `
       ) AS "user",
       json_build_object(
         'id', lu.id, 'first_name', lu.first_name, 'last_name', lu.last_name,
-        'email', lu.email, 'phone', lu.phone,
+        'email', lu.email, 'phone', lu.phone, 'is_legacy', lu.is_legacy,
         'orders_count', (SELECT COUNT(*)::int FROM orders o WHERE o.user_id = lu.id)
       ) AS legacy_user,
       CASE WHEN EXISTS (

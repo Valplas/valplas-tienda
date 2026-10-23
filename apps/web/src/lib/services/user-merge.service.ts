@@ -59,12 +59,14 @@ export interface MergeSuggestion {
     hasGoogle: boolean;
     createdAt: string;
   };
+  /** Cuenta sin uso en la web: migrada del CRM (isLegacy) o cargada por el admin */
   legacyUser: {
     id: string;
     firstName: string;
     lastName: string | null;
     email: string | null;
     phone: string | null;
+    isLegacy: boolean;
     ordersCount: number;
   };
   confidence: 'high' | 'medium';

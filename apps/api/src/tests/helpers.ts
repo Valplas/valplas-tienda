@@ -7,6 +7,7 @@
 
 import { query } from '../infrastructure/database/client.js';
 import * as authService from '../modules/auth/auth.service.js';
+import * as userDomain from '../modules/users/user.domain.js';
 
 let seq = 0;
 
@@ -185,6 +186,30 @@ export async function createLegacyUser(
     ]
   );
   return result.rows[0];
+}
+
+/**
+ * Cliente cargado por el admin desde el backoffice (userDomain.createUser): username con los
+ * dígitos del teléfono, sin email y nunca inició sesión. Email `@vitest.local` para el cleanup.
+ */
+export async function createAdminCustomer(
+  overrides: Partial<{ firstName: string; lastName: string }> = {}
+): Promise<{ id: string }> {
+  const phone = `+54911${Math.floor(Math.random() * 1e8)
+    .toString()
+    .padStart(8, '0')}`;
+  const user = await userDomain.createUser(
+    {
+      email: `admin-created-${uniqueSuffix()}@vitest.local`,
+      password: 'Test1234!',
+      phone,
+      first_name: overrides.firstName ?? 'Admin',
+      last_name: overrides.lastName ?? 'Created',
+      role: 'customer'
+    },
+    'admin'
+  );
+  return { id: user.id };
 }
 
 /** Cuenta creada por Google OAuth: sin password ni username, con google_id. */
