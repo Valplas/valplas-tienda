@@ -242,8 +242,8 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
   const order = await findOrderById(id);
   if (!order) return null;
 
-  // Get items, user, and status history in parallel
-  const [itemsResult, userResult, historyResult] = await Promise.all([
+  // Get items, user, status history and carrier in parallel
+  const [itemsResult, userResult, historyResult, carrierResult] = await Promise.all([
     // Columnas explícitas: cost_price_snapshot y revenue (margen) nunca
     // salen en el detalle — esta query la ven también los clientes.
     query(
@@ -273,7 +273,13 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
        WHERE order_id = $1
        ORDER BY created_at DESC`,
       [id]
-    )
+    ),
+    // Carrier externo: la dirección de entrega del pedido no se puede modificar
+    order.shipping_carrier_id
+      ? query<{ is_external: boolean }>('SELECT is_external FROM shipping_carriers WHERE id = $1', [
+          order.shipping_carrier_id
+        ])
+      : null
   ]);
 
   // Build shipping_address object from denormalized columns
@@ -306,7 +312,8 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
     items: itemsResult.rows as OrderItemWithProduct[],
     status_history: historyResult.rows,
     user: userResult.rows[0] ?? undefined,
-    shipping_address
+    shipping_address,
+    shipping_carrier_is_external: carrierResult?.rows[0]?.is_external ?? false
   };
 }
 
@@ -626,6 +633,16 @@ export async function isOrderOwnedByUser(orderId: string, userId: string): Promi
   return parseInt(result.rows[0].count, 10) > 0;
 }
 
+/** Subtotal de un pedido admin: precio unitario × unidades reales, truncado a centavos. */
+export function calculateAdminOrderSubtotal(
+  items: Pick<EnrichedAdminOrderItem, 'unit_price' | 'real_quantity'>[]
+): number {
+  return (
+    Math.trunc(items.reduce((sum, item) => sum + item.unit_price * item.real_quantity, 0) * 100) /
+    100
+  );
+}
+
 interface UpdateAdminOrderData {
   items: EnrichedAdminOrderItem[];
   shipping_street: string;
@@ -635,7 +652,11 @@ interface UpdateAdminOrderData {
   shipping_city: string;
   shipping_province: string;
   shipping_postcode: string;
-  shipping_address_id: string;
+  shipping_address_id: string | null;
+  /** null = se mantiene el costo de envío actual de la orden */
+  shipping_cost: number | null;
+  /** Detalle para order_status_history */
+  history_note: string;
 }
 
 export async function updateAdminOrder(
@@ -729,25 +750,26 @@ export async function updateAdminOrder(
       );
     }
 
-    // Recalculate totals using real_quantity
-    const subtotal =
-      Math.trunc(
-        data.items.reduce((sum, item) => sum + item.unit_price * item.real_quantity, 0) * 100
-      ) / 100;
+    // Recalculate totals using real_quantity. El total incluye el envío (cobrado o recotizado)
+    const subtotal = calculateAdminOrderSubtotal(data.items);
+    const shippingCost = data.shipping_cost ?? Number(order.shipping_cost);
+    const total = Math.round((subtotal + shippingCost) * 100) / 100;
 
     // Update the order record
     const updatedResult = await client.query<Order>(
       `UPDATE orders
-       SET subtotal = $1, total = $1,
-           shipping_address_id = $2,
-           shipping_street = $3, shipping_street_number = $4,
-           shipping_floor = $5, shipping_apartment = $6,
-           shipping_city = $7, shipping_province = $8, shipping_postcode = $9,
+       SET subtotal = $1, shipping_cost = $2, total = $3,
+           shipping_address_id = $4,
+           shipping_street = $5, shipping_street_number = $6,
+           shipping_floor = $7, shipping_apartment = $8,
+           shipping_city = $9, shipping_province = $10, shipping_postcode = $11,
            updated_at = NOW()
-       WHERE id = $10
+       WHERE id = $12
        RETURNING *`,
       [
         subtotal,
+        shippingCost,
+        total,
         data.shipping_address_id,
         data.shipping_street,
         data.shipping_street_number,
@@ -764,7 +786,7 @@ export async function updateAdminOrder(
     await client.query(
       `INSERT INTO order_status_history (order_id, status, notes, changed_by)
        VALUES ($1, $2, $3, $4)`,
-      [orderId, 'processing', 'Pedido editado por administrador', adminId]
+      [orderId, 'processing', data.history_note, adminId]
     );
 
     return updatedResult.rows[0] ?? null;

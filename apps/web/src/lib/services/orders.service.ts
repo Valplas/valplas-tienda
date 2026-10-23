@@ -52,6 +52,10 @@ export interface Order {
     id: string;
     name: string;
   };
+  shippingCarrierId?: string | null;
+  carrierName?: string | null;
+  /** El envío lo gestiona un proveedor externo: la dirección no se puede editar */
+  shippingCarrierIsExternal?: boolean;
   items: Array<{
     id: string;
     productId: string;
@@ -229,15 +233,24 @@ export interface AdminUpdateOrderItem {
   quantity: number;
 }
 
+/**
+ * keep: se mantiene el costo de envío cobrado. recalculate: se cotiza el carrier del pedido para
+ * la nueva dirección (el cliente paga/recibe la diferencia).
+ */
+export type ShippingCostMode = 'keep' | 'recalculate';
+
 export async function adminUpdateOrder(
   id: string,
   data: {
-    shippingAddressId: string;
+    /** Sin dirección se conserva la del pedido */
+    shippingAddressId?: string;
+    shippingCostMode?: ShippingCostMode;
     items: AdminUpdateOrderItem[];
   }
 ): Promise<Order> {
   const res = await patch<Order>(`/orders/admin/${id}`, {
     shipping_address_id: data.shippingAddressId,
+    shipping_cost_mode: data.shippingCostMode,
     items: data.items.map((item) => ({
       product_id: item.productId,
       price_list_id: item.priceListId,

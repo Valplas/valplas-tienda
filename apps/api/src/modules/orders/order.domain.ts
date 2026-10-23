@@ -2,7 +2,7 @@
 
 import * as orderRepository from './order.repository.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
-import { noCoverageError } from '../shipping/shipping-coverage.js';
+import { getCarrierShippingCost } from '../shipping/shipping-cost.js';
 import { createOrderPreference } from '../../infrastructure/external/mercadopago.js';
 import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
@@ -174,28 +174,11 @@ export async function createOrder(
   }
 
   // Get shipping cost — mismas zonas/tarifas que la cotización pública
-  const zones = await shippingRepository.findZonesByPostcode(address.postcode);
-  if (zones.length === 0) {
-    throw await noCoverageError(address.postcode);
-  }
-
-  const rates = await shippingRepository.findRatesByZonesAndAmount(
-    zones.map((z) => z.id),
+  const shippingCost = await getCarrierShippingCost(
+    address.postcode,
+    data.shipping_carrier_id,
     subtotal
   );
-  const selectedRate = rates.find((r) => r.carrier_id === data.shipping_carrier_id);
-
-  if (!selectedRate) {
-    throw new AppError(
-      'SHIPPING_RATE_NOT_FOUND',
-      'Tarifa de envío no encontrada para este transportista',
-      400
-    );
-  }
-
-  // max_amount = umbral de envío gratis (igual que en la cotización)
-  const isFreeShipping = selectedRate.max_amount != null && subtotal >= selectedRate.max_amount;
-  const shippingCost = isFreeShipping ? 0 : selectedRate.price;
   const total = subtotal + shippingCost;
 
   // Create order — snapshot de envío desde la dirección validada (columnas NOT NULL)
@@ -446,6 +429,74 @@ export async function createAdminOrder(
   return orderWithDetails;
 }
 
+type OrderAddressSnapshot = Pick<
+  Order,
+  | 'shipping_address_id'
+  | 'shipping_street'
+  | 'shipping_street_number'
+  | 'shipping_floor'
+  | 'shipping_apartment'
+  | 'shipping_city'
+  | 'shipping_province'
+  | 'shipping_postcode'
+>;
+
+const SNAPSHOT_FIELDS = [
+  'shipping_street',
+  'shipping_street_number',
+  'shipping_floor',
+  'shipping_apartment',
+  'shipping_city',
+  'shipping_province',
+  'shipping_postcode'
+] as const;
+
+function sameShippingSnapshot(a: OrderAddressSnapshot, b: OrderAddressSnapshot): boolean {
+  return SNAPSHOT_FIELDS.every((field) => (a[field] ?? '') === (b[field] ?? ''));
+}
+
+const formatArs = (amount: number) =>
+  `$${amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function formatOrderAddress(
+  a: Pick<
+    Order,
+    'shipping_street' | 'shipping_street_number' | 'shipping_city' | 'shipping_postcode'
+  >
+): string {
+  if (!a.shipping_street) return 'sin dirección';
+  return `${a.shipping_street} ${a.shipping_street_number}, ${a.shipping_city} (${a.shipping_postcode})`;
+}
+
+/** Nota de auditoría de una edición admin: qué cambió en la dirección y en el envío. */
+export function buildAdminEditNote(params: {
+  previousAddress: string;
+  newAddress: string | null;
+  carrierName: string | null;
+  currentShippingCost: number;
+  newShippingCost: number | null;
+}): string {
+  const parts = ['Pedido editado por administrador'];
+  if (params.newAddress) {
+    parts.push(`Dirección: ${params.previousAddress} → ${params.newAddress}`);
+    if (params.newShippingCost !== null) {
+      const diff = Math.round((params.newShippingCost - params.currentShippingCost) * 100) / 100;
+      const diffText =
+        diff > 0
+          ? `diferencia a cobrar al cliente: ${formatArs(diff)}`
+          : diff < 0
+            ? `diferencia a favor del cliente: ${formatArs(-diff)}`
+            : 'sin diferencia';
+      parts.push(
+        `Envío${params.carrierName ? ` (${params.carrierName})` : ''}: ${formatArs(params.currentShippingCost)} → ${formatArs(params.newShippingCost)} (${diffText})`
+      );
+    } else if (params.carrierName) {
+      parts.push(`Envío: se mantiene el costo de ${formatArs(params.currentShippingCost)}`);
+    }
+  }
+  return parts.join('. ');
+}
+
 /**
  * Update order items and/or address (admin only, processing status only)
  */
@@ -464,10 +515,56 @@ export async function updateAdminOrder(
     );
   }
 
-  // Validate address belongs to the order's user and is active
-  const address = await addressRepository.findAddressById(data.shipping_address_id);
-  if (!address || address.user_id !== order.user_id || !address.is_active) {
+  // Validate address belongs to the order's user and is active. Sin chequeo de zona: los
+  // pedidos del admin pueden ir a direcciones sin cobertura (el front avisa).
+  const address = data.shipping_address_id
+    ? await addressRepository.findAddressById(data.shipping_address_id)
+    : null;
+  if (
+    data.shipping_address_id &&
+    (!address || address.user_id !== order.user_id || !address.is_active)
+  ) {
     throw new AppError('INVALID_SHIPPING_ADDRESS', 'Dirección de envío inválida', 400);
+  }
+
+  // Sin dirección nueva se conserva el snapshot actual de la orden
+  const snapshot: OrderAddressSnapshot = address
+    ? {
+        shipping_address_id: address.id,
+        shipping_street: address.street,
+        shipping_street_number: address.street_number,
+        shipping_floor: address.floor ?? null,
+        shipping_apartment: address.apartment ?? null,
+        shipping_city: address.city,
+        shipping_province: address.province,
+        shipping_postcode: address.postcode
+      }
+    : {
+        shipping_address_id: order.shipping_address_id,
+        shipping_street: order.shipping_street,
+        shipping_street_number: order.shipping_street_number,
+        shipping_floor: order.shipping_floor,
+        shipping_apartment: order.shipping_apartment,
+        shipping_city: order.shipping_city,
+        shipping_province: order.shipping_province,
+        shipping_postcode: order.shipping_postcode
+      };
+
+  // Cambio real: otra dirección, o la misma con datos corregidos desde el backoffice
+  const addressChanged =
+    address !== null &&
+    (address.id !== order.shipping_address_id || !sameShippingSnapshot(snapshot, order));
+
+  // Carrier externo (ej: Andreani): el envío ya está generado con esa dirección
+  const carrier = order.shipping_carrier_id
+    ? await shippingRepository.findCarrierById(order.shipping_carrier_id)
+    : null;
+  if (addressChanged && carrier?.is_external) {
+    throw new AppError(
+      'SHIPPING_ADDRESS_LOCKED',
+      `El envío de este pedido lo gestiona ${carrier.name}: la dirección no se puede modificar`,
+      400
+    );
   }
 
   // Filter out items with quantity = 0, validate and calculate prices server-side
@@ -513,18 +610,37 @@ export async function updateAdminOrder(
     });
   }
 
+  // Costo de envío: se mantiene el cobrado salvo que el admin elija recotizar para la nueva dirección
+  const currentShippingCost = Number(order.shipping_cost);
+  let newShippingCost: number | null = null;
+  if (data.shipping_cost_mode === 'recalculate') {
+    if (!carrier || !address || !addressChanged) {
+      throw new AppError(
+        'SHIPPING_COST_NOT_RECALCULABLE',
+        'Solo se puede recalcular el envío al cambiar la dirección de un pedido con transportista',
+        400
+      );
+    }
+    newShippingCost = await getCarrierShippingCost(
+      address.postcode,
+      carrier.id,
+      orderRepository.calculateAdminOrderSubtotal(enrichedItems)
+    );
+  }
+
   const updated = await orderRepository.updateAdminOrder(
     orderId,
     {
       items: enrichedItems,
-      shipping_address_id: data.shipping_address_id,
-      shipping_street: address.street,
-      shipping_street_number: address.street_number,
-      shipping_floor: address.floor ?? null,
-      shipping_apartment: address.apartment ?? null,
-      shipping_city: address.city,
-      shipping_province: address.province,
-      shipping_postcode: address.postcode
+      ...snapshot,
+      shipping_cost: newShippingCost,
+      history_note: buildAdminEditNote({
+        previousAddress: formatOrderAddress(order),
+        newAddress: addressChanged ? formatOrderAddress(snapshot) : null,
+        carrierName: carrier?.name ?? null,
+        currentShippingCost,
+        newShippingCost
+      })
     },
     adminId
   );

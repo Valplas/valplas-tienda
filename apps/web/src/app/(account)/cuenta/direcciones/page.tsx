@@ -231,6 +231,9 @@ export default function AddressesPage() {
                         Predeterminada
                       </Badge>
                     )}
+                    {address.isDeliverable === false && (
+                      <Badge variant="warning">Sin envíos a esta zona</Badge>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -330,15 +333,20 @@ function AddressForm({ address, onSuccess, onCancel }: AddressFormProps) {
       };
       delete (addressData as any).label;
 
-      if (address) {
-        await updateAddress(address.id, addressData);
-      } else {
-        await createAddress(addressData);
-      }
+      const saved = address
+        ? await updateAddress(address.id, addressData)
+        : await createAddress(addressData);
 
-      toast.success(
-        address ? 'Dirección actualizada correctamente' : 'Dirección agregada correctamente'
-      );
+      const title = address
+        ? 'Dirección actualizada correctamente'
+        : 'Dirección agregada correctamente';
+      if (saved.isDeliverable === false) {
+        toast.warning(title, {
+          description: `Por el momento no realizamos entregas al código postal ${saved.postcode}.`
+        });
+      } else {
+        toast.success(title);
+      }
       onSuccess();
     } catch (error: any) {
       console.error('Error saving address:', error);

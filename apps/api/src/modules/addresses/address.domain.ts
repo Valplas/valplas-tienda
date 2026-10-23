@@ -1,11 +1,11 @@
 // apps/api/src/modules/addresses/address.domain.ts
 
 import * as addressRepository from './address.repository.js';
-import * as shippingRepository from '../shipping/shipping.repository.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
-import { noCoverageError } from '../shipping/shipping-coverage.js';
+import { withDeliverability } from '../shipping/shipping-coverage.js';
 import type {
   UserAddress,
+  UserAddressWithDelivery,
   CreateAddressInput,
   UpdateAddressInput,
   AddressFilters
@@ -13,27 +13,37 @@ import type {
 
 const addressNotFound = () => new AppError('ADDRESS_NOT_FOUND', 'Dirección no encontrada', 404);
 
-/** Una dirección solo se acepta si alguna zona activa cubre su código postal. */
-async function assertPostcodeCovered(postcode: string): Promise<void> {
-  const zone = await shippingRepository.findZoneByPostcode(postcode);
-  if (!zone) throw await noCoverageError(postcode);
+/**
+ * Las direcciones se guardan aunque ninguna zona cubra su código postal (el cliente puede
+ * comprar más adelante o el admin entregar por su cuenta). La cobertura viaja en
+ * `is_deliverable` para que el front avise; el checkout la sigue validando al crear el pedido.
+ */
+async function withDelivery(address: UserAddress): Promise<UserAddressWithDelivery> {
+  const [annotated] = await withDeliverability([address]);
+  return annotated;
+}
+
+async function withDeliveryList(result: { addresses: UserAddress[]; total: number }) {
+  return { ...result, addresses: await withDeliverability(result.addresses) };
 }
 
 /**
  * Get user's addresses
  */
 export async function getUserAddresses(userId: string, filters: Omit<AddressFilters, 'user_id'>) {
-  return addressRepository.findAddresses({
-    ...filters,
-    user_id: userId
-  });
+  return withDeliveryList(
+    await addressRepository.findAddresses({
+      ...filters,
+      user_id: userId
+    })
+  );
 }
 
 /**
  * Get all addresses (admin only)
  */
 export async function getAllAddresses(filters: AddressFilters) {
-  return addressRepository.findAddresses(filters);
+  return withDeliveryList(await addressRepository.findAddresses(filters));
 }
 
 /**
@@ -43,7 +53,7 @@ export async function getAddressById(
   id: string,
   userId: string,
   isAdmin: boolean = false
-): Promise<UserAddress> {
+): Promise<UserAddressWithDelivery> {
   const address = await addressRepository.findAddressById(id);
 
   if (!address) {
@@ -55,14 +65,15 @@ export async function getAddressById(
     throw new AppError('ADDRESS_FORBIDDEN', 'No tienes permiso para ver esta dirección', 403);
   }
 
-  return address;
+  return withDelivery(address);
 }
 
 /**
  * Get user's default address
  */
-export async function getDefaultAddress(userId: string): Promise<UserAddress | null> {
-  return addressRepository.findDefaultAddress(userId);
+export async function getDefaultAddress(userId: string): Promise<UserAddressWithDelivery | null> {
+  const address = await addressRepository.findDefaultAddress(userId);
+  return address ? withDelivery(address) : null;
 }
 
 /**
@@ -71,17 +82,16 @@ export async function getDefaultAddress(userId: string): Promise<UserAddress | n
 export async function createAddress(
   userId: string,
   data: CreateAddressInput
-): Promise<UserAddress> {
-  await assertPostcodeCovered(data.postcode);
-
+): Promise<UserAddressWithDelivery> {
   // If this is the first address, make it default
   const existingCount = await addressRepository.countUserAddresses(userId);
   const shouldBeDefault = existingCount === 0 ? true : data.is_default;
 
-  return addressRepository.createAddress(userId, {
+  const address = await addressRepository.createAddress(userId, {
     ...data,
     is_default: shouldBeDefault
   });
+  return withDelivery(address);
 }
 
 /**
@@ -92,7 +102,7 @@ export async function updateAddress(
   userId: string,
   data: UpdateAddressInput,
   isAdmin: boolean = false
-): Promise<UserAddress> {
+): Promise<UserAddressWithDelivery> {
   const address = await addressRepository.findAddressById(id);
 
   if (!address) {
@@ -104,18 +114,13 @@ export async function updateAddress(
     throw new AppError('ADDRESS_FORBIDDEN', 'No tienes permiso para modificar esta dirección', 403);
   }
 
-  // Validate postcode has shipping coverage if changing
-  if (data.postcode && data.postcode !== address.postcode) {
-    await assertPostcodeCovered(data.postcode);
-  }
-
   const updated = await addressRepository.updateAddress(id, address.user_id, data);
 
   if (!updated) {
     throw new AppError('ADDRESS_UPDATE_FAILED', 'Error al actualizar dirección', 500);
   }
 
-  return updated;
+  return withDelivery(updated);
 }
 
 /**
@@ -172,7 +177,7 @@ export async function setDefaultAddress(
   id: string,
   userId: string,
   isAdmin: boolean = false
-): Promise<UserAddress> {
+): Promise<UserAddressWithDelivery> {
   const address = await addressRepository.findAddressById(id);
 
   if (!address) {
@@ -193,5 +198,5 @@ export async function setDefaultAddress(
     throw new AppError('ADDRESS_UPDATE_FAILED', 'Error al establecer dirección por defecto', 500);
   }
 
-  return updated;
+  return withDelivery(updated);
 }

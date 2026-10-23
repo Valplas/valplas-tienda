@@ -1,9 +1,9 @@
 // apps/api/src/tests/addresses/address.domain.test.ts
 //
-// Los errores del dominio de direcciones tienen que llegar al front con su
-// código y status (antes eran Error planos → 500 "Error interno"). La falta de
-// cobertura distingue "no hay zonas activas" (el admin tiene que configurar
-// envíos) de "este CP está excluido".
+// Las direcciones se guardan aunque ninguna zona de envío cubra su CP: el
+// admin tiene que poder cargar la dirección del cliente y el cliente guardar
+// la suya. La cobertura viaja en `is_deliverable` para que el front avise.
+// Los errores del dominio llegan al front con su código y status.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -18,13 +18,17 @@ vi.mock('../../modules/addresses/address.repository.js', () => ({
 }));
 
 vi.mock('../../modules/shipping/shipping.repository.js', () => ({
-  findZoneByPostcode: vi.fn(),
+  findActiveZones: vi.fn(),
   countActiveZones: vi.fn()
 }));
 
 import * as addressDomain from '../../modules/addresses/address.domain.js';
 import * as addressRepository from '../../modules/addresses/address.repository.js';
 import * as shippingRepository from '../../modules/shipping/shipping.repository.js';
+import {
+  zoneCoversPostcode,
+  withDeliverability
+} from '../../modules/shipping/shipping-coverage.js';
 import type { CreateAddressInput, UserAddress } from '../../modules/addresses/address.types.js';
 import type { ShippingZone } from '../../modules/shipping/shipping.types.js';
 
@@ -39,60 +43,90 @@ const INPUT = {
 
 const ADDRESS = { id: 'addr-1', user_id: USER_ID, postcode: '1414' } as UserAddress;
 
+const zone = (excluded: string[] = []) =>
+  ({ id: `zone-${excluded.join('-')}`, excluded_postcodes: excluded }) as ShippingZone;
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(addressRepository.countUserAddresses).mockResolvedValue(0);
   vi.mocked(addressRepository.createAddress).mockResolvedValue(ADDRESS);
+  vi.mocked(shippingRepository.findActiveZones).mockResolvedValue([zone()]);
+});
+
+describe('zoneCoversPostcode', () => {
+  it('una zona activa sirve el CP salvo que lo excluya', () => {
+    expect(zoneCoversPostcode(zone(), '1414')).toBe(true);
+    expect(zoneCoversPostcode(zone(['1414']), '1414')).toBe(false);
+    expect(
+      zoneCoversPostcode({ excluded_postcodes: null } as unknown as ShippingZone, '1414')
+    ).toBe(true);
+  });
+});
+
+describe('withDeliverability', () => {
+  it('marca cada dirección con una sola query de zonas', async () => {
+    vi.mocked(shippingRepository.findActiveZones).mockResolvedValue([zone(['9999'])]);
+
+    const result = await withDeliverability([
+      { id: 'a', postcode: '1414' },
+      { id: 'b', postcode: '9999' },
+      { id: 'c', postcode: '1043' }
+    ]);
+
+    expect(result.map((a) => a.is_deliverable)).toEqual([true, false, true]);
+    expect(shippingRepository.findActiveZones).toHaveBeenCalledTimes(1);
+  });
+
+  it('sin direcciones no consulta zonas', async () => {
+    await expect(withDeliverability([])).resolves.toEqual([]);
+    expect(shippingRepository.findActiveZones).not.toHaveBeenCalled();
+  });
 });
 
 describe('createAddress', () => {
-  it('crea la dirección si una zona activa cubre el CP', async () => {
-    vi.mocked(shippingRepository.findZoneByPostcode).mockResolvedValue({
-      id: 'zone-1'
-    } as ShippingZone);
-
-    await expect(addressDomain.createAddress(USER_ID, INPUT)).resolves.toBe(ADDRESS);
+  it('crea la dirección con is_deliverable = true si una zona activa cubre el CP', async () => {
+    await expect(addressDomain.createAddress(USER_ID, INPUT)).resolves.toEqual({
+      ...ADDRESS,
+      is_deliverable: true
+    });
     expect(addressRepository.createAddress).toHaveBeenCalledWith(
       USER_ID,
       expect.objectContaining({ is_default: true })
     );
   });
 
-  it('sin zonas activas → 400 NO_SHIPPING_ZONES', async () => {
-    vi.mocked(shippingRepository.findZoneByPostcode).mockResolvedValue(null);
-    vi.mocked(shippingRepository.countActiveZones).mockResolvedValue(0);
+  it('sin zonas activas la guarda igual con is_deliverable = false', async () => {
+    vi.mocked(shippingRepository.findActiveZones).mockResolvedValue([]);
 
-    await expect(addressDomain.createAddress(USER_ID, INPUT)).rejects.toMatchObject({
-      code: 'NO_SHIPPING_ZONES',
-      statusCode: 400
+    await expect(addressDomain.createAddress(USER_ID, INPUT)).resolves.toMatchObject({
+      id: ADDRESS.id,
+      is_deliverable: false
     });
-    expect(addressRepository.createAddress).not.toHaveBeenCalled();
+    expect(addressRepository.createAddress).toHaveBeenCalled();
   });
 
-  it('con zonas que excluyen el CP → 400 POSTCODE_NOT_COVERED con el CP en el mensaje', async () => {
-    vi.mocked(shippingRepository.findZoneByPostcode).mockResolvedValue(null);
-    vi.mocked(shippingRepository.countActiveZones).mockResolvedValue(2);
+  it('con zonas que excluyen el CP la guarda igual con is_deliverable = false', async () => {
+    vi.mocked(shippingRepository.findActiveZones).mockResolvedValue([zone(['1414'])]);
 
-    const error = await addressDomain.createAddress(USER_ID, INPUT).catch((e) => e);
-
-    expect(error).toMatchObject({ code: 'POSTCODE_NOT_COVERED', statusCode: 400 });
-    expect(error.message).toContain('1414');
+    await expect(addressDomain.createAddress(USER_ID, INPUT)).resolves.toMatchObject({
+      is_deliverable: false
+    });
+    expect(addressRepository.createAddress).toHaveBeenCalled();
   });
 });
 
 describe('updateAddress', () => {
-  it('valida cobertura solo si cambia el CP', async () => {
+  it('guarda un CP sin cobertura y devuelve is_deliverable = false', async () => {
     vi.mocked(addressRepository.findAddressById).mockResolvedValue(ADDRESS);
-    vi.mocked(addressRepository.updateAddress).mockResolvedValue(ADDRESS);
+    vi.mocked(addressRepository.updateAddress).mockResolvedValue({ ...ADDRESS, postcode: '9999' });
+    vi.mocked(shippingRepository.findActiveZones).mockResolvedValue([zone(['9999'])]);
 
-    await addressDomain.updateAddress(ADDRESS.id, USER_ID, { postcode: '1414', city: 'X' });
-    expect(shippingRepository.findZoneByPostcode).not.toHaveBeenCalled();
-
-    vi.mocked(shippingRepository.findZoneByPostcode).mockResolvedValue(null);
-    vi.mocked(shippingRepository.countActiveZones).mockResolvedValue(0);
     await expect(
       addressDomain.updateAddress(ADDRESS.id, USER_ID, { postcode: '9999' })
-    ).rejects.toMatchObject({ code: 'NO_SHIPPING_ZONES' });
+    ).resolves.toMatchObject({ postcode: '9999', is_deliverable: false });
+    expect(addressRepository.updateAddress).toHaveBeenCalledWith(ADDRESS.id, USER_ID, {
+      postcode: '9999'
+    });
   });
 
   it('dirección inexistente → 404, ajena → 403', async () => {
@@ -110,6 +144,21 @@ describe('updateAddress', () => {
       code: 'ADDRESS_FORBIDDEN',
       statusCode: 403
     });
+  });
+});
+
+describe('getUserAddresses', () => {
+  it('marca la cobertura de cada dirección del listado', async () => {
+    vi.mocked(addressRepository.findAddresses).mockResolvedValue({
+      addresses: [ADDRESS, { ...ADDRESS, id: 'addr-2', postcode: '9999' }],
+      total: 2
+    });
+    vi.mocked(shippingRepository.findActiveZones).mockResolvedValue([zone(['9999'])]);
+
+    const result = await addressDomain.getUserAddresses(USER_ID, {});
+
+    expect(result.total).toBe(2);
+    expect(result.addresses.map((a) => a.is_deliverable)).toEqual([true, false]);
   });
 });
 

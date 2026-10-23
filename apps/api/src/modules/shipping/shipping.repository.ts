@@ -78,40 +78,15 @@ export async function countActiveZones(): Promise<number> {
   return parseInt(result.rows[0].count, 10);
 }
 
-export async function findZoneByPostcode(postcode: string): Promise<ShippingZone | null> {
-  const result = await query(
-    'SELECT * FROM shipping_zones WHERE is_active = true AND deleted_at IS NULL',
-    []
-  );
-
-  // Find zone that includes this postcode
-  for (const zone of result.rows) {
-    // Check if postcode is excluded
-    if (zone.excluded_postcodes && zone.excluded_postcodes.includes(postcode)) {
-      continue;
-    }
-
-    // For now, simple match - could be improved with regex or ranges
-    return zone as ShippingZone;
-  }
-
-  return null;
-}
-
 /**
- * Todas las zonas activas que sirven este código postal (no lo excluyen).
- * Se usa para cotizar/crear pedido sin depender de "la primera zona": si hay
- * varias zonas activas, juntamos las tarifas de todas las que sirven el CP.
+ * Zonas activas. La regla de cobertura por código postal vive en shipping-coverage.ts.
  */
-export async function findZonesByPostcode(postcode: string): Promise<ShippingZone[]> {
-  const result = await query(
-    'SELECT * FROM shipping_zones WHERE is_active = true AND deleted_at IS NULL',
-    []
+export async function findActiveZones(): Promise<ShippingZone[]> {
+  const result = await query<ShippingZone>(
+    'SELECT * FROM shipping_zones WHERE is_active = true AND deleted_at IS NULL'
   );
 
-  return result.rows.filter(
-    (zone) => !(zone.excluded_postcodes && zone.excluded_postcodes.includes(postcode))
-  ) as ShippingZone[];
+  return result.rows;
 }
 
 export async function createZone(data: CreateShippingZoneInput): Promise<ShippingZone> {
@@ -254,14 +229,15 @@ export async function findCarrierByCode(code: string): Promise<ShippingCarrier |
 
 export async function createCarrier(data: CreateShippingCarrierInput): Promise<ShippingCarrier> {
   const result = await query<ShippingCarrier>(
-    `INSERT INTO shipping_carriers (name, code, logo_url, is_active, config)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO shipping_carriers (name, code, logo_url, is_active, is_external, config)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
     [
       data.name,
       data.code,
       data.logo_url || null,
       data.is_active ?? true,
+      data.is_external ?? false,
       data.config ? JSON.stringify(data.config) : null
     ]
   );
@@ -298,6 +274,12 @@ export async function updateCarrier(
   if (data.is_active !== undefined) {
     updates.push(`is_active = $${paramIndex}`);
     params.push(data.is_active);
+    paramIndex++;
+  }
+
+  if (data.is_external !== undefined) {
+    updates.push(`is_external = $${paramIndex}`);
+    params.push(data.is_external);
     paramIndex++;
   }
 

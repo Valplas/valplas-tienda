@@ -82,6 +82,7 @@ export const adminListOrdersSchema = listOrdersSchema
   });
 
 export const updateAdminOrderSchema = z.object({
-  shipping_address_id: z.string().uuid(),
-  items: z.array(updateAdminOrderItemSchema).min(1)
+  shipping_address_id: z.string().uuid().optional(),
+  items: z.array(updateAdminOrderItemSchema).min(1),
+  shipping_cost_mode: z.enum(['keep', 'recalculate']).optional().default('keep')
 });

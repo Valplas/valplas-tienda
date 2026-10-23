@@ -73,6 +73,8 @@ export interface Address {
   longitude?: number;
   placeId?: string; // Google Maps
   isDefault: boolean;
+  /** Alguna zona de envío activa cubre el CP */
+  isDeliverable?: boolean;
   createdAt: string;
   updatedAt: string;
 }

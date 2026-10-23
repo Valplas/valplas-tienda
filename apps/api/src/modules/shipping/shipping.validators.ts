@@ -30,6 +30,7 @@ export const createShippingCarrierSchema = z.object({
     ),
   logo_url: z.string().url().optional(),
   is_active: z.boolean().optional().default(true),
+  is_external: z.boolean().optional().default(false),
   config: z.record(z.string(), z.any()).optional()
 });
 
@@ -46,6 +47,7 @@ export const updateShippingCarrierSchema = z.object({
     .optional(),
   logo_url: z.string().url().optional(),
   is_active: z.boolean().optional(),
+  is_external: z.boolean().optional(),
   config: z.record(z.string(), z.any()).optional()
 });
 

@@ -34,6 +34,7 @@ export interface Order {
   shipping_postcode: string;
   shipping_notes: string | null;
   // Carrier
+  shipping_carrier_id: string | null;
   carrier_name: string | null;
   // Payment
   payment_method: string | null;
@@ -74,6 +75,8 @@ export interface OrderWithDetails extends Order {
   status_history: OrderStatusHistory[];
   shipping_address?: UserAddress;
   shipping_carrier?: ShippingCarrier;
+  /** El envío lo gestiona un proveedor externo: la dirección no se puede editar */
+  shipping_carrier_is_external?: boolean;
   user?: Omit<User, 'passwordHash'>;
 }
 
@@ -112,9 +115,17 @@ export interface UpdateAdminOrderItemInput {
   quantity: number;
 }
 
+/**
+ * keep: se mantiene el costo de envío cobrado. recalculate: se cotiza el carrier del pedido para la
+ * nueva dirección (el cliente paga/recibe la diferencia).
+ */
+export type ShippingCostMode = 'keep' | 'recalculate';
+
 export interface UpdateAdminOrderInput {
-  shipping_address_id: string;
+  /** Sin dirección se conserva la de la orden */
+  shipping_address_id?: string;
   items: UpdateAdminOrderItemInput[];
+  shipping_cost_mode?: ShippingCostMode;
 }
 
 export interface CreateOrderItemInput {
