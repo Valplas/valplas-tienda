@@ -1,6 +1,7 @@
 // apps/api/src/tests/users/user-merge-suggestions.test.ts
 //
-// Las sugerencias cruzan cuentas nuevas con legacy por dirección (calle + número normalizados).
+// Las sugerencias cruzan cuentas nuevas con clientes sin uso en la web (migrados del CRM o
+// cargados por el admin) por dirección (calle + número normalizados).
 // Cada test usa una calle única para no mezclarse con datos reales.
 
 import { describe, it, expect } from 'vitest';
@@ -8,6 +9,7 @@ import * as mergeDomain from '../../modules/users/user-merge.domain.js';
 import * as userDomain from '../../modules/users/user.domain.js';
 import { query } from '../../infrastructure/database/client.js';
 import {
+  createAdminCustomer,
   createGoogleUser,
   createLegacyUser,
   createRawAddress,
@@ -89,6 +91,55 @@ describe('getMergeSuggestions', () => {
 
     expect(await suggestionsFor(used.id)).toEqual([]);
     expect(await suggestionsFor(dismissed.id)).toEqual([]);
+  });
+
+  it('marca si la cuenta a conservar viene del CRM', async () => {
+    const street = `Vitest ${lettersSuffix()}`;
+    const legacy = await createLegacyUser({ firstName: 'Elsa' });
+    await createRawAddress(legacy.id, { street, streetNumber: '15', city: 'Moreno' });
+    const google = await createGoogleUser({ firstName: 'Elsa' });
+    await createRawAddress(google.id, { street, streetNumber: '15', city: 'Moreno' });
+
+    const [suggestion] = await suggestionsFor(legacy.id);
+    expect(suggestion.legacy_user.is_legacy).toBe(true);
+  });
+});
+
+describe('getMergeSuggestions — clientes cargados por el admin', () => {
+  it('sugiere un cliente cargado por el admin que nunca inició sesión', async () => {
+    const street = `Vitest ${lettersSuffix()}`;
+    const adminCreated = await createAdminCustomer({ firstName: 'Agustin' });
+    await createRawAddress(adminCreated.id, { street, streetNumber: '3235', city: 'Moreno' });
+    const google = await createGoogleUser({ firstName: 'Mari' });
+    await createRawAddress(google.id, { street, streetNumber: '3235', city: 'Moreno' });
+
+    const mine = await suggestionsFor(adminCreated.id);
+
+    expect(mine.map((s) => s.user.id)).toEqual([google.id]);
+    expect(mine[0].legacy_user.is_legacy).toBe(false);
+  });
+
+  it('si ya inició sesión cuenta como cuenta nueva, no como cliente a conservar', async () => {
+    const street = `Vitest ${lettersSuffix()}`;
+    const legacy = await createLegacyUser({ firstName: 'Rosa' });
+    await createRawAddress(legacy.id, { street, streetNumber: '88', city: 'Moreno' });
+    const adminCreated = await createAdminCustomer({ firstName: 'Rosa' });
+    await createRawAddress(adminCreated.id, { street, streetNumber: '88', city: 'Moreno' });
+    await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [adminCreated.id]);
+
+    expect(await suggestionsFor(adminCreated.id)).toEqual([]);
+    expect((await suggestionsFor(legacy.id)).map((s) => s.user.id)).toEqual([adminCreated.id]);
+  });
+
+  it('no cruza entre sí dos clientes cargados por el admin sin uso', async () => {
+    const street = `Vitest ${lettersSuffix()}`;
+    const first = await createAdminCustomer({ firstName: 'Hugo' });
+    await createRawAddress(first.id, { street, streetNumber: '5', city: 'Moreno' });
+    const second = await createAdminCustomer({ firstName: 'Hugo' });
+    await createRawAddress(second.id, { street, streetNumber: '5', city: 'Moreno' });
+
+    expect(await suggestionsFor(first.id)).toEqual([]);
+    expect(await suggestionsFor(second.id)).toEqual([]);
   });
 });
 

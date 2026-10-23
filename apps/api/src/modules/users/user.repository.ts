@@ -247,6 +247,7 @@ export async function findUserByUsername(username: string): Promise<User | null>
 
 /**
  * Create user (admin function - requires password hash from domain)
+ * is_admin_created: mientras no inicie sesión, las sugerencias de merge lo tratan como cuenta sin uso
  */
 export async function createUser(
   data: CreateUserInput & { username: string },
@@ -254,9 +255,10 @@ export async function createUser(
 ): Promise<User> {
   const result = await query<User>(
     `INSERT INTO users (
-      email, username, password_hash, phone, first_name, last_name, role, is_active
+      email, username, password_hash, phone, first_name, last_name, role, is_active,
+      is_admin_created
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
     RETURNING id, email, username, phone, first_name, last_name, role,
               is_active, email_verified, phone_verified, created_at, updated_at, deleted_at`,
     [
