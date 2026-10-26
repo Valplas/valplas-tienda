@@ -9,15 +9,19 @@ import { getCategories } from '@/services';
 import { Card, CardContent } from '@/components/ui/card';
 import { BannerCarousel } from '@/components/home/banner-carousel';
 import { getPublicBanners } from '@/lib/services/banners.service';
+import { getStoreSettings } from '@/lib/services/settings.service';
+import { StoreLogo } from '@/components/layout/store-logo';
 import type { Category, ProductPublic } from '@/types';
 
 export default async function Home() {
   let featuredProducts: ProductPublic[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let categories: any[] = [];
-  // En paralelo con el resto; nunca rechaza, así un fallo de productos no
-  // se lleva puestos los banners
+  // En paralelo con el resto; nunca rechazan, así un fallo de productos no
+  // se lleva puestos los banners ni el logo. Settings es el mismo fetch del
+  // layout: Next lo deduplica.
   const bannersPromise = getPublicBanners();
+  const settingsPromise = getStoreSettings();
 
   try {
     const [productsRes, categoriesRes] = await Promise.all([
@@ -35,7 +39,7 @@ export default async function Home() {
     console.error('Error loading home page data:', error);
   }
 
-  const banners = await bannersPromise;
+  const [banners, settings] = await Promise.all([bannersPromise, settingsPromise]);
 
   return (
     <main className="container mx-auto px-4 py-4 space-y-6">
@@ -49,7 +53,9 @@ export default async function Home() {
         </>
       ) : (
         <section className="text-center space-y-2 py-4">
-          <h1 className="text-2xl font-bold tracking-tight text-primary sm:text-4xl">Valplas</h1>
+          <h1 className="flex justify-center">
+            <StoreLogo settings={settings} size="hero" />
+          </h1>
           <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
             Distribuidora de Artículos Plásticos, Productos de Limpieza y Electrodomésticos
           </p>
