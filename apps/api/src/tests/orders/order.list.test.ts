@@ -96,7 +96,7 @@ describe('findOrders', () => {
       await createRawOrder(userId),
       await createRawOrder(userId)
     ];
-    await query(`UPDATE orders SET created_at = '2026-01-15T12:00:00Z' WHERE id = ANY($1)`, [ids]);
+    await query("UPDATE orders SET created_at = '2026-01-15T12:00:00Z' WHERE id = ANY($1)", [ids]);
 
     const page1 = await orderRepository.findOrders({ user_id: userId, page: 1, limit: 2 });
     const page2 = await orderRepository.findOrders({ user_id: userId, page: 2, limit: 2 });

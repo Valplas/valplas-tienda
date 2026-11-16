@@ -15,7 +15,7 @@ describe('findProducts (admin)', () => {
   afterEach(async () => {
     if (imageProductId) {
       await query(
-        `DELETE FROM product_images WHERE product_id = $1 AND url LIKE 'https://vitest.local/%'`,
+        "DELETE FROM product_images WHERE product_id = $1 AND url LIKE 'https://vitest.local/%'",
         [imageProductId]
       );
       imageProductId = null;
