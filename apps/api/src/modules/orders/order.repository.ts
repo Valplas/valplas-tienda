@@ -15,6 +15,7 @@ import type {
   OrderStatus
 } from './order.types.js';
 import type { User } from '../users/user.types.js';
+import { fromBoundSql, toBoundSql } from '../../shared/utils/date-range.js';
 
 /**
  * Generate order number (PREFIX-YYYYMMDD-NNNNNN)
@@ -81,14 +82,15 @@ export async function findOrders(
     paramIndex++;
   }
 
+  // Rango semiabierto en hora de Argentina para `YYYY-MM-DD`; el índice por created_at sirve de acceso
   if (from_date) {
-    conditions.push(`o.created_at >= $${paramIndex}`);
+    conditions.push(fromBoundSql('o.created_at', from_date, `$${paramIndex}`));
     params.push(from_date);
     paramIndex++;
   }
 
   if (to_date) {
-    conditions.push(`o.created_at <= $${paramIndex}`);
+    conditions.push(toBoundSql('o.created_at', to_date, `$${paramIndex}`));
     params.push(to_date);
     paramIndex++;
   }
@@ -119,81 +121,64 @@ export async function findOrders(
 
   const total = parseInt(countResult.rows[0].count, 10);
 
-  // Get orders with user info (and optionally embedded items)
-  let ordersRows: Order[];
+  // Paginar primero (solo ids) y recién después traer usuario e items: antes el GROUP BY + json_agg
+  // se calculaba para TODOS los pedidos que matcheaban y luego se descartaban con LIMIT/OFFSET.
+  // `o.id DESC` desempata: sin él el orden no es determinista y las páginas pueden repetir filas.
+  const itemsSelect = includeItems ? ', it.items' : '';
+  const itemsJoin = includeItems
+    ? `LEFT JOIN LATERAL (
+         SELECT COALESCE(
+                  json_agg(
+                    json_build_object(
+                      'id', oi.id,
+                      'product_id', oi.product_id,
+                      'product_name', oi.product_name,
+                      'product_sku', oi.product_sku,
+                      'quantity', oi.quantity,
+                      'unit_price', oi.unit_price,
+                      'subtotal', oi.subtotal
+                    ) ORDER BY oi.created_at
+                  ),
+                  '[]'
+                ) AS items
+         FROM order_items oi
+         WHERE oi.order_id = o.id
+       ) it ON true`
+    : '';
 
-  if (includeItems) {
-    const result = await query<Order>(
-      `SELECT o.*,
-              CASE WHEN u.id IS NOT NULL THEN
-                json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
-              END as user,
-              CASE WHEN o.shipping_street IS NOT NULL THEN
-                json_build_object(
-                  'id', COALESCE(o.shipping_address_id, o.id),
-                  'alias', 'Dirección de entrega',
-                  'street', o.shipping_street,
-                  'street_number', o.shipping_street_number,
-                  'floor', o.shipping_floor,
-                  'apartment', o.shipping_apartment,
-                  'city', o.shipping_city,
-                  'province', o.shipping_province,
-                  'postcode', o.shipping_postcode
-                )
-              END as shipping_address,
-              COALESCE(
-                json_agg(
-                  json_build_object(
-                    'id', oi.id,
-                    'product_id', oi.product_id,
-                    'product_name', p.name,
-                    'product_sku', p.sku,
-                    'quantity', oi.quantity,
-                    'unit_price', oi.unit_price,
-                    'subtotal', oi.subtotal
-                  ) ORDER BY oi.created_at
-                ) FILTER (WHERE oi.id IS NOT NULL),
-                '[]'
-              ) as items
-       FROM orders o
-       LEFT JOIN users u ON o.user_id = u.id
-       LEFT JOIN order_items oi ON oi.order_id = o.id
-       LEFT JOIN products p ON p.id = oi.product_id
+  const result = await query<Order>(
+    `WITH paged AS (
+       SELECT o.id
+       FROM orders o ${countJoin}
        WHERE ${whereClause}
-       GROUP BY o.id, u.id, u.first_name, u.last_name, u.email, u.phone
-       ORDER BY o.created_at DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      [...params, limit, offset]
-    );
-    ordersRows = result.rows;
-  } else {
-    const result = await query<Order>(
-      `SELECT o.*,
-              CASE WHEN u.id IS NOT NULL THEN
-                json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
-              END as user,
-              CASE WHEN o.shipping_street IS NOT NULL THEN
-                json_build_object(
-                  'id', COALESCE(o.shipping_address_id, o.id),
-                  'alias', 'Dirección de entrega',
-                  'street', o.shipping_street,
-                  'street_number', o.shipping_street_number,
-                  'floor', o.shipping_floor,
-                  'apartment', o.shipping_apartment,
-                  'city', o.shipping_city,
-                  'province', o.shipping_province,
-                  'postcode', o.shipping_postcode
-                )
-              END as shipping_address
-       FROM orders o
-       LEFT JOIN users u ON o.user_id = u.id
-       WHERE ${whereClause}
-       ORDER BY o.created_at DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      [...params, limit, offset]
-    );
-    ordersRows = result.rows;
-  }
+       ORDER BY o.created_at DESC, o.id DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+     )
+     SELECT o.*,
+            CASE WHEN u.id IS NOT NULL THEN
+              json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
+            END as user,
+            CASE WHEN o.shipping_street IS NOT NULL THEN
+              json_build_object(
+                'id', COALESCE(o.shipping_address_id, o.id),
+                'alias', 'Dirección de entrega',
+                'street', o.shipping_street,
+                'street_number', o.shipping_street_number,
+                'floor', o.shipping_floor,
+                'apartment', o.shipping_apartment,
+                'city', o.shipping_city,
+                'province', o.shipping_province,
+                'postcode', o.shipping_postcode
+              )
+            END as shipping_address${itemsSelect}
+     FROM paged
+     JOIN orders o ON o.id = paged.id
+     LEFT JOIN users u ON u.id = o.user_id
+     ${itemsJoin}
+     ORDER BY o.created_at DESC, o.id DESC`,
+    [...params, limit, offset]
+  );
+  const ordersRows: Order[] = result.rows;
 
   return {
     orders: ordersRows,
@@ -431,9 +416,16 @@ interface EnrichedAdminOrderItem {
   quantity: number; // bundles
   bundle_size_snapshot: number;
   real_quantity: number; // quantity × bundle_size_snapshot
+  /** Precio por bulto (unitPrice × bundle_size_snapshot), igual que en el checkout web */
   unit_price: number;
   price_list_id: string;
+  /** Costo por bulto (cost_price × bundle_size_snapshot): revenue = (unit_price - cost) × quantity */
   cost_price_snapshot: number;
+}
+
+/** Subtotal de una línea: precio por bulto × bultos, redondeado a centavos (sin ruido de float). */
+function adminItemSubtotal(item: Pick<EnrichedAdminOrderItem, 'unit_price' | 'quantity'>): number {
+  return Math.round(item.unit_price * item.quantity * 100) / 100;
 }
 
 export async function createAdminOrder(
@@ -487,7 +479,7 @@ export async function createAdminOrder(
     const order = orderResult.rows[0];
 
     for (const item of data.items) {
-      const itemSubtotal = Math.trunc(item.unit_price * item.real_quantity * 100) / 100;
+      const itemSubtotal = adminItemSubtotal(item);
       await client.query(
         `INSERT INTO order_items
            (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
@@ -635,12 +627,10 @@ export async function isOrderOwnedByUser(orderId: string, userId: string): Promi
 
 /** Subtotal de un pedido admin: precio unitario × unidades reales, truncado a centavos. */
 export function calculateAdminOrderSubtotal(
-  items: Pick<EnrichedAdminOrderItem, 'unit_price' | 'real_quantity'>[]
+  items: Pick<EnrichedAdminOrderItem, 'unit_price' | 'quantity'>[]
 ): number {
-  return (
-    Math.trunc(items.reduce((sum, item) => sum + item.unit_price * item.real_quantity, 0) * 100) /
-    100
-  );
+  // Suma de subtotales por línea, igual que lo que persiste el trigger (quantity × unit_price)
+  return Math.round(items.reduce((sum, item) => sum + adminItemSubtotal(item) * 100, 0)) / 100;
 }
 
 interface UpdateAdminOrderData {
@@ -729,7 +719,7 @@ export async function updateAdminOrder(
     await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
 
     for (const item of data.items) {
-      const itemSubtotal = Math.trunc(item.unit_price * item.real_quantity * 100) / 100;
+      const itemSubtotal = adminItemSubtotal(item);
       await client.query(
         `INSERT INTO order_items
            (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)

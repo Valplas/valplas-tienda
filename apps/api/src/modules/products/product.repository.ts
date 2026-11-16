@@ -145,25 +145,46 @@ export async function findProducts(
 
   const whereClause = conditions.join(' AND ');
 
-  // Query para contar total (necesita el JOIN con brands cuando se busca por marca)
+  // El JOIN con brands solo hace falta cuando se busca por marca (el filtro referencia b.name)
+  const brandJoin = search ? 'LEFT JOIN brands b ON p.brand_id = b.id' : '';
+
+  // Query para contar total
   const countResult = await query<{ count: string }>(
     `SELECT COUNT(*) as count
      FROM products p
-     LEFT JOIN brands b ON p.brand_id = b.id
+     ${brandJoin}
      WHERE ${whereClause}`,
     params
   );
 
   const total = parseInt(countResult.rows[0].count, 10);
 
-  // Query principal con joins
+  // Paginar primero (solo ids) y recién después traer categoría, marca, imágenes y tiers:
+  // antes el GROUP BY + json_agg de imágenes corría sobre TODOS los productos filtrados y
+  // luego se descartaba con LIMIT/OFFSET. `p.id` desempata para que las páginas no se repitan.
+  const stableOrder = `${orderBy}, p.id ASC`;
   const productsResult = await query(
-    `SELECT
+    `WITH page AS (
+       SELECT p.id
+       FROM products p
+       ${brandJoin}
+       WHERE ${whereClause}
+       ORDER BY ${stableOrder}
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+     )
+     SELECT
       p.*,
       c.name as category_name,
       b.name as brand_name,
       (p.stock - p.reserved_stock) as available_stock,
-      COALESCE(
+      img.images as images,
+      ${PRICE_TIERS_SQL}
+    FROM page
+    JOIN products p ON p.id = page.id
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN brands b ON p.brand_id = b.id
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(
         json_agg(
           json_build_object(
             'id', pi.id,
@@ -174,18 +195,13 @@ export async function findProducts(
             'width', pi.width,
             'height', pi.height
           ) ORDER BY pi.display_order
-        ) FILTER (WHERE pi.id IS NOT NULL),
+        ),
         '[]'
-      ) as images,
-      ${PRICE_TIERS_SQL}
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.id
-    LEFT JOIN brands b ON p.brand_id = b.id
-    LEFT JOIN product_images pi ON p.id = pi.product_id
-    WHERE ${whereClause}
-    GROUP BY p.id, c.id, b.id
-    ORDER BY ${orderBy}
-    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      ) AS images
+      FROM product_images pi
+      WHERE pi.product_id = p.id
+    ) img ON true
+    ORDER BY ${stableOrder}`,
     [...params, limit, offset]
   );
 

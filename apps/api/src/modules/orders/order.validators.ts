@@ -1,6 +1,10 @@
 // apps/api/src/modules/orders/order.validators.ts
 
 import { z } from 'zod';
+import { isValidDateInput } from '../../shared/utils/date-range.js';
+
+/** `YYYY-MM-DD` (día completo en hora de Argentina) o timestamp ISO. */
+const dateInput = z.string().refine(isValidDateInput, 'Fecha inválida (YYYY-MM-DD o ISO 8601)');
 
 const ORDER_STATUSES = [
   'pending_payment',
@@ -47,8 +51,8 @@ export const listOrdersSchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   status: z.enum(ORDER_STATUSES).optional(),
-  from_date: z.string().optional(),
-  to_date: z.string().optional(),
+  from_date: dateInput.optional(),
+  to_date: dateInput.optional(),
   order_number: z.string().optional()
 });
 

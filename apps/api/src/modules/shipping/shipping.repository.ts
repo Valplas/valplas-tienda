@@ -218,6 +218,18 @@ export async function findCarrierById(id: string): Promise<ShippingCarrier | nul
   return result.rows[0] || null;
 }
 
+/** Carriers por lote (un solo query en vez de uno por tarifa). Ignora los borrados. */
+export async function findCarriersByIds(ids: string[]): Promise<ShippingCarrier[]> {
+  if (ids.length === 0) return [];
+
+  const result = await query<ShippingCarrier>(
+    'SELECT * FROM shipping_carriers WHERE id = ANY($1) AND deleted_at IS NULL',
+    [ids]
+  );
+
+  return result.rows;
+}
+
 export async function findCarrierByCode(code: string): Promise<ShippingCarrier | null> {
   const result = await query<ShippingCarrier>(
     'SELECT * FROM shipping_carriers WHERE code = $1 AND deleted_at IS NULL',
