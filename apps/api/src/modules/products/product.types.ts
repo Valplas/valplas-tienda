@@ -14,7 +14,10 @@ export interface ProductFilters {
   /** true = solo activos, false = solo inactivos, undefined = todos (solo admin/owner) */
   isActive?: boolean;
   requireActiveTier?: boolean;
+  /** Paginación clásica (OFFSET). Si se omite, se pagina por cursor. */
   page?: number;
+  /** Cursor opaco de la página anterior. */
+  cursor?: string;
   limit?: number;
   sort?:
     | 'price_asc'

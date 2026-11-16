@@ -58,6 +58,11 @@ export function useInfiniteList<T>({
     onErrorRef.current = onError;
   });
 
+  // Es un contador, no un nodo del DOM: se necesita su valor actual al limpiar el efecto
+  const invalidateInFlight = useCallback(() => {
+    requestIdRef.current++;
+  }, []);
+
   const loadFirst = useCallback(async () => {
     const requestId = ++requestIdRef.current;
     cursorRef.current = undefined;
@@ -105,9 +110,9 @@ export function useInfiniteList<T>({
     void loadFirst();
     return () => {
       // Desmontaje o cambio de consulta: lo que esté en vuelo ya no es válido
-      requestIdRef.current++;
+      invalidateInFlight();
     };
-  }, [resetKey, enabled, loadFirst]);
+  }, [resetKey, enabled, loadFirst, invalidateInFlight]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;

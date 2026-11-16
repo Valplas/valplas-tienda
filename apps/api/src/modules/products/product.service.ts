@@ -43,14 +43,28 @@ export function toPublicProduct(product: ProductWithDetails): PublicProduct {
  * Listar productos con filtros y paginación
  */
 export async function listProducts(filters: ProductFilters) {
-  const { products, total } = await productRepository.findProducts(filters);
+  const result = await productRepository.findProducts(filters);
+  const limit = filters.limit || 24;
+
+  // Por cursor: { limit, hasMore, cursor, total solo en la primera página }
+  if (result.keyset) {
+    return {
+      products: result.products,
+      pagination: {
+        limit,
+        hasMore: result.hasMore,
+        cursor: result.nextCursor ?? undefined,
+        total: result.total ?? undefined
+      }
+    };
+  }
 
   const page = filters.page || 1;
-  const limit = filters.limit || 24;
+  const total = result.total ?? 0;
   const totalPages = Math.ceil(total / limit);
 
   return {
-    products,
+    products: result.products,
     pagination: {
       page,
       limit,
