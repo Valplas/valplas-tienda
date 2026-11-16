@@ -43,7 +43,8 @@ export const updateUserPasswordSchema = z.object({
 });
 
 export const listUsersSchema = z.object({
-  page: z.coerce.number().int().min(1).optional().default(1),
+  page: z.coerce.number().int().min(1).optional(),
+  cursor: z.string().max(500).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   role: z.enum(USER_ROLES).optional(),
   is_active: z.enum(['true', 'false']).optional(),

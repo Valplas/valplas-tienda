@@ -13,6 +13,7 @@ export async function getAllUsers(req: Request, res: Response, next: NextFunctio
   try {
     const {
       page,
+      cursor,
       limit,
       role,
       is_active,
@@ -24,7 +25,8 @@ export async function getAllUsers(req: Request, res: Response, next: NextFunctio
     } = req.query;
 
     const result = await userDomain.getAllUsers({
-      page: Number(page) || 1,
+      page: page ? Number(page) : undefined,
+      cursor: cursor as string | undefined,
       limit: Number(limit) || 20,
       role: role as UserRole | undefined,
       is_active: is_active === 'true' ? true : is_active === 'false' ? false : undefined,
@@ -36,8 +38,19 @@ export async function getAllUsers(req: Request, res: Response, next: NextFunctio
       includeAddresses: include_addresses === 'true'
     });
 
+    const pageSize = Number(limit) || 20;
+    if (result.keyset) {
+      return res.json(
+        ApiResponse.paginated(result.users, {
+          limit: pageSize,
+          hasMore: result.hasMore,
+          cursor: result.nextCursor ?? undefined,
+          total: result.total ?? undefined
+        })
+      );
+    }
     return res.json(
-      ApiResponse.paginated(result.users, Number(page) || 1, Number(limit) || 20, result.total)
+      ApiResponse.paginated(result.users, Number(page) || 1, pageSize, result.total ?? 0)
     );
   } catch (error) {
     next(error);

@@ -77,7 +77,10 @@ export interface UserFilters {
   email_verified?: boolean;
   search?: string;
   contact_status?: 'missing';
+  /** Paginación clásica (OFFSET). Si se omite, se pagina por cursor. */
   page?: number;
+  /** Cursor opaco de la página anterior. */
+  cursor?: string;
   limit?: number;
   sort?: 'first_name' | 'created_at';
   includeAddresses?: boolean;
