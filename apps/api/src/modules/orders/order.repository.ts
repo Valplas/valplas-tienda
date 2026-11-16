@@ -121,81 +121,64 @@ export async function findOrders(
 
   const total = parseInt(countResult.rows[0].count, 10);
 
-  // Get orders with user info (and optionally embedded items)
-  let ordersRows: Order[];
+  // Paginar primero (solo ids) y recién después traer usuario e items: antes el GROUP BY + json_agg
+  // se calculaba para TODOS los pedidos que matcheaban y luego se descartaban con LIMIT/OFFSET.
+  // `o.id DESC` desempata: sin él el orden no es determinista y las páginas pueden repetir filas.
+  const itemsSelect = includeItems ? ', it.items' : '';
+  const itemsJoin = includeItems
+    ? `LEFT JOIN LATERAL (
+         SELECT COALESCE(
+                  json_agg(
+                    json_build_object(
+                      'id', oi.id,
+                      'product_id', oi.product_id,
+                      'product_name', oi.product_name,
+                      'product_sku', oi.product_sku,
+                      'quantity', oi.quantity,
+                      'unit_price', oi.unit_price,
+                      'subtotal', oi.subtotal
+                    ) ORDER BY oi.created_at
+                  ),
+                  '[]'
+                ) AS items
+         FROM order_items oi
+         WHERE oi.order_id = o.id
+       ) it ON true`
+    : '';
 
-  if (includeItems) {
-    const result = await query<Order>(
-      `SELECT o.*,
-              CASE WHEN u.id IS NOT NULL THEN
-                json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
-              END as user,
-              CASE WHEN o.shipping_street IS NOT NULL THEN
-                json_build_object(
-                  'id', COALESCE(o.shipping_address_id, o.id),
-                  'alias', 'Dirección de entrega',
-                  'street', o.shipping_street,
-                  'street_number', o.shipping_street_number,
-                  'floor', o.shipping_floor,
-                  'apartment', o.shipping_apartment,
-                  'city', o.shipping_city,
-                  'province', o.shipping_province,
-                  'postcode', o.shipping_postcode
-                )
-              END as shipping_address,
-              COALESCE(
-                json_agg(
-                  json_build_object(
-                    'id', oi.id,
-                    'product_id', oi.product_id,
-                    'product_name', p.name,
-                    'product_sku', p.sku,
-                    'quantity', oi.quantity,
-                    'unit_price', oi.unit_price,
-                    'subtotal', oi.subtotal
-                  ) ORDER BY oi.created_at
-                ) FILTER (WHERE oi.id IS NOT NULL),
-                '[]'
-              ) as items
-       FROM orders o
-       LEFT JOIN users u ON o.user_id = u.id
-       LEFT JOIN order_items oi ON oi.order_id = o.id
-       LEFT JOIN products p ON p.id = oi.product_id
+  const result = await query<Order>(
+    `WITH paged AS (
+       SELECT o.id
+       FROM orders o ${countJoin}
        WHERE ${whereClause}
-       GROUP BY o.id, u.id, u.first_name, u.last_name, u.email, u.phone
-       ORDER BY o.created_at DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      [...params, limit, offset]
-    );
-    ordersRows = result.rows;
-  } else {
-    const result = await query<Order>(
-      `SELECT o.*,
-              CASE WHEN u.id IS NOT NULL THEN
-                json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
-              END as user,
-              CASE WHEN o.shipping_street IS NOT NULL THEN
-                json_build_object(
-                  'id', COALESCE(o.shipping_address_id, o.id),
-                  'alias', 'Dirección de entrega',
-                  'street', o.shipping_street,
-                  'street_number', o.shipping_street_number,
-                  'floor', o.shipping_floor,
-                  'apartment', o.shipping_apartment,
-                  'city', o.shipping_city,
-                  'province', o.shipping_province,
-                  'postcode', o.shipping_postcode
-                )
-              END as shipping_address
-       FROM orders o
-       LEFT JOIN users u ON o.user_id = u.id
-       WHERE ${whereClause}
-       ORDER BY o.created_at DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      [...params, limit, offset]
-    );
-    ordersRows = result.rows;
-  }
+       ORDER BY o.created_at DESC, o.id DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+     )
+     SELECT o.*,
+            CASE WHEN u.id IS NOT NULL THEN
+              json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
+            END as user,
+            CASE WHEN o.shipping_street IS NOT NULL THEN
+              json_build_object(
+                'id', COALESCE(o.shipping_address_id, o.id),
+                'alias', 'Dirección de entrega',
+                'street', o.shipping_street,
+                'street_number', o.shipping_street_number,
+                'floor', o.shipping_floor,
+                'apartment', o.shipping_apartment,
+                'city', o.shipping_city,
+                'province', o.shipping_province,
+                'postcode', o.shipping_postcode
+              )
+            END as shipping_address${itemsSelect}
+     FROM paged
+     JOIN orders o ON o.id = paged.id
+     LEFT JOIN users u ON u.id = o.user_id
+     ${itemsJoin}
+     ORDER BY o.created_at DESC, o.id DESC`,
+    [...params, limit, offset]
+  );
+  const ordersRows: Order[] = result.rows;
 
   return {
     orders: ordersRows,
