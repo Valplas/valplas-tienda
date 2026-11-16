@@ -6,10 +6,9 @@ import { getCarrierShippingCost } from '../shipping/shipping-cost.js';
 import { createOrderPreference } from '../../infrastructure/external/mercadopago.js';
 import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
-import { findProductById, findProductsByIds } from '../products/product.repository.js';
+import { findProductsByIds } from '../products/product.repository.js';
 import { getTiersForCartItems } from '../cart/cart.repository.js';
-import { calculatePrice } from '../price-lists/price-list.service.js';
-import { getTierByProductAndPriceList } from '../products/price-tiers/price-tier.service.js';
+import { findPriceListsByIds } from '../price-lists/price-list.repository.js';
 import { VALID_STATUS_TRANSITIONS } from './order.types.js';
 import type {
   Order,
@@ -324,6 +323,47 @@ export async function cancelOrder(
 }
 
 /**
+ * Producto, tamaño de bulto y precio unitario de cada ítem de un pedido admin, resueltos con
+ * 3 queries en total (productos, listas de precio y tiers) en vez de 4 por ítem. Sin tier activo
+ * para (producto, lista) el pedido admin vende por unidad (bulto = 1). El precio unitario usa la
+ * misma fórmula que price-list.service.calculatePrice: costo × (1 + margen/100), truncado.
+ */
+async function resolveAdminItemPricing(
+  items: Array<{ product_id: string; price_list_id: string }>
+) {
+  const [products, priceLists, tierMap] = await Promise.all([
+    findProductsByIds([...new Set(items.map((i) => i.product_id))]),
+    findPriceListsByIds([...new Set(items.map((i) => i.price_list_id))]),
+    getTiersForCartItems(
+      items.map((i) => ({ productId: i.product_id, priceListId: i.price_list_id }))
+    )
+  ]);
+  const productMap = new Map(products.map((p) => [p.id, p]));
+  const priceListMap = new Map(priceLists.map((pl) => [pl.id, pl]));
+
+  return items.map((item) => {
+    const product = productMap.get(item.product_id);
+    if (!product || !product.isActive) {
+      throw new AppError(
+        'PRODUCT_NOT_FOUND',
+        `Producto ${item.product_id} no encontrado o inactivo`,
+        400
+      );
+    }
+    const priceList = priceListMap.get(item.price_list_id);
+    if (!priceList) {
+      throw new AppError('PRICE_LIST_NOT_FOUND', 'Lista de precios no encontrada', 404);
+    }
+
+    const bundleSize = tierMap.get(`${item.product_id}:${item.price_list_id}`)?.minQuantity ?? 1;
+    const costPrice = Number(product.costPrice);
+    const unitPrice = Math.trunc(costPrice * (1 + Number(priceList.margin) / 100) * 100) / 100;
+
+    return { product, bundleSize, unitPrice, costPrice };
+  });
+}
+
+/**
  * Create order by admin (bypasses shipping validation, uses pre-calculated prices)
  */
 export async function createAdminOrder(
@@ -361,26 +401,13 @@ export async function createAdminOrder(
   let subtotal = 0;
   const validatedItems = [];
 
-  for (const item of data.items) {
-    const product = await findProductById(item.product_id);
-    if (!product || !product.isActive) {
-      throw new AppError(
-        'PRODUCT_NOT_FOUND',
-        `Producto ${item.product_id} no encontrado o inactivo`,
-        400
-      );
-    }
+  // Precios, bultos y producto de TODOS los ítems en 3 queries (antes: 4 por ítem)
+  const pricing = await resolveAdminItemPricing(data.items);
+
+  for (const [index, item] of data.items.entries()) {
+    const { product, bundleSize: bundleSizeSnapshot, unitPrice, costPrice } = pricing[index];
 
     const availableStock = product.stock - product.reservedStock;
-
-    // Admin orders bypass tier requirement — default bundle size to 1 if no tier exists
-    let bundleSizeSnapshot = 1;
-    try {
-      const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
-      bundleSizeSnapshot = tier.minQuantity;
-    } catch {
-      // No tier configured for this product+price list, treat as unit sale
-    }
     const realQuantity = item.quantity * bundleSizeSnapshot;
 
     if (availableStock < realQuantity) {
@@ -390,8 +417,6 @@ export async function createAdminOrder(
         409
       );
     }
-
-    const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
 
     // unit_price / cost_price_snapshot se guardan POR BULTO (igual que el checkout web):
     // el trigger de subtotal y la columna revenue multiplican por quantity (bultos).
@@ -583,25 +608,11 @@ export async function updateAdminOrder(
   }
 
   const enrichedItems = [];
-  for (const item of activeItems) {
-    const product = await findProductById(item.product_id);
-    if (!product || !product.isActive) {
-      throw new AppError(
-        'PRODUCT_NOT_FOUND',
-        `Producto ${item.product_id} no encontrado o inactivo`,
-        400
-      );
-    }
-    // Admin orders bypass tier requirement — default bundle size to 1 if no tier exists
-    let bundleSizeSnapshot = 1;
-    try {
-      const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
-      bundleSizeSnapshot = tier.minQuantity;
-    } catch {
-      // No tier configured for this product+price list, treat as unit sale
-    }
+  // Precios, bultos y producto de TODOS los ítems en 3 queries (antes: 4 por ítem)
+  const pricing = await resolveAdminItemPricing(activeItems);
+  for (const [index, item] of activeItems.entries()) {
+    const { product, bundleSize: bundleSizeSnapshot, unitPrice, costPrice } = pricing[index];
     const realQuantity = item.quantity * bundleSizeSnapshot;
-    const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
     // Precio y costo POR BULTO, igual que en createAdminOrder y en el checkout web
     enrichedItems.push({
       product_id: item.product_id,

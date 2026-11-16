@@ -50,6 +50,17 @@ export async function findPriceListById(id: string): Promise<PriceList | null> {
   return result.rows[0] || null;
 }
 
+/** Listas por lote (un solo query en vez de uno por ítem). Ignora las borradas. */
+export async function findPriceListsByIds(ids: string[]): Promise<PriceList[]> {
+  if (ids.length === 0) return [];
+
+  const result = await query<PriceList>(
+    'SELECT * FROM price_lists WHERE id = ANY($1) AND deleted_at IS NULL',
+    [ids]
+  );
+  return result.rows;
+}
+
 export async function createPriceList(data: CreatePriceListData): Promise<PriceList> {
   const result = await query<PriceList>(
     `INSERT INTO price_lists (name, margin, discount, is_active)
