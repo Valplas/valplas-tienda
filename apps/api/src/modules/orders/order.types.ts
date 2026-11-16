@@ -147,7 +147,10 @@ export interface OrderFilters {
   to_date?: string;
   order_number?: string;
   search?: string;
+  /** Paginación clásica (OFFSET). Si se omite, se pagina por cursor. */
   page?: number;
+  /** Cursor opaco de la página anterior (paginación por cursor). */
+  cursor?: string;
   limit?: number;
   includeItems?: boolean;
 }

@@ -89,6 +89,66 @@ describe('findOrders', () => {
     expect((orders[0] as unknown as { items: unknown[] }).items).toEqual([]);
   });
 
+  it('por cursor recorre todos los pedidos sin repetir, con total solo en la primera página', async () => {
+    const userId = (await createTestUser()).id;
+    const ids = [
+      await createRawOrder(userId),
+      await createRawOrder(userId),
+      await createRawOrder(userId),
+      await createRawOrder(userId),
+      await createRawOrder(userId)
+    ];
+    // Mismo created_at con microsegundos: el desempate por id es lo único que ordena
+    await query(
+      "UPDATE orders SET created_at = '2026-01-15 12:00:00.123456+00' WHERE id = ANY($1)",
+      [ids]
+    );
+    // Uno posterior y uno anterior para cruzar también distintos timestamps
+    await query("UPDATE orders SET created_at = '2026-02-01 00:00:00+00' WHERE id = $1", [ids[0]]);
+    await query("UPDATE orders SET created_at = '2025-12-01 00:00:00+00' WHERE id = $1", [ids[1]]);
+
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    let pages = 0;
+    let firstTotal: number | null | undefined;
+
+    do {
+      const page = await orderRepository.findOrders({ user_id: userId, limit: 2, cursor });
+      if (pages === 0) firstTotal = page.total;
+      else expect(page.total).toBeNull();
+      seen.push(...page.orders.map((o) => o.id));
+      expect(page.orders.length).toBeLessThanOrEqual(2);
+      cursor = page.nextCursor ?? undefined;
+      expect(page.hasMore).toBe(cursor !== undefined);
+      pages++;
+    } while (cursor && pages < 10);
+
+    expect(firstTotal).toBe(5);
+    expect(pages).toBe(3);
+    expect(seen).toHaveLength(5);
+    expect(new Set(seen)).toEqual(new Set(ids));
+    // Orden: más reciente primero, el más antiguo al final
+    expect(seen[0]).toBe(ids[0]);
+    expect(seen[seen.length - 1]).toBe(ids[1]);
+  });
+
+  it('no expone el valor interno del cursor en los pedidos', async () => {
+    const userId = (await createTestUser()).id;
+    await createRawOrder(userId);
+
+    const { orders } = await orderRepository.findOrders({ user_id: userId });
+
+    expect(orders[0]).not.toHaveProperty('_k0');
+  });
+
+  it('rechaza un cursor inválido con 400', async () => {
+    const userId = (await createTestUser()).id;
+
+    await expect(
+      orderRepository.findOrders({ user_id: userId, cursor: 'basura' })
+    ).rejects.toMatchObject({ code: 'INVALID_CURSOR', statusCode: 400 });
+  });
+
   it('pagina sin repetir ni saltear pedidos con el mismo created_at', async () => {
     const userId = (await createTestUser()).id;
     const ids = [

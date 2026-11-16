@@ -16,6 +16,13 @@ import type {
 } from './order.types.js';
 import type { User } from '../users/user.types.js';
 import { fromBoundSql, toBoundSql } from '../../shared/utils/date-range.js';
+import {
+  decodeCursor,
+  encodeCursor,
+  keysetPredicate,
+  sliceKeysetPage,
+  tsKey
+} from '../../shared/utils/keyset.js';
 
 /**
  * Generate order number (PREFIX-YYYYMMDD-NNNNNN)
@@ -50,9 +57,19 @@ export async function generateOrderNumber(
 /**
  * Find orders with filters and pagination
  */
-export async function findOrders(
-  filters: OrderFilters
-): Promise<{ orders: Order[]; total: number }> {
+export interface FindOrdersResult {
+  orders: Order[];
+  /** null en páginas con cursor: el total solo se calcula en la primera página. */
+  total: number | null;
+  /** Solo modo cursor: hay otra página después de esta. */
+  hasMore: boolean;
+  /** Solo modo cursor: cursor de la página siguiente (null si no hay más). */
+  nextCursor: string | null;
+}
+
+const ORDERS_SORT_TAG = 'created_desc';
+
+export async function findOrders(filters: OrderFilters): Promise<FindOrdersResult> {
   const {
     user_id,
     status,
@@ -60,12 +77,16 @@ export async function findOrders(
     to_date,
     order_number,
     search,
-    page = 1,
+    page,
+    cursor,
     limit = 20,
     includeItems = false
   } = filters;
 
-  const offset = (page - 1) * limit;
+  // Sin `page` se pagina por cursor (keyset); con `page` queda el OFFSET de siempre
+  // (pickers, impresión del día y clientes que saltan a una página).
+  const useKeyset = page === undefined;
+  const offset = useKeyset ? 0 : (page - 1) * limit;
   const conditions: string[] = [];
   const params: unknown[] = [];
   let paramIndex = 1;
@@ -113,13 +134,34 @@ export async function findOrders(
   // Need the users join in the count query when search is active (references u.first_name etc.)
   const countJoin = search ? 'LEFT JOIN users u ON o.user_id = u.id' : '';
 
-  // Count total
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM orders o ${countJoin} WHERE ${whereClause}`,
-    params
-  );
+  // Total: siempre con OFFSET; con cursor solo en la primera página (sin cursor), sobre los
+  // mismos filtros pero sin el predicado del cursor, que cambia en cada página.
+  let total: number | null = null;
+  if (!useKeyset || !cursor) {
+    const countResult = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM orders o ${countJoin} WHERE ${whereClause}`,
+      params
+    );
+    total = parseInt(countResult.rows[0].count, 10);
+  }
 
-  const total = parseInt(countResult.rows[0].count, 10);
+  // Predicado del cursor: (created_at, id) < último visto. Va al final: no entra en el count.
+  let pageWhere = whereClause;
+  const pageParams = [...params];
+  let pageParamIndex = paramIndex;
+  if (useKeyset && cursor) {
+    const [createdAt, id] = decodeCursor(cursor, ORDERS_SORT_TAG, 2);
+    pageWhere = `${whereClause} AND ${keysetPredicate(
+      ['o.created_at', 'o.id'],
+      'DESC',
+      ['timestamptz', 'uuid'],
+      pageParamIndex
+    )}`;
+    pageParams.push(createdAt, id);
+    pageParamIndex += 2;
+  }
+  // Con cursor se pide una fila de más para saber si hay otra página
+  const pageLimit = useKeyset ? limit + 1 : limit;
 
   // Paginar primero (solo ids) y recién después traer usuario e items: antes el GROUP BY + json_agg
   // se calculaba para TODOS los pedidos que matcheaban y luego se descartaban con LIMIT/OFFSET.
@@ -146,15 +188,15 @@ export async function findOrders(
        ) it ON true`
     : '';
 
-  const result = await query<Order>(
+  const result = await query<Order & { _k0: string }>(
     `WITH paged AS (
-       SELECT o.id
+       SELECT o.id, ${tsKey('o.created_at')} AS k0
        FROM orders o ${countJoin}
-       WHERE ${whereClause}
+       WHERE ${pageWhere}
        ORDER BY o.created_at DESC, o.id DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+       LIMIT $${pageParamIndex} OFFSET $${pageParamIndex + 1}
      )
-     SELECT o.*,
+     SELECT o.*, paged.k0 AS _k0,
             CASE WHEN u.id IS NOT NULL THEN
               json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
             END as user,
@@ -176,14 +218,24 @@ export async function findOrders(
      LEFT JOIN users u ON u.id = o.user_id
      ${itemsJoin}
      ORDER BY o.created_at DESC, o.id DESC`,
-    [...params, limit, offset]
+    [...pageParams, pageLimit, offset]
   );
-  const ordersRows: Order[] = result.rows;
 
-  return {
-    orders: ordersRows,
-    total
-  };
+  const { rows, hasMore } = useKeyset
+    ? sliceKeysetPage(result.rows, limit)
+    : { rows: result.rows, hasMore: false };
+
+  const last = rows[rows.length - 1];
+  const nextCursor =
+    useKeyset && hasMore && last ? encodeCursor(ORDERS_SORT_TAG, [last._k0, last.id]) : null;
+
+  // _k0 es solo para armar el cursor: no se expone en la respuesta
+  const orders = rows.map(({ _k0, ...order }) => {
+    void _k0;
+    return order as Order;
+  });
+
+  return { orders, total, hasMore, nextCursor };
 }
 
 /**
