@@ -15,6 +15,7 @@ import type {
   OrderStatus
 } from './order.types.js';
 import type { User } from '../users/user.types.js';
+import { fromBoundSql, toBoundSql } from '../../shared/utils/date-range.js';
 
 /**
  * Generate order number (PREFIX-YYYYMMDD-NNNNNN)
@@ -81,14 +82,15 @@ export async function findOrders(
     paramIndex++;
   }
 
+  // Rango semiabierto en hora de Argentina para `YYYY-MM-DD`; el índice por created_at sirve de acceso
   if (from_date) {
-    conditions.push(`o.created_at >= $${paramIndex}`);
+    conditions.push(fromBoundSql('o.created_at', from_date, `$${paramIndex}`));
     params.push(from_date);
     paramIndex++;
   }
 
   if (to_date) {
-    conditions.push(`o.created_at <= $${paramIndex}`);
+    conditions.push(toBoundSql('o.created_at', to_date, `$${paramIndex}`));
     params.push(to_date);
     paramIndex++;
   }

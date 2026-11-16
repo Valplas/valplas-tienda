@@ -1,5 +1,6 @@
 import { query } from '../../infrastructure/database/client.js';
 import type { DailySummary, ProductDailySale, PriceListSale } from './accounting.types.js';
+import { dayStartSql, dayEndExclusiveSql } from '../../shared/utils/date-range.js';
 
 interface RawSaleRow {
   product_id: string;
@@ -37,7 +38,8 @@ export async function getDailySummary(date: string): Promise<DailySummary> {
     JOIN products    p  ON oi.product_id = p.id
     LEFT JOIN price_lists pl ON oi.price_list_id = pl.id
     WHERE
-      DATE(o.created_at AT TIME ZONE 'America/Argentina/Buenos_Aires') = $1
+      o.created_at >= ${dayStartSql('$1')}
+      AND o.created_at < ${dayEndExclusiveSql('$1')}
       AND o.status IN ('payment_confirmed','processing','ready_to_ship','shipped','delivered')
     GROUP BY
       p.id, p.name, p.sku, p.cost_price, p.stock, p.reserved_stock,

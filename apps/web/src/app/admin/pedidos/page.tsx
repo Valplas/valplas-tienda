@@ -79,7 +79,7 @@ export default function PedidosPage() {
           limit: PAGE_SIZE,
           status: statusFilter,
           fromDate: dateFilter || undefined,
-          toDate: dateFilter ? `${dateFilter}T23:59:59` : undefined,
+          toDate: dateFilter || undefined,
           search: searchTerm || undefined
         });
         if (!isMountedRef.current) return;
@@ -106,7 +106,7 @@ export default function PedidosPage() {
           limit: PAGE_SIZE,
           status: statusFilter,
           fromDate: dateFilter || undefined,
-          toDate: dateFilter ? `${dateFilter}T23:59:59` : undefined,
+          toDate: dateFilter || undefined,
           search: search || undefined
         });
         if (!isMountedRef.current) return;
@@ -156,7 +156,7 @@ export default function PedidosPage() {
         page: 1,
         limit: 500,
         fromDate: date,
-        toDate: `${date}T23:59:59`,
+        toDate: date,
         includeItems: true
       });
       if (targetOrders.length === 0) {
