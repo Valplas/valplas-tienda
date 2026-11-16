@@ -29,7 +29,7 @@ export async function getDailySummary(date: string): Promise<DailySummary> {
       SUM(
         COALESCE(
           oi.revenue,
-          (oi.unit_price - COALESCE(p.cost_price, 0)) * oi.quantity
+          (oi.unit_price - COALESCE(p.cost_price, 0) * oi.bundle_size_snapshot) * oi.quantity
         )
       )                                                      AS ganancia
     FROM orders o

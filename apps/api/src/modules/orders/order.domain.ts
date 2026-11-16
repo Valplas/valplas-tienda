@@ -393,7 +393,12 @@ export async function createAdminOrder(
 
     const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
 
-    subtotal += Math.trunc(unitPrice * realQuantity * 100) / 100;
+    // unit_price / cost_price_snapshot se guardan POR BULTO (igual que el checkout web):
+    // el trigger de subtotal y la columna revenue multiplican por quantity (bultos).
+    const pricePerBundle = Math.round(unitPrice * bundleSizeSnapshot * 100) / 100;
+    const costPerBundle = Math.round(costPrice * bundleSizeSnapshot * 100) / 100;
+
+    subtotal += Math.round(pricePerBundle * item.quantity * 100) / 100;
     validatedItems.push({
       product_id: item.product_id,
       product_name: product.name,
@@ -401,13 +406,13 @@ export async function createAdminOrder(
       quantity: item.quantity,
       bundle_size_snapshot: bundleSizeSnapshot,
       real_quantity: realQuantity,
-      unit_price: unitPrice,
+      unit_price: pricePerBundle,
       price_list_id: item.price_list_id,
-      cost_price_snapshot: costPrice
+      cost_price_snapshot: costPerBundle
     });
   }
 
-  subtotal = Math.trunc(subtotal * 100) / 100;
+  subtotal = Math.round(subtotal * 100) / 100;
 
   const order = await orderRepository.createAdminOrder(adminId, {
     ...data,
@@ -597,6 +602,7 @@ export async function updateAdminOrder(
     }
     const realQuantity = item.quantity * bundleSizeSnapshot;
     const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
+    // Precio y costo POR BULTO, igual que en createAdminOrder y en el checkout web
     enrichedItems.push({
       product_id: item.product_id,
       product_name: product.name,
@@ -604,9 +610,9 @@ export async function updateAdminOrder(
       quantity: item.quantity,
       bundle_size_snapshot: bundleSizeSnapshot,
       real_quantity: realQuantity,
-      unit_price: unitPrice,
+      unit_price: Math.round(unitPrice * bundleSizeSnapshot * 100) / 100,
       price_list_id: item.price_list_id,
-      cost_price_snapshot: costPrice
+      cost_price_snapshot: Math.round(costPrice * bundleSizeSnapshot * 100) / 100
     });
   }
 

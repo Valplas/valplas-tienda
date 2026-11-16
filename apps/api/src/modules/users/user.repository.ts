@@ -188,9 +188,9 @@ export async function findUserWithStats(id: string): Promise<UserWithStats | nul
     `SELECT
       u.id, u.email, u.username, u.phone, u.first_name, u.last_name, u.role,
       u.is_active, u.email_verified, u.phone_verified, u.created_at, u.updated_at, u.deleted_at,
-      (SELECT COUNT(*) FROM orders WHERE user_id = u.id AND deleted_at IS NULL) as total_orders,
+      (SELECT COUNT(*) FROM orders WHERE user_id = u.id) as total_orders,
       (SELECT COUNT(*) FROM user_addresses WHERE user_id = u.id AND deleted_at IS NULL) as total_addresses,
-      (SELECT MAX(created_at) FROM orders WHERE user_id = u.id AND deleted_at IS NULL) as last_order_date
+      (SELECT MAX(created_at) FROM orders WHERE user_id = u.id) as last_order_date
      FROM users u
      WHERE u.id = $1 AND u.deleted_at IS NULL`,
     [id]

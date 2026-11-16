@@ -431,9 +431,16 @@ interface EnrichedAdminOrderItem {
   quantity: number; // bundles
   bundle_size_snapshot: number;
   real_quantity: number; // quantity × bundle_size_snapshot
+  /** Precio por bulto (unitPrice × bundle_size_snapshot), igual que en el checkout web */
   unit_price: number;
   price_list_id: string;
+  /** Costo por bulto (cost_price × bundle_size_snapshot): revenue = (unit_price - cost) × quantity */
   cost_price_snapshot: number;
+}
+
+/** Subtotal de una línea: precio por bulto × bultos, redondeado a centavos (sin ruido de float). */
+function adminItemSubtotal(item: Pick<EnrichedAdminOrderItem, 'unit_price' | 'quantity'>): number {
+  return Math.round(item.unit_price * item.quantity * 100) / 100;
 }
 
 export async function createAdminOrder(
@@ -487,7 +494,7 @@ export async function createAdminOrder(
     const order = orderResult.rows[0];
 
     for (const item of data.items) {
-      const itemSubtotal = Math.trunc(item.unit_price * item.real_quantity * 100) / 100;
+      const itemSubtotal = adminItemSubtotal(item);
       await client.query(
         `INSERT INTO order_items
            (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
@@ -635,12 +642,10 @@ export async function isOrderOwnedByUser(orderId: string, userId: string): Promi
 
 /** Subtotal de un pedido admin: precio unitario × unidades reales, truncado a centavos. */
 export function calculateAdminOrderSubtotal(
-  items: Pick<EnrichedAdminOrderItem, 'unit_price' | 'real_quantity'>[]
+  items: Pick<EnrichedAdminOrderItem, 'unit_price' | 'quantity'>[]
 ): number {
-  return (
-    Math.trunc(items.reduce((sum, item) => sum + item.unit_price * item.real_quantity, 0) * 100) /
-    100
-  );
+  // Suma de subtotales por línea, igual que lo que persiste el trigger (quantity × unit_price)
+  return Math.round(items.reduce((sum, item) => sum + adminItemSubtotal(item) * 100, 0)) / 100;
 }
 
 interface UpdateAdminOrderData {
@@ -729,7 +734,7 @@ export async function updateAdminOrder(
     await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
 
     for (const item of data.items) {
-      const itemSubtotal = Math.trunc(item.unit_price * item.real_quantity * 100) / 100;
+      const itemSubtotal = adminItemSubtotal(item);
       await client.query(
         `INSERT INTO order_items
            (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
