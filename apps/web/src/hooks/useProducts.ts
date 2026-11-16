@@ -13,7 +13,7 @@ interface UseProductsResult {
   pagination: {
     page?: number;
     limit: number;
-    total: number;
+    total?: number;
     totalPages?: number;
     hasMore: boolean;
   } | null;

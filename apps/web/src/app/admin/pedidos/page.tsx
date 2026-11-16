@@ -50,7 +50,7 @@ export default function PedidosPage() {
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
+  const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -60,6 +60,8 @@ export default function PedidosPage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
+  // Descarta respuestas de filtros viejos: un cursor solo es válido para la lista que lo generó
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -70,55 +72,66 @@ export default function PedidosPage() {
 
   const loadOrders = useCallback(
     async (searchTerm: string) => {
+      const requestId = ++requestIdRef.current;
       setIsLoading(true);
-      setPage(1);
+      setCursor(null);
       setHasMore(true);
       try {
-        const { orders: data, total: t } = await getAdminOrders({
-          page: 1,
+        const {
+          orders: data,
+          total: t,
+          hasMore: more,
+          nextCursor
+        } = await getAdminOrders({
           limit: PAGE_SIZE,
           status: statusFilter,
           fromDate: dateFilter || undefined,
           toDate: dateFilter || undefined,
           search: searchTerm || undefined
         });
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
         setOrders(data);
         setTotal(t);
-        setHasMore(data.length === PAGE_SIZE);
+        setHasMore(more);
+        setCursor(nextCursor);
       } catch (error) {
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
         toast.error('Error al cargar pedidos');
         console.error(error);
       } finally {
-        if (isMountedRef.current) setIsLoading(false);
+        if (isMountedRef.current && requestId === requestIdRef.current) setIsLoading(false);
       }
     },
     [statusFilter, dateFilter]
   );
 
   const loadMore = useCallback(
-    async (nextPage: number) => {
+    async (afterCursor: string) => {
+      const requestId = requestIdRef.current;
       setIsLoadingMore(true);
       try {
-        const { orders: data } = await getAdminOrders({
-          page: nextPage,
+        const {
+          orders: data,
+          hasMore: more,
+          nextCursor
+        } = await getAdminOrders({
+          cursor: afterCursor,
           limit: PAGE_SIZE,
           status: statusFilter,
           fromDate: dateFilter || undefined,
           toDate: dateFilter || undefined,
           search: search || undefined
         });
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
         setOrders((prev) => [...prev, ...data]);
-        setHasMore(data.length === PAGE_SIZE);
-        setPage(nextPage);
+        setHasMore(more);
+        setCursor(nextCursor);
       } catch {
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
         setHasMore(false);
         toast.error('Error al cargar más pedidos');
       } finally {
-        if (isMountedRef.current) setIsLoadingMore(false);
+        if (isMountedRef.current && requestId === requestIdRef.current) setIsLoadingMore(false);
       }
     },
     [statusFilter, dateFilter, search]
@@ -179,8 +192,15 @@ export default function PedidosPage() {
     let active = true;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (active && entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading) {
-          loadMore(page + 1);
+        if (
+          active &&
+          entries[0].isIntersecting &&
+          hasMore &&
+          cursor &&
+          !isLoadingMore &&
+          !isLoading
+        ) {
+          loadMore(cursor);
         }
       },
       { threshold: 0.1 }
@@ -191,7 +211,7 @@ export default function PedidosPage() {
       active = false;
       observer.disconnect();
     };
-  }, [hasMore, isLoadingMore, isLoading, page, loadMore]);
+  }, [hasMore, isLoadingMore, isLoading, cursor, loadMore]);
 
   // Table columns
   const columns = useMemo<ColumnDef<Order>[]>(
