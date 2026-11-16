@@ -35,6 +35,12 @@ const ALLOW = new Map([
   ['GHSA-qhr7-859c-m2p7', 'brace-expansion: recursión anidada — solo globs hardcodeados'],
   ['GHSA-6j4f-fj2g-mc7p', 'brace-expansion: recursión parseCommaParts — solo globs hardcodeados'],
   ['GHSA-q2hr-2g5m-vwhr', 'brace-expansion: tiempo cuadrático — solo globs hardcodeados'],
+  // minimatch 10.x (>=7 <11.0.1): no hay versión corregida dentro de la línea 10 y un override
+  // global a 11 rompería minimatch@3 (swagger-jsdoc → glob@7, eslint-plugin-*), que se importa
+  // como función. La copia vulnerable llega solo por @typescript-eslint/typescript-estree
+  // (lint/typecheck), nunca por runtime ni por input de un atacante: los globs son config fija.
+  // Quitar cuando typescript-estree suba a minimatch 11 (hoy declara ^10.2.2).
+  ['GHSA-g3hv-75wg-m249', 'minimatch 10.x: DoS por amplificación de globparts — solo tooling de lint'],
   // braces 3.0.3 es la última versión publicada (sin fix). Llega solo por
   // micromatch de tooling: tsc-alias (build), eslint-config-next, lint-staged.
   ['GHSA-vfj7-8cjw-p6xm', 'braces: stack exhaustion — sin fix publicado, solo build tooling']
