@@ -118,9 +118,11 @@ import catalogRoutes from './modules/catalog/catalog.routes.js';
 import paymentsRoutes from './modules/payments/payments.routes.js';
 import bannerRoutes from './modules/banners/banner.routes.js';
 import settingsRoutes from './modules/settings/settings.routes.js';
+import botRoutes from './modules/bot/bot.routes.js';
 import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.js';
 import { scheduleStaleOrderCancellation } from './infrastructure/jobs/cancel-stale-orders.job.js';
 import { scheduleStagedImageCleanup } from './infrastructure/jobs/cleanup-staged-images.job.js';
+import { scheduleBotWebhookDelivery } from './infrastructure/jobs/deliver-bot-webhooks.job.js';
 
 // Montar rutas
 app.use('/api/auth', authRoutes);
@@ -139,6 +141,8 @@ app.use('/api/catalog', catalogRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/settings', settingsRoutes);
+// Bot de WhatsApp: X-Api-Key, sin cookies (exento de CSRF y del limiter general)
+app.use('/api/bot', botRoutes);
 
 // Swagger documentation
 app.use(
@@ -175,6 +179,8 @@ scheduleStaleOrderCancellation();
 console.log('🕒 Job programado: cancelación horaria de órdenes pending_payment expiradas');
 scheduleStagedImageCleanup();
 console.log('🕒 Job programado: limpieza de imágenes en staging abandonadas (06:30 UTC)');
+scheduleBotWebhookDelivery();
+console.log('🕒 Job programado: webhooks al bot de WhatsApp cada 15s');
 
 // Iniciar servidor
 const server = app.listen(PORT, () => {

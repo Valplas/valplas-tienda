@@ -5,6 +5,7 @@ import ms, { type StringValue } from 'ms';
 import * as refreshTokenRepository from './refresh-token.repository.js';
 import { env } from '../../env.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
+import { normalizePhone } from '../../shared/utils/phone.js';
 import * as authRepository from './auth.repository.js';
 import type {
   RegisterData,
@@ -54,9 +55,17 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
     throw new AppError('USERNAME_ALREADY_EXISTS', 'El username ya está en uso', 400);
   }
 
-  // Si hay teléfono, verificar que no exista
+  // Teléfono en E.164 (el validador acepta formatos como "11 4123-4567"). Solo se bloquea el
+  // duplicado exacto: el mismo celular en otro formato (con/sin 9) lo detectan las sugerencias
+  // de merge del admin, sin impedirle al cliente registrarse.
+  let phone: string | undefined;
   if (data.phone) {
-    const existingPhone = await authRepository.findUserByPhone(data.phone);
+    const normalized = normalizePhone(data.phone);
+    if (!normalized) {
+      throw new AppError('INVALID_PHONE', 'Teléfono inválido', 400);
+    }
+    phone = normalized;
+    const existingPhone = await authRepository.findUserByPhone(phone);
     if (existingPhone) {
       throw new AppError('PHONE_ALREADY_EXISTS', 'El teléfono ya está registrado', 400);
     }
@@ -68,6 +77,7 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   // Crear usuario
   const user = await authRepository.createUser({
     ...data,
+    phone,
     passwordHash
   });
 

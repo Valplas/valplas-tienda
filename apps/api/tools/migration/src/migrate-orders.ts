@@ -94,9 +94,9 @@ for (const row of rows.rows) {
         shipping_street, shipping_street_number,
         shipping_city, shipping_province, shipping_postcode,
         payment_method, delivered_at, cancelled_at,
-        created_at
+        created_at, sales_channel
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'S/N','Buenos Aires','Buenos Aires','0000','cash',$9,$10,$11)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'S/N','Buenos Aires','Buenos Aires','0000','cash',$9,$10,$11,'legacy')
       ON CONFLICT (id) DO UPDATE SET
         order_number = EXCLUDED.order_number,
         status = EXCLUDED.status,

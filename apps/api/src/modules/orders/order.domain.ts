@@ -3,7 +3,13 @@
 import * as orderRepository from './order.repository.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import { getCarrierShippingCost } from '../shipping/shipping-cost.js';
-import { createOrderPreference } from '../../infrastructure/external/mercadopago.js';
+import {
+  priceOrderItems,
+  pricingProblemToError,
+  type OrderPricingOptions
+} from './order-pricing.js';
+import { createPaymentLinkForOrder } from './order-payment.js';
+import type { CreateOrderChannelOptions } from './order.repository.js';
 import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
 import { findProductsByIds } from '../products/product.repository.js';
@@ -90,12 +96,22 @@ export async function getOrderByNumber(
   return orderWithDetails;
 }
 
+export interface CreateOrderOptions extends CreateOrderChannelOptions, OrderPricingOptions {
+  /**
+   * No crear el link de MP dentro de createOrder: el llamador lo crea después con
+   * createPaymentLinkForOrder y decide qué hacer si MP falla (el bot devuelve la orden igual
+   * y reintenta el link; el checkout web propaga el error).
+   */
+  deferPaymentLink?: boolean;
+}
+
 /**
  * Create order from cart or items
  */
 export async function createOrder(
   userId: string,
-  data: CreateOrderInput
+  data: CreateOrderInput,
+  options: CreateOrderOptions = {}
 ): Promise<{ order: OrderWithDetails; paymentUrl?: string }> {
   // Validate address belongs to user and is active
   const address = await addressRepository.findAddressById(data.shipping_address_id);
@@ -109,68 +125,14 @@ export async function createOrder(
     throw new AppError('INVALID_CARRIER', 'Transportista inválido', 400);
   }
 
-  // Validate items and calculate totals.
-  // Batch lookup (WHERE id = ANY) en lugar de un query por ítem para evitar N+1.
-  let subtotal = 0;
-  const itemsWithPrices = [];
-
-  const products = await findProductsByIds(data.items.map((i) => i.product_id));
-  const productMap = new Map(products.map((p) => [p.id, p]));
-
-  // Tiers (precio de lista por bulto) para los ítems que traen price_list_id.
-  // Batch en un solo query para evitar N+1. Sin tier => unidad suelta.
-  const tierMap = await getTiersForCartItems(
-    data.items
-      .filter((i) => i.price_list_id)
-      .map((i) => ({ productId: i.product_id, priceListId: i.price_list_id as string }))
-  );
-
-  for (const item of data.items) {
-    const product = productMap.get(item.product_id);
-
-    if (!product) {
-      throw new AppError('PRODUCT_NOT_FOUND', `Producto ${item.product_id} no encontrado`, 400);
-    }
-
-    if (!product.isActive) {
-      throw new AppError('PRODUCT_UNAVAILABLE', `Producto ${product.name} no está disponible`, 400);
-    }
-
-    // Semántica de bultos: quantity = bultos; bundleSize = unidades por bulto.
-    const tier = item.price_list_id
-      ? tierMap.get(`${item.product_id}:${item.price_list_id}`)
-      : undefined;
-    const bundleSize = tier?.minQuantity ?? 1;
-    // Sin lista asignada se vende a costo (placeholder hasta asignar lista)
-    const unitPrice = tier?.unitPrice ?? product.costPrice;
-    const realQuantity = item.quantity * bundleSize; // unidades reales (para stock)
-    const pricePerBundle = Math.trunc(unitPrice * bundleSize * 100) / 100;
-    const itemSubtotal = Math.trunc(pricePerBundle * item.quantity * 100) / 100;
-
-    // El stock se controla en unidades reales, no en bultos.
-    const availableStock = product.stock - product.reservedStock;
-    if (availableStock < realQuantity) {
-      throw new AppError(
-        'INSUFFICIENT_STOCK',
-        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, solicitado: ${realQuantity}`,
-        409
-      );
-    }
-
-    subtotal += itemSubtotal;
-
-    itemsWithPrices.push({
-      product_id: item.product_id,
-      product_name: product.name,
-      product_sku: product.sku,
-      quantity: item.quantity, // bultos
-      real_quantity: realQuantity, // unidades
-      bundle_size_snapshot: bundleSize,
-      unit_price: pricePerBundle, // precio por bulto (trigger: subtotal = quantity × unit_price)
-      subtotal: itemSubtotal,
-      price_list_id: item.price_list_id
-    });
+  // Validate items and calculate totals (batch, sin N+1). El primer problema corta el pedido.
+  const { lines, subtotal, problems } = await priceOrderItems(data.items, {
+    requireTier: options.requireTier
+  });
+  if (problems.length > 0) {
+    throw pricingProblemToError(problems[0]);
   }
+  const itemsWithPrices = lines.map(({ available_stock: _availableStock, ...line }) => line);
 
   // Get shipping cost — mismas zonas/tarifas que la cotización pública
   const shippingCost = await getCarrierShippingCost(
@@ -199,7 +161,8 @@ export async function createOrder(
       shipping_province: address.province,
       shipping_postcode: address.postcode,
       carrier_name: carrier.name
-    }
+    },
+    { channel: options.channel, clientReference: options.clientReference }
   );
 
   // Return with details
@@ -210,31 +173,9 @@ export async function createOrder(
   }
 
   let paymentUrl: string | undefined;
-  if (data.payment_method === 'mercadopago') {
-    paymentUrl = await createOrderPreference({
-      orderNumber: orderWithDetails.order_number,
-      shippingCost,
-      items: orderWithDetails.items.map((item) => ({
-        id: item.product_id,
-        title: item.product_name,
-        description: item.product_sku,
-        quantity: item.quantity,
-        unit_price: item.unit_price
-      })),
-      payer: orderWithDetails.user?.email
-        ? {
-            email: orderWithDetails.user.email,
-            name: orderWithDetails.user.first_name ?? undefined,
-            surname: orderWithDetails.user.last_name ?? undefined,
-            phone: orderWithDetails.user.phone ?? undefined,
-            identification: data.payer_identification,
-            address: {
-              zip_code: orderWithDetails.shipping_postcode,
-              street_name: orderWithDetails.shipping_street,
-              street_number: orderWithDetails.shipping_street_number
-            }
-          }
-        : undefined
+  if (data.payment_method === 'mercadopago' && !options.deferPaymentLink) {
+    paymentUrl = await createPaymentLinkForOrder(orderWithDetails, {
+      payerIdentification: data.payer_identification
     });
   }
 

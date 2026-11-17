@@ -9,8 +9,10 @@ import type {
   UpdateUserInput,
   UserFilters,
   UserRole,
-  UserStats
+  UserStats,
+  UserPhoneMatch
 } from './user.types.js';
+import type { SalesChannel } from '../orders/order.types.js';
 
 /**
  * Find users with filters and pagination
@@ -216,18 +218,25 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 }
 
 /**
- * Find user by phone (E.164)
+ * Usuarios (no borrados) cuyo teléfono coincide por phone_match_key: mismo número nacional
+ * aunque esté guardado distinto (+5491141234567 ≡ +541141234567 ≡ 1141234567).
+ * Usa idx_users_phone_match_key.
+ * Orden: igualdad exacta primero, después la orden más reciente, después el más antiguo.
  */
-export async function findUserByPhone(phone: string): Promise<User | null> {
-  const result = await query<User>(
-    `SELECT id, email, username, phone, first_name, last_name, role,
-            is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
-     FROM users
-     WHERE phone = $1 AND deleted_at IS NULL`,
+export async function findUsersByPhoneKey(phone: string): Promise<UserPhoneMatch[]> {
+  const result = await query<UserPhoneMatch>(
+    `SELECT u.id, u.email, u.username, u.phone, u.first_name, u.last_name, u.role,
+            u.is_active, u.email_verified, u.phone_verified, u.created_at, u.updated_at,
+            u.deleted_at,
+            (SELECT MAX(o.created_at) FROM orders o WHERE o.user_id = u.id) AS last_order_at
+     FROM users u
+     WHERE phone_match_key(u.phone) = phone_match_key($1)
+       AND u.deleted_at IS NULL AND u.phone IS NOT NULL
+     ORDER BY (u.phone = $1) DESC, last_order_at DESC NULLS LAST, u.created_at ASC`,
     [phone]
   );
 
-  return result.rows[0] || null;
+  return result.rows;
 }
 
 /**
@@ -256,9 +265,9 @@ export async function createUser(
   const result = await query<User>(
     `INSERT INTO users (
       email, username, password_hash, phone, first_name, last_name, role, is_active,
-      is_admin_created
+      is_admin_created, signup_channel
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, 'admin')
     RETURNING id, email, username, phone, first_name, last_name, role,
               is_active, email_verified, phone_verified, created_at, updated_at, deleted_at`,
     [
@@ -271,6 +280,32 @@ export async function createUser(
       data.role,
       data.is_active ?? true
     ]
+  );
+
+  return result.rows[0];
+}
+
+/**
+ * Alta de un cliente desde un canal externo (bot de WhatsApp). Sin password ni username: no
+ * puede iniciar sesión en la web hasta que se vincule (Google por email) o el admin lo complete.
+ * is_admin_created = false a propósito: así cuenta como "cuenta nueva" en las sugerencias de
+ * merge y se cruza con las cuentas legacy del CRM.
+ */
+export async function createChannelCustomer(data: {
+  phone: string;
+  first_name: string;
+  last_name?: string | null;
+  email?: string | null;
+  signup_channel: Exclude<SalesChannel, 'web' | 'admin' | 'legacy'>;
+}): Promise<User> {
+  const result = await query<User>(
+    `INSERT INTO users (
+      phone, first_name, last_name, email, role, is_active, is_admin_created, signup_channel
+    )
+    VALUES ($1, $2, $3, $4, 'customer', true, false, $5)
+    RETURNING id, email, username, phone, first_name, last_name, role,
+              is_active, email_verified, phone_verified, created_at, updated_at, deleted_at`,
+    [data.phone, data.first_name, data.last_name ?? null, data.email ?? null, data.signup_channel]
   );
 
   return result.rows[0];

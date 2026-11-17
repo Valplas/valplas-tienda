@@ -143,26 +143,35 @@ export async function applyMerge(
   };
 }
 
-// Cuentas nuevas con dirección, cruzadas por calle + número normalizados con cuentas que el
-// cliente nunca usó en la web: migradas del CRM o cargadas por el admin (legacy_users). Una
-// cargada por el admin que ya inició sesión pasa a ser cuenta nueva. La ciudad se compara solo
-// si ambas son conocidas: las órdenes del CRM tienen la ciudad fija en 'Buenos Aires'
-// (migrate-orders.ts), así que cuentan como desconocida. Alta = además comparten una palabra
-// del nombre de 3+ letras.
+// Cuentas nuevas (web, Google, bot de WhatsApp) cruzadas con cuentas que el cliente nunca usó
+// en la web: migradas del CRM o cargadas por el admin (legacy_users). Una cargada por el admin
+// que ya inició sesión pasa a ser cuenta nueva. Dos señales, por par:
+//   - phone: mismo número nacional por phone_match_key (con o sin +54 y 9 de móvil, o guardado
+//     crudo como '1122334455'). El UNIQUE de
+//     users.phone impide el duplicado exacto, pero no +541141234567 vs +5491141234567.
+//   - address: calle + número normalizados. La ciudad se compara solo si ambas son conocidas:
+//     las órdenes del CRM tienen la ciudad fija en 'Buenos Aires' (migrate-orders.ts), así que
+//     cuentan como desconocida.
+// Alta = coincide el teléfono, o la dirección y además una palabra del nombre de 3+ letras.
+// Media = solo la dirección.
 const SUGGESTIONS_SQL = `
-  WITH new_addresses AS (
+  WITH new_users AS (
+    SELECT u.id, u.phone
+    FROM users u
+    WHERE u.role = 'customer' AND u.is_legacy = false AND u.deleted_at IS NULL
+      AND (u.is_admin_created = false OR u.last_login_at IS NOT NULL)
+  ),
+  new_addresses AS (
     SELECT a.user_id, a.street, a.street_number, a.city,
            normalize_street(a.street) AS street_n,
            regexp_replace(a.street_number, '\\D', '', 'g') AS number_n,
            normalize_street(a.city) AS city_n
     FROM user_addresses a
-    JOIN users u ON u.id = a.user_id
-    WHERE u.role = 'customer' AND u.is_legacy = false AND u.deleted_at IS NULL
-      AND (u.is_admin_created = false OR u.last_login_at IS NOT NULL)
-      AND a.deleted_at IS NULL AND a.is_active = true
+    JOIN new_users nu ON nu.id = a.user_id
+    WHERE a.deleted_at IS NULL AND a.is_active = true
   ),
   legacy_users AS (
-    SELECT id FROM users
+    SELECT id, phone FROM users
     WHERE role = 'customer' AND (is_legacy = true OR is_admin_created = true)
       AND deleted_at IS NULL AND last_login_at IS NULL
   ),
@@ -180,7 +189,7 @@ const SUGGESTIONS_SQL = `
     JOIN legacy_users l ON l.id = o.user_id
     CROSS JOIN LATERAL regexp_match(o.shipping_street, '^([^0-9]+)\\s(\\d+)') AS m
   ),
-  pairs AS (
+  address_pairs AS (
     SELECT DISTINCT ON (n.user_id, la.user_id)
            n.user_id, la.user_id AS legacy_user_id, n.street, n.street_number, n.city
     FROM new_addresses n
@@ -192,24 +201,46 @@ const SUGGESTIONS_SQL = `
      AND (n.city_n IN ('', 'sin especificar')
           OR la.city_n IN ('', 'sin especificar')
           OR la.city_n = n.city_n)
+    ORDER BY n.user_id, la.user_id
+  ),
+  phone_pairs AS (
+    SELECT nu.id AS user_id, l.id AS legacy_user_id, l.phone
+    FROM new_users nu
+    JOIN legacy_users l ON phone_match_key(l.phone) = phone_match_key(nu.phone)
+    WHERE nu.phone IS NOT NULL AND l.phone IS NOT NULL
+  ),
+  pairs AS (
+    SELECT COALESCE(ap.user_id, pp.user_id) AS user_id,
+           COALESCE(ap.legacy_user_id, pp.legacy_user_id) AS legacy_user_id,
+           ap.street, ap.street_number, ap.city,
+           pp.phone AS matched_phone,
+           ap.user_id IS NOT NULL AS address_match,
+           pp.user_id IS NOT NULL AS phone_match
+    FROM address_pairs ap
+    FULL OUTER JOIN phone_pairs pp
+      ON pp.user_id = ap.user_id AND pp.legacy_user_id = ap.legacy_user_id
+  ),
+  candidates AS (
+    SELECT p.*
+    FROM pairs p
     WHERE NOT EXISTS (
       SELECT 1 FROM user_merge_dismissals d
-      WHERE d.user_id = n.user_id AND d.legacy_user_id = la.user_id
+      WHERE d.user_id = p.user_id AND d.legacy_user_id = p.legacy_user_id
     )
-    ORDER BY n.user_id, la.user_id
   ),
   scored AS (
     SELECT
       json_build_object(
         'id', nu.id, 'first_name', nu.first_name, 'last_name', nu.last_name,
-        'email', nu.email, 'has_google', nu.google_id IS NOT NULL, 'created_at', nu.created_at
+        'email', nu.email, 'phone', nu.phone, 'has_google', nu.google_id IS NOT NULL,
+        'signup_channel', nu.signup_channel, 'created_at', nu.created_at
       ) AS "user",
       json_build_object(
         'id', lu.id, 'first_name', lu.first_name, 'last_name', lu.last_name,
         'email', lu.email, 'phone', lu.phone, 'is_legacy', lu.is_legacy,
         'orders_count', (SELECT COUNT(*)::int FROM orders o WHERE o.user_id = lu.id)
       ) AS legacy_user,
-      CASE WHEN EXISTS (
+      CASE WHEN c.phone_match OR EXISTS (
         SELECT 1
         FROM regexp_split_to_table(
                unaccent(lower(nu.first_name || ' ' || coalesce(nu.last_name, ''))), '\\s+') AS t1(w)
@@ -218,15 +249,22 @@ const SUGGESTIONS_SQL = `
           ON t1.w = t2.w
         WHERE length(t1.w) >= 3
       ) THEN 'high' ELSE 'medium' END AS confidence,
-      json_build_object('street', p.street, 'street_number', p.street_number, 'city', p.city)
-        AS matched_address,
+      array_remove(ARRAY[
+        CASE WHEN c.phone_match THEN 'phone' END,
+        CASE WHEN c.address_match THEN 'address' END
+      ], NULL) AS match_signals,
+      CASE WHEN c.address_match
+        THEN json_build_object('street', c.street, 'street_number', c.street_number, 'city', c.city)
+      END AS matched_address,
+      c.matched_phone,
       nu.created_at AS new_created_at,
       lu.id AS legacy_id
-    FROM pairs p
-    JOIN users nu ON nu.id = p.user_id
-    JOIN users lu ON lu.id = p.legacy_user_id
+    FROM candidates c
+    JOIN users nu ON nu.id = c.user_id
+    JOIN users lu ON lu.id = c.legacy_user_id
   )
-  SELECT "user", legacy_user, confidence, matched_address, COUNT(*) OVER()::int AS total
+  SELECT "user", legacy_user, confidence, match_signals, matched_address, matched_phone,
+         COUNT(*) OVER()::int AS total
   FROM scored
   ORDER BY (confidence = 'high') DESC, new_created_at DESC, legacy_id
   LIMIT $1 OFFSET $2

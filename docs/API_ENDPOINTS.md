@@ -45,6 +45,12 @@ Base URL: `http://localhost:3001/api` (desarrollo) / `https://valplas-tienda-dev
 | PUT    | `/brands/:id`        | ✅   | admin, owner | Actualizar marca        |
 | DELETE | `/brands/:id`        | ✅   | admin, owner | Eliminar marca          |
 
+## 🗂️ Catalog
+
+| Method | Endpoint            | Auth | Description                                                            |
+| ------ | ------------------- | ---- | ---------------------------------------------------------------------- |
+| GET    | `/catalog/products` | ❌   | Catálogo público: productos activos con stock, precio y presentaciones |
+
 ## 🛒 Cart
 
 | Method | Endpoint                 | Auth | Description                 |
@@ -113,6 +119,27 @@ Base URL: `http://localhost:3001/api` (desarrollo) / `https://valplas-tienda-dev
 | DELETE | `/users/:id`            | ✅   | owner        | Eliminar usuario         |
 | POST   | `/users/:id/activate`   | ✅   | admin, owner | Activar usuario          |
 | POST   | `/users/:id/deactivate` | ✅   | admin, owner | Desactivar usuario       |
+
+## 🤖 Bot de WhatsApp
+
+Auth por header `X-Api-Key` (server-to-server, sin cookies ni CSRF). Contrato completo, ejemplos y
+webhook saliente: [BOT_API.md](./BOT_API.md).
+
+| Method | Endpoint                                | Description                                   |
+| ------ | --------------------------------------- | --------------------------------------------- |
+| GET    | `/bot/catalog/categories`               | Árbol de categorías activas                   |
+| GET    | `/bot/catalog/products`                 | Buscar productos con stock y presentaciones   |
+| GET    | `/bot/catalog/products/:id`             | Detalle de producto (precio y stock actuales) |
+| GET    | `/bot/customers/by-phone/:phone`        | Buscar cliente por teléfono                   |
+| POST   | `/bot/customers`                        | Buscar o crear cliente por teléfono           |
+| GET    | `/bot/customers/:id/addresses`          | Direcciones del cliente                       |
+| POST   | `/bot/customers/:id/addresses`          | Agregar dirección                             |
+| GET    | `/bot/customers/:id/orders`             | Órdenes del cliente                           |
+| POST   | `/bot/quote`                            | Cotizar carrito (precio, stock y envío)       |
+| POST   | `/bot/orders`                           | Crear orden `WSP-` y link de Mercado Pago     |
+| GET    | `/bot/orders/:orderNumber`              | Estado y detalle de la orden                  |
+| POST   | `/bot/orders/:orderNumber/payment-link` | Regenerar link de pago                        |
+| POST   | `/bot/orders/:orderNumber/cancel`       | Cancelar orden pendiente de pago              |
 
 ## 🔑 Roles y Permisos
 

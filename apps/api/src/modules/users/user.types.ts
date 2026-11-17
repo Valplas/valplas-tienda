@@ -18,6 +18,11 @@ export interface User {
   deleted_at: Date | null;
 }
 
+/** Usuario encontrado por clave de teléfono, con la fecha de su última orden (para desempatar). */
+export interface UserPhoneMatch extends User {
+  last_order_at: Date | null;
+}
+
 export interface UserWithStats extends User {
   total_orders: number;
   total_addresses: number;

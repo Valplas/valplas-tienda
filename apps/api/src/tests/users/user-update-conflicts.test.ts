@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import * as userDomain from '../../modules/users/user.domain.js';
 import { normalizePhone } from '../../shared/utils/phone.js';
-import { createGoogleUser, createLegacyUser, uniqueSuffix } from '../helpers.js';
+import { createGoogleUser, createLegacyUser, randomSubscriber, uniqueSuffix } from '../helpers.js';
 
 const ADMIN_ID = '00000000-0000-4000-8000-000000000000';
 
@@ -46,6 +46,57 @@ describe('updateUser — conflictos de email/teléfono', () => {
       code: 'PHONE_IN_USE',
       details: { conflict_user_id: owner.id }
     });
+  });
+
+  it('detecta el mismo celular con y sin el 9 de móvil (cliente creado por el bot)', async () => {
+    const subscriber = randomSubscriber();
+    const fromWhatsApp = await createLegacyUser({ phone: `+54911${subscriber}` });
+    const legacy = await createLegacyUser();
+
+    const err = await userDomain
+      .updateUser(
+        legacy.id,
+        { phone: `11 ${subscriber.slice(0, 4)}-${subscriber.slice(4)}` },
+        ADMIN_ID,
+        'admin'
+      )
+      .catch((e: unknown) => e);
+
+    expect(err).toMatchObject({
+      statusCode: 409,
+      code: 'PHONE_IN_USE',
+      details: { conflict_user_id: fromWhatsApp.id }
+    });
+  });
+
+  it('detecta conflicto con un teléfono guardado crudo (10 dígitos)', async () => {
+    const subscriber = randomSubscriber();
+    const rawOwner = await createLegacyUser({ phone: `11${subscriber}` });
+    const legacy = await createLegacyUser();
+
+    const err = await userDomain
+      .updateUser(legacy.id, { phone: `+54911${subscriber}` }, ADMIN_ID, 'admin')
+      .catch((e: unknown) => e);
+
+    expect(err).toMatchObject({
+      statusCode: 409,
+      code: 'PHONE_IN_USE',
+      details: { conflict_user_id: rawOwner.id }
+    });
+  });
+
+  it('no es conflicto cambiar el propio teléfono entre formatos con y sin 9', async () => {
+    const subscriber = randomSubscriber();
+    const legacy = await createLegacyUser({ phone: `+5411${subscriber}` });
+
+    const updated = await userDomain.updateUser(
+      legacy.id,
+      { phone: `+54911${subscriber}` },
+      ADMIN_ID,
+      'admin'
+    );
+
+    expect(updated.phone).toBe(`+54911${subscriber}`);
   });
 
   it('rechaza un teléfono inválido con 400 INVALID_PHONE', async () => {
