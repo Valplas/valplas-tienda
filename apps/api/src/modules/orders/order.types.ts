@@ -15,11 +15,20 @@ export type OrderStatus =
   | 'refunded'
   | 'failed';
 
+/** Canal de venta (enum sales_channel, migración 049). */
+export type SalesChannel = 'web' | 'admin' | 'whatsapp' | 'legacy';
+
+/** Canales que crean órdenes nuevas desde la API (legacy solo viene del import del CRM). */
+export type OrderChannel = Exclude<SalesChannel, 'legacy'>;
+
 export interface Order {
   id: string;
   order_number: string;
   user_id: string;
   status: OrderStatus;
+  sales_channel: SalesChannel;
+  /** Clave de idempotencia de un canal externo (bot); null en web/admin. */
+  client_reference: string | null;
   subtotal: number;
   shipping_cost: number;
   total: number;

@@ -12,25 +12,47 @@ import type {
   CreateAdminOrderInput,
   UpdateOrderStatusInput,
   OrderFilters,
-  OrderStatus
+  OrderStatus,
+  OrderChannel
 } from './order.types.js';
 import type { User } from '../users/user.types.js';
 import { fromBoundSql, toBoundSql } from '../../shared/utils/date-range.js';
 
 /**
+ * Prefijo del order_number por canal: solo para lectura humana. Los reportes filtran por
+ * orders.sales_channel (migración 049), no por el prefijo.
+ */
+export const ORDER_NUMBER_PREFIX: Record<OrderChannel, string> = {
+  web: 'VLP',
+  admin: 'ADM',
+  whatsapp: 'WSP'
+};
+
+const AR_DATE_FORMAT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+
+/** Fecha YYYYMMDD en hora argentina (con toISOString, después de las 21h ART salía la de mañana). */
+export function orderNumberDate(now: Date = new Date()): string {
+  return AR_DATE_FORMAT.format(now).replace(/-/g, '');
+}
+
+/**
  * Generate order number (PREFIX-YYYYMMDD-NNNNNN)
- * VLP = customer web order, ADM = admin/owner created order
+ * VLP = customer web order, ADM = admin/owner created order, WSP = bot de WhatsApp
  * Counter is yearly (resets each year). Example: VLP-20260311-000001
  */
 export async function generateOrderNumber(
-  prefix: 'VLP' | 'ADM',
+  channel: OrderChannel,
   client: PoolClient
 ): Promise<string> {
-  const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const dateStr = orderNumberDate();
   const year = parseInt(dateStr.slice(0, 4), 10);
 
-  // Contador atómico anual (compartido entre prefijos VLP + ADM). El
+  // Contador atómico anual (compartido entre todos los prefijos). El
   // INSERT ... ON CONFLICT DO UPDATE serializa las inserciones concurrentes y
   // devuelve un valor único, evitando el race del COUNT(*) que generaba
   // order_number duplicados (ver migración 035).
@@ -44,7 +66,7 @@ export async function generateOrderNumber(
 
   const sequence = result.rows[0].last_value.toString().padStart(6, '0');
 
-  return `${prefix}-${dateStr}-${sequence}`;
+  return `${ORDER_NUMBER_PREFIX[channel]}-${dateStr}-${sequence}`;
 }
 
 /**
@@ -205,6 +227,23 @@ export async function findOrderByNumber(orderNumber: string): Promise<Order | nu
 }
 
 /**
+ * Orden creada con una clave de idempotencia de un canal externo (índice único parcial).
+ */
+export async function findOrderByClientReference(clientReference: string): Promise<Order | null> {
+  const result = await query<Order>('SELECT * FROM orders WHERE client_reference = $1', [
+    clientReference
+  ]);
+
+  return result.rows[0] || null;
+}
+
+/** Violación del índice único de client_reference (dos requests concurrentes con la misma clave). */
+export function isClientReferenceConflict(error: unknown): boolean {
+  const pgError = error as { code?: string; constraint?: string };
+  return pgError?.code === '23505' && pgError?.constraint === 'idx_orders_client_reference';
+}
+
+/**
  * Órdenes de MercadoPago pendientes de pago cuya preferencia ya expiró.
  * Solo MP: las órdenes con otros medios de pago no se auto-cancelan.
  */
@@ -320,17 +359,32 @@ export interface OrderShippingSnapshot {
   carrier_name: string;
 }
 
+export interface CreateOrderChannelOptions {
+  /** Canal de venta: define el prefijo del número y orders.sales_channel. Default 'web'. */
+  channel?: Exclude<OrderChannel, 'admin'>;
+  /** Clave de idempotencia de un canal externo (único en la tabla). */
+  clientReference?: string | null;
+}
+
+const ORDER_CREATED_NOTE: Record<Exclude<OrderChannel, 'admin'>, string> = {
+  web: 'Orden creada',
+  whatsapp: 'Orden creada (WhatsApp)'
+};
+
 export async function createOrder(
   userId: string,
   data: CreateOrderInput,
   subtotal: number,
   shippingCost: number,
   total: number,
-  snapshot: OrderShippingSnapshot
+  snapshot: OrderShippingSnapshot,
+  options: CreateOrderChannelOptions = {}
 ): Promise<Order> {
+  const channel = options.channel ?? 'web';
+
   return transaction(async (client) => {
     // Generate order number
-    const orderNumber = await generateOrderNumber('VLP', client);
+    const orderNumber = await generateOrderNumber(channel, client);
 
     // Create order — incluye el snapshot de envío (columnas NOT NULL) y usa
     // customer_notes (la tabla orders no tiene columna `notes`).
@@ -340,9 +394,9 @@ export async function createOrder(
         shipping_address_id, shipping_carrier_id,
         shipping_street, shipping_street_number, shipping_floor, shipping_apartment,
         shipping_city, shipping_province, shipping_postcode,
-        carrier_name, payment_method, customer_notes
+        carrier_name, payment_method, customer_notes, sales_channel, client_reference
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *`,
       [
         orderNumber,
@@ -362,7 +416,9 @@ export async function createOrder(
         snapshot.shipping_postcode,
         snapshot.carrier_name,
         data.payment_method,
-        data.notes || null
+        data.notes || null,
+        channel,
+        options.clientReference ?? null
       ]
     );
 
@@ -399,7 +455,7 @@ export async function createOrder(
     await client.query(
       `INSERT INTO order_status_history (order_id, status, notes, changed_by)
        VALUES ($1, $2, $3, $4)`,
-      [order.id, 'pending_payment', 'Orden creada', userId]
+      [order.id, 'pending_payment', ORDER_CREATED_NOTE[channel], userId]
     );
 
     return order;
@@ -444,7 +500,7 @@ export async function createAdminOrder(
   }
 ): Promise<Order> {
   return transaction(async (client) => {
-    const orderNumber = await generateOrderNumber('ADM', client);
+    const orderNumber = await generateOrderNumber('admin', client);
 
     const orderResult = await client.query<Order>(
       `INSERT INTO orders (
@@ -452,9 +508,9 @@ export async function createAdminOrder(
         shipping_address_id,
         shipping_street, shipping_street_number, shipping_floor, shipping_apartment,
         shipping_city, shipping_province, shipping_postcode,
-        payment_method, customer_notes
+        payment_method, customer_notes, sales_channel
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'admin')
       RETURNING *`,
       [
         orderNumber,
