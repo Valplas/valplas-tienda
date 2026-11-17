@@ -78,8 +78,8 @@ function requirePhone(raw: string): string {
 }
 
 /**
- * Cliente activo para un teléfono, comparando por phone_match_key (con o sin el 9 de móvil).
- * Si hay varias cuentas (duplicado pendiente de merge) gana la de teléfono idéntico, después
+ * Cliente activo para un teléfono, comparando por phone_match_key (mismo número nacional, en
+ * cualquier formato). Si hay varias cuentas (duplicado pendiente de merge) gana la de teléfono idéntico, después
  * la de orden más reciente; las demás aparecen en las sugerencias de merge del admin.
  */
 async function findActiveCustomerByPhone(phone: string): Promise<User | null> {

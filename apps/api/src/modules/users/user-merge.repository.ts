@@ -146,7 +146,8 @@ export async function applyMerge(
 // Cuentas nuevas (web, Google, bot de WhatsApp) cruzadas con cuentas que el cliente nunca usó
 // en la web: migradas del CRM o cargadas por el admin (legacy_users). Una cargada por el admin
 // que ya inició sesión pasa a ser cuenta nueva. Dos señales, por par:
-//   - phone: mismo teléfono por phone_match_key (con o sin el 9 de móvil). El UNIQUE de
+//   - phone: mismo número nacional por phone_match_key (con o sin +54 y 9 de móvil, o guardado
+//     crudo como '1122334455'). El UNIQUE de
 //     users.phone impide el duplicado exacto, pero no +541141234567 vs +5491141234567.
 //   - address: calle + número normalizados. La ciudad se compara solo si ambas son conocidas:
 //     las órdenes del CRM tienen la ciudad fija en 'Buenos Aires' (migrate-orders.ts), así que

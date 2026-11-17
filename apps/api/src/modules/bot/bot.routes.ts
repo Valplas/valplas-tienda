@@ -104,7 +104,7 @@ router.get(
  * @swagger
  * /api/bot/customers/by-phone/{phone}:
  *   get:
- *     summary: Buscar cliente por teléfono (con o sin el 9 de móvil)
+ *     summary: Buscar cliente por teléfono (mismo número nacional, en cualquier formato)
  *     tags: [Bot]
  *     security:
  *       - botApiKey: []

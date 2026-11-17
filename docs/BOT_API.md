@@ -196,9 +196,10 @@ está inactivo o fue borrado. Este endpoint sí devuelve productos sin stock (`a
 }
 ```
 
-La búsqueda compara el número **con y sin el 9 de móvil**: `+5491122334455` encuentra a un cliente
-cargado como `+541122334455`. Si un mismo número aparece en más de una cuenta, se usa la que tiene el
-número idéntico. El admin recibe una sugerencia para unificar las cuentas.
+La búsqueda compara el **número nacional**, sin importar cómo esté guardado: `+5491122334455` encuentra
+a un cliente cargado como `+541122334455`, `1122334455`, `11 2233-4455` u `011 15 2233-4455`. Si un
+mismo número aparece en más de una cuenta, se usa la que tiene el número idéntico. El admin recibe una
+sugerencia para unificar las cuentas.
 
 Errores: `400 INVALID_PHONE`, `403 CUSTOMER_INACTIVE`, `409 EMAIL_IN_USE` (el email es de otra cuenta:
 reintentá sin email), `409 PHONE_IN_USE` (el número es de una cuenta del staff).
@@ -606,9 +607,11 @@ export function verifyValplasSignature(rawBody, signatureHeader, secret, toleran
   `orders.client_reference` guarda la `idempotency_key`; `users.signup_channel = 'whatsapp'` marca los
   clientes que creó el bot.
 - **Duplicados:** `/admin/usuarios/duplicados` sugiere unificar un cliente del bot con su cuenta del CRM
-  cuando coinciden el teléfono (con o sin 9) o la dirección.
-- **Teléfonos:** antes de habilitar el bot, normalizá a E.164 los teléfonos existentes. Desde `apps/api`:
-  `npx tsx src/infrastructure/database/scripts/normalize-phones.ts` (dry-run). Revisá el reporte y
-  después corré con `--apply`.
+  cuando coinciden el teléfono (en cualquier formato) o la dirección.
+- **Teléfonos:** la comparación usa `phone_match_key()` (migración 052): número nacional de 10 dígitos,
+  con o sin `+54`, 9 de móvil, 0 troncal o el 15 de AMBA. No resuelve el 15 de áreas del interior
+  (`351 15 1234567`) ni números de 8 dígitos sin código de área. Para dejar todo en E.164 (y cubrir
+  esos casos), desde `apps/api`: `npx tsx src/infrastructure/database/scripts/normalize-phones.ts`
+  (dry-run), revisá el reporte y corré con `--apply`.
 - **Outbox:** `outbound_webhook_events` (pendientes: `delivered_at IS NULL AND failed_at IS NULL`). Los
   eventos de más de 30 días se borran solos.

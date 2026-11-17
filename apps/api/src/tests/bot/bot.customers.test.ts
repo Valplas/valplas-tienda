@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import * as botDomain from '../../modules/bot/bot.domain.js';
 import { query } from '../../infrastructure/database/client.js';
-import { createLegacyUser, randomMobilePhone, uniqueSuffix } from '../helpers.js';
+import { createLegacyUser, randomMobilePhone, randomSubscriber, uniqueSuffix } from '../helpers.js';
 
 const testEmail = () => `bot-${uniqueSuffix()}@vitest.local`;
 
@@ -73,6 +73,23 @@ describe('bot: findOrCreateCustomer', () => {
 
     const result = await botDomain.findOrCreateCustomer({
       phone: toWaId(phone),
+      first_name: 'Desde WhatsApp'
+    });
+
+    expect(result.created).toBe(false);
+    expect(result.customer.id).toBe(legacy.id);
+  });
+
+  it.each([
+    ['10 dígitos sin prefijo', (sub: string) => `11${sub}`],
+    ['con guión', (sub: string) => `11 ${sub.slice(0, 4)}-${sub.slice(4)}`],
+    ['con 0 y 15', (sub: string) => `011 15 ${sub.slice(0, 4)}-${sub.slice(4)}`]
+  ])('encuentra un cliente legacy con el teléfono guardado crudo (%s)', async (_label, format) => {
+    const subscriber = randomSubscriber();
+    const legacy = await createLegacyUser({ firstName: 'Crudo', phone: format(subscriber) });
+
+    const result = await botDomain.findOrCreateCustomer({
+      phone: `54911${subscriber}`,
       first_name: 'Desde WhatsApp'
     });
 

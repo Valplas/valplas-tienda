@@ -218,8 +218,9 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 }
 
 /**
- * Usuarios (no borrados) cuyo teléfono coincide por phone_match_key: mismo número con o sin
- * el 9 de móvil (+5491141234567 ≡ +541141234567). Usa idx_users_phone_match_key.
+ * Usuarios (no borrados) cuyo teléfono coincide por phone_match_key: mismo número nacional
+ * aunque esté guardado distinto (+5491141234567 ≡ +541141234567 ≡ 1141234567).
+ * Usa idx_users_phone_match_key.
  * Orden: igualdad exacta primero, después la orden más reciente, después el más antiguo.
  */
 export async function findUsersByPhoneKey(phone: string): Promise<UserPhoneMatch[]> {

@@ -17,11 +17,16 @@ export function normalizePhone(raw: string): string | null {
 }
 
 /**
- * Clave para comparar teléfonos argentinos ya normalizados a E.164: colapsa el 9 de móvil
- * (+549… → +54…). Un número cargado a mano como "11 4123-4567" queda +541141234567, y el
- * mismo celular escrito desde WhatsApp es +5491141234567. Espejo de la función SQL
- * phone_match_key() (migración 050): mantener ambas iguales.
+ * Clave para comparar teléfonos argentinos guardados en cualquier formato: el número nacional
+ * de 10 dígitos (área + abonado). '+5491141234567' (WhatsApp), '+541141234567' (cargado a
+ * mano y normalizado), '1141234567' y '011 15 4123-4567' (crudos) dan '1141234567'.
+ * Espejo de la función SQL phone_match_key() (migración 052): mantener ambas iguales.
  */
-export function phoneMatchKey(e164: string): string {
-  return e164.replace(/^\+549/, '+54');
+export function phoneMatchKey(phone: string): string {
+  return phone
+    .replace(/\D/g, '')
+    .replace(/^00/, '') // prefijo internacional
+    .replace(/^549?(\d{10})$/, '$1') // código de país + 9 de móvil opcional
+    .replace(/^0(\d{10})$/, '$1') // 0 troncal nacional
+    .replace(/^0?1115(\d{8})$/, '11$1'); // AMBA con 0/15
 }

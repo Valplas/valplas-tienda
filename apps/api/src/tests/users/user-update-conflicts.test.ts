@@ -69,6 +69,22 @@ describe('updateUser — conflictos de email/teléfono', () => {
     });
   });
 
+  it('detecta conflicto con un teléfono guardado crudo (10 dígitos)', async () => {
+    const subscriber = randomSubscriber();
+    const rawOwner = await createLegacyUser({ phone: `11${subscriber}` });
+    const legacy = await createLegacyUser();
+
+    const err = await userDomain
+      .updateUser(legacy.id, { phone: `+54911${subscriber}` }, ADMIN_ID, 'admin')
+      .catch((e: unknown) => e);
+
+    expect(err).toMatchObject({
+      statusCode: 409,
+      code: 'PHONE_IN_USE',
+      details: { conflict_user_id: rawOwner.id }
+    });
+  });
+
   it('no es conflicto cambiar el propio teléfono entre formatos con y sin 9', async () => {
     const subscriber = randomSubscriber();
     const legacy = await createLegacyUser({ phone: `+5411${subscriber}` });

@@ -56,7 +56,8 @@ function contactConflict(
 }
 
 /**
- * Otra cuenta con el mismo teléfono por phone_match_key (con o sin el 9 de móvil), o null.
+ * Otra cuenta con el mismo teléfono por phone_match_key (mismo número nacional, en cualquier
+ * formato), o null.
  */
 async function findPhoneOwner(phone: string, excludeUserId?: string): Promise<User | null> {
   const matches = await userRepository.findUsersByPhoneKey(phone);
@@ -232,7 +233,7 @@ export async function updateUser(
   }
 
   if (changes.phone && changes.phone !== user.phone) {
-    // Por clave: el mismo celular con o sin el 9 de móvil también es conflicto (→ merge)
+    // Por clave: el mismo número en otro formato (con/sin 9, crudo) también es conflicto (→ merge)
     const existing = await findPhoneOwner(changes.phone, id);
     if (existing) {
       throw contactConflict('PHONE_IN_USE', 'El teléfono ya pertenece a otra cuenta', existing);

@@ -189,6 +189,27 @@ describe('getMergeSuggestions — teléfono', () => {
     expect(mine[0].matched_address).toMatchObject({ street, street_number: '21' });
   });
 
+  it('matchea un legacy con el teléfono guardado crudo (10 dígitos, sin +54 ni 9)', async () => {
+    const phone = randomMobilePhone();
+    const bot = await createChannelCustomer({
+      phone,
+      first_name: 'Desde WhatsApp',
+      email: `bot-${uniqueSuffix()}@vitest.local`,
+      signup_channel: 'whatsapp'
+    });
+    const rawPhone = phone.replace(/^\+549/, ''); // '11XXXXXXXX'
+    const legacy = await createLegacyUser({ firstName: 'Crudo', phone: rawPhone });
+
+    const [suggestion] = await suggestionsFor(legacy.id);
+
+    expect(suggestion).toMatchObject({
+      user: { id: bot.id },
+      confidence: 'high',
+      match_signals: ['phone'],
+      matched_phone: rawPhone
+    });
+  });
+
   it('respeta los pares descartados', async () => {
     const { bot, legacy } = await botCustomerAndLegacy();
     const admin = await createTestUser();
