@@ -56,6 +56,14 @@ function contactConflict(
 }
 
 /**
+ * Otra cuenta con el mismo teléfono por phone_match_key (con o sin el 9 de móvil), o null.
+ */
+async function findPhoneOwner(phone: string, excludeUserId?: string): Promise<User | null> {
+  const matches = await userRepository.findUsersByPhoneKey(phone);
+  return matches.find((match) => match.id !== excludeUserId) ?? null;
+}
+
+/**
  * Get all users (admin/owner only)
  */
 export async function getAllUsers(filters: UserFilters) {
@@ -135,10 +143,20 @@ export async function createUser(data: CreateUserInput, requesterRole: UserRole)
     }
   }
 
+  // Teléfono siempre en E.164: el bot y las sugerencias de merge comparan por phone_match_key
+  const phone = normalizePhone(data.phone);
+  if (!phone) {
+    throw new AppError('INVALID_PHONE', 'Teléfono inválido', 400);
+  }
+  const phoneOwner = await findPhoneOwner(phone);
+  if (phoneOwner) {
+    throw contactConflict('PHONE_IN_USE', 'El teléfono ya pertenece a otra cuenta', phoneOwner);
+  }
+
   // Resolve username: use provided or auto-generate from phone digits
   let resolvedUsername = data.username || '';
   if (!resolvedUsername) {
-    const phoneDigits = data.phone.replace(/\D/g, '');
+    const phoneDigits = phone.replace(/\D/g, '');
     resolvedUsername = phoneDigits;
     const existing = await userRepository.findUserByUsername(resolvedUsername);
     if (existing) {
@@ -155,7 +173,7 @@ export async function createUser(data: CreateUserInput, requesterRole: UserRole)
   const passwordHash = await hashPassword(data.password);
 
   // Create user
-  return userRepository.createUser({ ...data, username: resolvedUsername }, passwordHash);
+  return userRepository.createUser({ ...data, phone, username: resolvedUsername }, passwordHash);
 }
 
 /**
@@ -214,8 +232,9 @@ export async function updateUser(
   }
 
   if (changes.phone && changes.phone !== user.phone) {
-    const existing = await userRepository.findUserByPhone(changes.phone);
-    if (existing && existing.id !== id) {
+    // Por clave: el mismo celular con o sin el 9 de móvil también es conflicto (→ merge)
+    const existing = await findPhoneOwner(changes.phone, id);
+    if (existing) {
       throw contactConflict('PHONE_IN_USE', 'El teléfono ya pertenece a otra cuenta', existing);
     }
   }

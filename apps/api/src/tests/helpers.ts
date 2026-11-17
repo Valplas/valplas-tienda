@@ -258,3 +258,69 @@ export async function createRawOrder(
   );
   return result.rows[0].id;
 }
+
+/** Número de abonado AMBA aleatorio de 8 dígitos que libphonenumber considera válido (4XXXXXXX). */
+export function randomSubscriber(): string {
+  return `4${Math.floor(Math.random() * 1e7)
+    .toString()
+    .padStart(7, '0')}`;
+}
+
+/** Teléfono celular AMBA aleatorio en E.164, con el 9 de móvil (+54911XXXXXXXX). */
+export function randomMobilePhone(): string {
+  return `+54911${randomSubscriber()}`;
+}
+
+export interface TestTier {
+  tierId: string;
+  productId: string;
+  priceListId: string;
+  bundleSize: number;
+  unitPrice: number;
+}
+
+/**
+ * Presentación (tier) de test sobre un producto real con stock y una lista activa. La dev DB
+ * puede no tener tiers: los tests que los necesitan crean el suyo y lo borran con deleteTestTiers.
+ */
+export async function createTestTier(minAvailable = 50, bundleSize = 1): Promise<TestTier> {
+  const result = await query<TestTier>(
+    `WITH product AS (
+       SELECT p.id, p.cost_price FROM products p
+       WHERE p.is_active = true AND p.deleted_at IS NULL
+         AND (p.stock - p.reserved_stock) >= $1
+         AND NOT EXISTS (
+           SELECT 1 FROM product_price_tiers t
+           WHERE t.product_id = p.id AND t.min_quantity = $2
+         )
+       ORDER BY p.created_at
+       LIMIT 1
+     ),
+     list AS (
+       SELECT id, margin FROM price_lists
+       WHERE is_active = true AND deleted_at IS NULL
+       ORDER BY created_at
+       LIMIT 1
+     ),
+     tier AS (
+       INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, is_active)
+       SELECT product.id, list.id, $2, true FROM product, list
+       RETURNING id, product_id, price_list_id, min_quantity
+     )
+     SELECT tier.id AS "tierId", tier.product_id AS "productId",
+            tier.price_list_id AS "priceListId", tier.min_quantity AS "bundleSize",
+            (TRUNC(product.cost_price * (1 + list.margin / 100) * 100) / 100)::float AS "unitPrice"
+     FROM tier, product, list`,
+    [minAvailable, bundleSize]
+  );
+
+  if (!result.rows[0]) {
+    throw new Error('No hay producto con stock o lista de precios activa para crear un tier');
+  }
+  return result.rows[0];
+}
+
+export async function deleteTestTiers(tierIds: string[]): Promise<void> {
+  if (tierIds.length === 0) return;
+  await query('DELETE FROM product_price_tiers WHERE id = ANY($1)', [tierIds]);
+}
