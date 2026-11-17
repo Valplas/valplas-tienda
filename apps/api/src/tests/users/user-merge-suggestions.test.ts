@@ -15,8 +15,11 @@ import {
   createRawAddress,
   createRawOrder,
   createTestUser,
-  lettersSuffix
+  lettersSuffix,
+  randomMobilePhone,
+  uniqueSuffix
 } from '../helpers.js';
+import { createChannelCustomer } from '../../modules/users/user.repository.js';
 
 async function suggestionsFor(legacyId: string) {
   const { suggestions } = await mergeDomain.getMergeSuggestions(1, 100);
@@ -140,6 +143,59 @@ describe('getMergeSuggestions — clientes cargados por el admin', () => {
 
     expect(await suggestionsFor(first.id)).toEqual([]);
     expect(await suggestionsFor(second.id)).toEqual([]);
+  });
+});
+
+describe('getMergeSuggestions — teléfono', () => {
+  // Cliente creado por el bot de WhatsApp (celular con 9) y legacy al que el admin le cargó el
+  // mismo número a mano (sin 9): el UNIQUE no los ve, phone_match_key sí.
+  async function botCustomerAndLegacy(legacyFirstName = 'Legacy') {
+    const phone = randomMobilePhone();
+    const bot = await createChannelCustomer({
+      phone,
+      first_name: 'Desde WhatsApp',
+      email: `bot-${uniqueSuffix()}@vitest.local`,
+      signup_channel: 'whatsapp'
+    });
+    const legacyPhone = phone.replace(/^\+549/, '+54');
+    const legacy = await createLegacyUser({ firstName: legacyFirstName, phone: legacyPhone });
+    return { bot, legacy, legacyPhone };
+  }
+
+  it('sugiere con confianza alta por teléfono aunque no haya dirección ni nombre en común', async () => {
+    const { bot, legacy, legacyPhone } = await botCustomerAndLegacy();
+
+    const [suggestion] = await suggestionsFor(legacy.id);
+
+    expect(suggestion).toMatchObject({
+      user: { id: bot.id, signup_channel: 'whatsapp' },
+      confidence: 'high',
+      match_signals: ['phone'],
+      matched_address: null,
+      matched_phone: legacyPhone
+    });
+  });
+
+  it('combina teléfono y dirección en una sola sugerencia', async () => {
+    const street = `Vitest ${lettersSuffix()}`;
+    const { bot, legacy } = await botCustomerAndLegacy();
+    await createRawAddress(legacy.id, { street, streetNumber: '21', city: 'Moreno' });
+    await createRawAddress(bot.id, { street, streetNumber: '21', city: 'Moreno' });
+
+    const mine = await suggestionsFor(legacy.id);
+
+    expect(mine).toHaveLength(1);
+    expect(mine[0].match_signals).toEqual(['phone', 'address']);
+    expect(mine[0].matched_address).toMatchObject({ street, street_number: '21' });
+  });
+
+  it('respeta los pares descartados', async () => {
+    const { bot, legacy } = await botCustomerAndLegacy();
+    const admin = await createTestUser();
+
+    await mergeDomain.dismissSuggestion(bot.id, legacy.id, admin.id);
+
+    expect(await suggestionsFor(legacy.id)).toEqual([]);
   });
 });
 

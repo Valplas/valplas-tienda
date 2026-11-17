@@ -1,4 +1,5 @@
 import type { UserRole } from './user.types.js';
+import type { SalesChannel } from '../orders/order.types.js';
 
 /** Dominio de los emails placeholder que genera tools/migration/src/migrate-clients.ts */
 export const PLACEHOLDER_EMAIL_DOMAIN = '@sinmail.local';
@@ -82,13 +83,18 @@ export interface MergeResult {
   discarded: DiscardedField[];
 }
 
+export type MergeSignal = 'phone' | 'address';
+
 export interface MergeSuggestion {
   user: {
     id: string;
     first_name: string;
     last_name: string | null;
     email: string | null;
+    phone: string | null;
     has_google: boolean;
+    /** Canal por el que se creó la cuenta nueva (ej: whatsapp = dada de alta por el bot) */
+    signup_channel: SalesChannel;
     created_at: Date;
   };
   /** Cuenta sin uso en la web: migrada del CRM (is_legacy) o cargada por el admin */
@@ -101,6 +107,12 @@ export interface MergeSuggestion {
     is_legacy: boolean;
     orders_count: number;
   };
+  /** high = mismo teléfono, o misma dirección + nombre en común; medium = solo dirección */
   confidence: 'high' | 'medium';
-  matched_address: { street: string; street_number: string; city: string };
+  /** Señales que coincidieron (al menos una) */
+  match_signals: MergeSignal[];
+  /** Dirección coincidente (de la cuenta nueva); null si el par vino solo por teléfono */
+  matched_address: { street: string; street_number: string; city: string } | null;
+  /** Teléfono de la cuenta legacy que coincidió por phone_match_key; null si no hubo match */
+  matched_phone: string | null;
 }
