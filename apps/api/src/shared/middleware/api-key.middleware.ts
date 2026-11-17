@@ -1,21 +1,25 @@
-import { createHash, timingSafeEqual } from 'crypto';
+import { timingSafeEqual } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { env } from '../../env.js';
 import { AppError } from './error.middleware.js';
 
 export const BOT_API_KEY_HEADER = 'x-api-key';
 
-const sha256 = (value: string): Buffer => createHash('sha256').update(value, 'utf8').digest();
-
 /**
- * Compara contra todas las keys sin cortar en la primera coincidencia. timingSafeEqual sobre
- * los SHA-256 (32 bytes ambos) evita filtrar por timing el largo o el prefijo de la key.
+ * Compara contra todas las keys sin cortar en la primera coincidencia, con timingSafeEqual
+ * sobre los bytes crudos. timingSafeEqual exige buffers del mismo largo: si la key tiene otro
+ * largo se compara contra un buffer de relleno del largo de lo recibido, así el tiempo depende
+ * solo del input del cliente y no filtra el largo ni el prefijo de la key.
+ * (Sin hash: CodeQL marca SHA-256 sobre secretos como js/insufficient-password-hash.)
  */
 function matchesAnyKey(provided: string, keys: readonly string[]): boolean {
-  const providedHash = sha256(provided);
+  const providedBuffer = Buffer.from(provided, 'utf8');
   let matched = false;
   for (const key of keys) {
-    if (timingSafeEqual(providedHash, sha256(key))) matched = true;
+    const keyBuffer = Buffer.from(key, 'utf8');
+    const sameLength = keyBuffer.length === providedBuffer.length;
+    const candidate = sameLength ? keyBuffer : Buffer.alloc(providedBuffer.length);
+    if (timingSafeEqual(providedBuffer, candidate) && sameLength) matched = true;
   }
   return matched;
 }
