@@ -8,6 +8,8 @@
  * Idempotent: ON CONFLICT (id) DO UPDATE for users;
  *             delete-then-insert for addresses (no CRM address ID to reuse)
  * - is_legacy = true (lo usan las sugerencias de duplicados y el merge de cuentas)
+ * - signup_channel = 'legacy' (migración 049). Los teléfonos quedan crudos: normalizarlos
+ *   a E.164 con apps/api/src/infrastructure/database/scripts/normalize-phones.ts
  * - NO re-correr después de abrir la tienda: pisaría emails/teléfonos que el admin cargó a mano
  *   en cuentas que todavía no iniciaron sesión. Las que ya la usaron (last_login_at) o fueron
  *   absorbidas por un merge (merged_into_id) se saltean.
@@ -104,9 +106,9 @@ for (const row of rows.rows) {
       `INSERT INTO users (
         id, email, username, first_name, last_name,
         phone, password_hash, role,
-        is_active, email_verified, created_at, deleted_at, is_legacy
+        is_active, email_verified, created_at, deleted_at, is_legacy, signup_channel
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,'customer',$8,false,$9,$10,true)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,'customer',$8,false,$9,$10,true,'legacy')
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         username = EXCLUDED.username,
