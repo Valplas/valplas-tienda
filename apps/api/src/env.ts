@@ -92,7 +92,23 @@ export const env = {
   MP_CLIENT_ID: getEnv('MP_CLIENT_ID', ''),
   MP_CLIENT_SECRET: getEnv('MP_CLIENT_SECRET', ''),
   // State secreto para CSRF protection en el OAuth callback (elegís vos el valor)
-  MP_OAUTH_STATE: getEnv('MP_OAUTH_STATE', '')
+  MP_OAUTH_STATE: getEnv('MP_OAUTH_STATE', ''),
+
+  // Bot de WhatsApp (canal externo, ver docs/BOT_API.md)
+  // API keys aceptadas en el header X-Api-Key, separadas por coma (2 durante una rotación).
+  // Vacío = /api/bot responde 503 BOT_API_DISABLED.
+  BOT_API_KEYS: getEnv('BOT_API_KEYS', '')
+    .split(',')
+    .map((key) => key.trim())
+    .filter(Boolean),
+  // Vuelta del comprador al terminar el pago en MP (ej: https://wa.me/5491122334455).
+  // Vacío = página de resultado del checkout web.
+  BOT_PAYMENT_RETURN_URL: getEnv('BOT_PAYMENT_RETURN_URL', ''),
+  // Webhook saliente con los cambios de estado de las órdenes WSP. Vacío = no se envía nada
+  // (los eventos quedan encolados en outbound_webhook_events).
+  BOT_WEBHOOK_URL: getEnv('BOT_WEBHOOK_URL', ''),
+  // Secreto para firmar (HMAC-SHA256) el webhook saliente. Compartido con el bot.
+  BOT_WEBHOOK_SECRET: getEnv('BOT_WEBHOOK_SECRET', '')
 } as const;
 
 /**

@@ -50,7 +50,14 @@ const options: swaggerJsdoc.Options = {
           in: 'header',
           name: 'x-csrf-token',
           description:
-            'Obligatorio en todo POST/PUT/PATCH/DELETE (salvo el webhook de Mercado Pago). Pedirlo a GET /api/auth/csrf-token con las mismas cookies; si la sesión cambia (login, logout, refresh) hay que pedir uno nuevo. Sin token: 403 CSRF_INVALID.'
+            'Obligatorio en todo POST/PUT/PATCH/DELETE (salvo el webhook de Mercado Pago y /api/bot/*). Pedirlo a GET /api/auth/csrf-token con las mismas cookies; si la sesión cambia (login, logout, refresh) hay que pedir uno nuevo. Sin token: 403 CSRF_INVALID.'
+        },
+        botApiKey: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'X-Api-Key',
+          description:
+            'API key del bot de WhatsApp (env BOT_API_KEYS). Solo para /api/bot/*, server-to-server. Ver docs/BOT_API.md.'
         }
       },
       schemas: {
@@ -246,6 +253,11 @@ const options: swaggerJsdoc.Options = {
       {
         name: 'Settings',
         description: 'Configuración de la tienda (logo)'
+      },
+      {
+        name: 'Bot',
+        description:
+          'Canal de venta WhatsApp: catálogo, clientes por teléfono, cotización, órdenes WSP y link de pago (X-Api-Key)'
       }
     ]
   },

@@ -184,6 +184,18 @@ export async function findPublicProducts(
   }
 
   const productIds = idsResult.rows.map((r) => r.id);
+  const products = await findPublicProductsByIds(productIds);
+
+  return { products, total };
+}
+
+/**
+ * Detalle público (precio, stock disponible, categoría, marca, imagen y tiers) de los ids
+ * pedidos, en el mismo orden. Omite productos borrados o inactivos; NO filtra por stock (el
+ * llamador decide). 2 queries en total, sin N+1. Lo usan el listado del catálogo y el bot.
+ */
+export async function findPublicProductsByIds(productIds: string[]): Promise<PublicProduct[]> {
+  if (productIds.length === 0) return [];
 
   // Detalle y tiers solo dependen de los ids: se piden en paralelo
   const [detailResult, tiersResult] = await Promise.all([
@@ -211,7 +223,7 @@ export async function findPublicProducts(
         ORDER BY pi.display_order ASC
         LIMIT 1
       ) img ON true
-      WHERE p.id = ANY($1)`,
+      WHERE p.id = ANY($1) AND p.deleted_at IS NULL AND p.is_active = true`,
       [productIds]
     ),
     query<{
@@ -271,5 +283,5 @@ export async function findPublicProducts(
     });
   }
 
-  return { products, total };
+  return products;
 }
