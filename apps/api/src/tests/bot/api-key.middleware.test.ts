@@ -36,6 +36,14 @@ describe('requireBotApiKey', () => {
     expect(run([KEY_A], '')).toMatchObject({ code: 'INVALID_API_KEY' });
   });
 
+  it('rechaza una key más larga que contiene la válida', () => {
+    expect(run([KEY_A], `${KEY_A}x`)).toMatchObject({ code: 'INVALID_API_KEY' });
+  });
+
+  it('no acepta bytes nulos aunque coincidan con el relleno de largo distinto', () => {
+    expect(run([KEY_A], '\u0000'.repeat(10))).toMatchObject({ code: 'INVALID_API_KEY' });
+  });
+
   it('acepta la key configurada', () => {
     expect(run([KEY_A], KEY_A)).toBeUndefined();
   });
