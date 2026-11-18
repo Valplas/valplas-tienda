@@ -80,6 +80,15 @@ const PRODUCT_SORTS: Record<string, ProductSortSpec> = {
   }
 };
 
+/**
+ * Elige el orden por comparación con las claves conocidas: el SQL sale siempre de las constantes
+ * de PRODUCT_SORTS y nunca del texto recibido (un valor desconocido cae en name_asc).
+ */
+function resolveProductSort(sort: string): ProductSortSpec {
+  const match = Object.entries(PRODUCT_SORTS).find(([key]) => key === sort);
+  return match ? match[1] : PRODUCT_SORTS.name_asc;
+}
+
 export interface FindProductsResult {
   products: ProductWithDetails[];
   /** null en páginas con cursor: el total solo se calcula en la primera página. */
@@ -176,7 +185,7 @@ export async function findProducts(filters: ProductFilters): Promise<FindProduct
 
   // Orden: una sola expresión + p.id con la MISMA dirección (requisito del cursor: el predicado es
   // un único row value). `name_asc` es el orden alfabético por defecto.
-  const sortSpec = PRODUCT_SORTS[sort] ?? PRODUCT_SORTS.name_asc;
+  const sortSpec = resolveProductSort(sort);
 
   const whereClause = conditions.join(' AND ');
 
