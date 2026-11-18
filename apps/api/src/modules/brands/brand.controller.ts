@@ -4,27 +4,41 @@ import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-respon
 
 export async function listBrands(req: Request, res: Response, next: NextFunction) {
   try {
-    const { search, isActive, page = '1', limit = '24' } = req.query;
+    const { search, isActive, page, cursor, limit = '24' } = req.query;
 
+    const parsedPage = page ? parseInt(page as string, 10) : undefined;
+    const parsedLimit = parseInt(limit as string, 10);
     const filters = {
       search: search as string,
       isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
-      page: parseInt(page as string, 10),
-      limit: Math.min(parseInt(limit as string, 10), 100)
+      // Sin page se pagina por cursor
+      page:
+        parsedPage === undefined ? undefined : isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage,
+      cursor: cursor as string | undefined,
+      limit: isNaN(parsedLimit) || parsedLimit < 1 ? 24 : Math.min(parsedLimit, 100)
     };
 
     const result = await brandService.listBrands(filters);
 
-    return res.json(
-      ApiResponse.success({
-        brands: result.data,
-        pagination: {
-          page: filters.page,
+    // data es la lista; la paginación va al nivel superior como en el resto de los listados
+    if (result.keyset) {
+      return res.json(
+        ApiResponse.paginated(result.data, {
           limit: filters.limit,
-          total: result.total,
-          totalPages: Math.ceil(result.total / filters.limit),
-          hasMore: filters.page * filters.limit < result.total
-        }
+          hasMore: result.hasMore,
+          cursor: result.nextCursor ?? undefined,
+          total: result.total ?? undefined
+        })
+      );
+    }
+    const total = result.total ?? 0;
+    return res.json(
+      ApiResponse.paginated(result.data, {
+        page: filters.page,
+        limit: filters.limit,
+        total,
+        totalPages: Math.ceil(total / filters.limit),
+        hasMore: (filters.page ?? 1) * filters.limit < total
       })
     );
   } catch (error) {

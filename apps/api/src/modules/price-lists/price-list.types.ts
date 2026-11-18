@@ -3,7 +3,10 @@ import type { PriceList } from '@valplas/shared/types';
 export interface PriceListFilters {
   search?: string;
   isActive?: boolean;
+  /** Paginación clásica (OFFSET). Si se omite, se pagina por cursor. */
   page?: number;
+  /** Cursor opaco de la página anterior. */
+  cursor?: string;
   limit?: number;
 }
 

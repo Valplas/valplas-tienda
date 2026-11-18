@@ -1,13 +1,33 @@
 import { query } from '../../infrastructure/database/client.js';
+import {
+  decodeCursor,
+  encodeCursor,
+  keysetPredicate,
+  sliceKeysetPage
+} from '../../shared/utils/keyset.js';
 import type { Brand } from '@valplas/shared/types';
 import type { CreateBrandData, UpdateBrandData, BrandFilters } from './brand.types.js';
 
+const BRANDS_SORT_TAG = 'name_asc';
+
+export interface FindBrandsResult {
+  data: (Brand & { productCount: number })[];
+  /** null en páginas con cursor: el total solo se calcula en la primera página. */
+  total: number | null;
+  /** La respuesta se pagina por cursor (si no, OFFSET con total). */
+  keyset: boolean;
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
 /**
- * Buscar marcas con filtros y paginación
+ * Buscar marcas con filtros y paginación.
+ * Sin `page` se pagina por cursor (name, id); con `page`, OFFSET clásico.
  */
-export async function findBrands(filters: BrandFilters = {}) {
-  const { search, isActive, page = 1, limit = 24 } = filters;
-  const offset = (page - 1) * limit;
+export async function findBrands(filters: BrandFilters = {}): Promise<FindBrandsResult> {
+  const { search, isActive, page, cursor, limit = 24 } = filters;
+  const useKeyset = page === undefined;
+  const offset = useKeyset ? 0 : (page - 1) * limit;
 
   const conditions: string[] = ['b.deleted_at IS NULL'];
   const params: unknown[] = [];
@@ -29,45 +49,68 @@ export async function findBrands(filters: BrandFilters = {}) {
 
   const whereClause = conditions.join(' AND ');
 
-  // Query para obtener marcas con conteo de productos
-  const brandsQuery = `
-    SELECT
-      b.*,
-      COUNT(p.id) as product_count
-    FROM brands b
-    LEFT JOIN products p ON b.id = p.brand_id AND p.deleted_at IS NULL AND p.is_active = true
-    WHERE ${whereClause}
-    GROUP BY b.id
-    ORDER BY b.name ASC
-    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-  `;
+  // Total: con cursor solo en la primera página (el predicado del cursor no entra en el count)
+  let total: number | null = null;
+  if (!useKeyset || !cursor) {
+    const countResult = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM brands b WHERE ${whereClause}`,
+      params
+    );
+    total = parseInt(countResult.rows[0].count, 10);
+  }
 
-  params.push(limit, offset);
+  let pageWhere = whereClause;
+  const pageParams = [...params];
+  let pageParamIndex = paramIndex;
+  if (useKeyset && cursor) {
+    const values = decodeCursor(cursor, BRANDS_SORT_TAG, 2);
+    pageWhere = `${whereClause} AND ${keysetPredicate(
+      ['b.name', 'b.id'],
+      'ASC',
+      ['text', 'uuid'],
+      pageParamIndex
+    )}`;
+    pageParams.push(...values);
+    pageParamIndex += values.length;
+  }
+  const pageLimit = useKeyset ? limit + 1 : limit;
 
-  // Query para contar el total
-  const countQuery = `
-    SELECT COUNT(*) as count
-    FROM brands b
-    WHERE ${whereClause}
-  `;
+  // Paginar primero y contar productos solo de las marcas de la página (antes el JOIN + GROUP BY
+  // contaba los productos de TODAS las marcas y luego descartaba con LIMIT/OFFSET).
+  const brandsResult = await query<Brand & { product_count: string }>(
+    `WITH page AS (
+       SELECT b.id
+       FROM brands b
+       WHERE ${pageWhere}
+       ORDER BY b.name ASC, b.id ASC
+       LIMIT $${pageParamIndex} OFFSET $${pageParamIndex + 1}
+     )
+     SELECT b.*, pc.product_count
+     FROM page
+     JOIN brands b ON b.id = page.id
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*) AS product_count
+       FROM products p
+       WHERE p.brand_id = b.id AND p.deleted_at IS NULL AND p.is_active = true
+     ) pc ON true
+     ORDER BY b.name ASC, b.id ASC`,
+    [...pageParams, pageLimit, offset]
+  );
 
-  const [brandsResult, countResult] = await Promise.all([
-    query<Brand & { product_count: string }>(
-      brandsQuery,
-      params.slice(0, -2).concat([limit, offset])
-    ),
-    query<{ count: string }>(countQuery, params.slice(0, -2))
-  ]);
+  const { rows, hasMore } = useKeyset
+    ? sliceKeysetPage(brandsResult.rows, limit)
+    : { rows: brandsResult.rows, hasMore: false };
 
-  const brands = brandsResult.rows.map((row) => ({
+  const last = rows[rows.length - 1];
+  const nextCursor =
+    useKeyset && hasMore && last ? encodeCursor(BRANDS_SORT_TAG, [last.name, last.id]) : null;
+
+  const data = rows.map((row) => ({
     ...row,
     productCount: parseInt(row.product_count, 10)
   }));
 
-  return {
-    data: brands,
-    total: parseInt(countResult.rows[0].count, 10)
-  };
+  return { data, total, keyset: useKeyset, hasMore, nextCursor };
 }
 
 /**
