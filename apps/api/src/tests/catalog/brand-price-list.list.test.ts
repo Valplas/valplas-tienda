@@ -23,7 +23,7 @@ describe('findBrands por cursor', () => {
     const ids: string[] = [];
     for (const [i, name] of names.entries()) {
       const result = await query<{ id: string }>(
-        `INSERT INTO brands (name, slug, is_active) VALUES ($1, $2, true) RETURNING id`,
+        'INSERT INTO brands (name, slug, is_active) VALUES ($1, $2, true) RETURNING id',
         [`${PREFIX} ${token} ${name}`, `vitest-cur-${token}-${i}`.toLowerCase()]
       );
       ids.push(result.rows[0].id);
