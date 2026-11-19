@@ -8,7 +8,7 @@ import { Cart } from './index';
 export interface CartState extends Omit<Cart, 'shippingCost' | 'total'> {
   isOpen: boolean; // Drawer state
   isLoading: boolean;
-  itemCount: number; // Computed
+  itemCount: number; // Computed: filas del carrito (una por producto + presentación)
 }
 
 export interface CartActions {

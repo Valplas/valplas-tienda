@@ -54,7 +54,6 @@ export function CartItem({ item }: CartItemProps) {
 
   // quantity = bultos de la presentación; finalPrice = precio del bulto
   const bundleSize = item.minQuantity ?? 1;
-  const totalUnits = item.quantity * bundleSize;
   const maxBundles = Math.floor(product.availableStock / bundleSize);
   const itemSubtotal = computeLineSubtotal(product.finalPrice, item.quantity);
 
@@ -85,7 +84,7 @@ export function CartItem({ item }: CartItemProps) {
 
         <p className="text-sm text-muted-foreground mt-1">
           {presentationLabel(bundleSize)}
-          {bundleSize > 1 && ` · ${totalUnits} u.`}
+          {bundleSize > 1 && ` · ${item.quantity} ${item.quantity === 1 ? 'unidad' : 'unidades'}`}
         </p>
 
         <div className="flex items-center gap-2 mt-2">

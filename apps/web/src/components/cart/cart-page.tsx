@@ -36,7 +36,8 @@ export function CartPage() {
       </Button>
 
       <h1 className="text-xl font-bold mb-4 sm:text-2xl sm:mb-6">
-        Carrito de compras {itemCount > 0 && `(${itemCount} productos)`}
+        Carrito de compras{' '}
+        {itemCount > 0 && `(${itemCount} ${itemCount === 1 ? 'producto' : 'productos'})`}
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

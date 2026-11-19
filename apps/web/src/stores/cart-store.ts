@@ -74,7 +74,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
         items: cart.items,
         subtotal: cart.subtotal,
         updatedAt: cart.updatedAt,
-        itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+        itemCount: cart.items.length,
         isLoading: false
       });
     } catch (error) {
@@ -95,7 +95,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
         items: cart.items,
         subtotal: cart.subtotal,
         updatedAt: cart.updatedAt,
-        itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+        itemCount: cart.items.length,
         isLoading: false
       });
     } catch (error) {
@@ -116,7 +116,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
         items: cart.items,
         subtotal: cart.subtotal,
         updatedAt: cart.updatedAt,
-        itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+        itemCount: cart.items.length,
         isLoading: false
       });
     } catch (error) {
@@ -167,7 +167,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
         items: cart.items,
         subtotal: cart.subtotal,
         updatedAt: cart.updatedAt,
-        itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+        itemCount: cart.items.length,
         isLoading: false
       });
     } catch (error) {
