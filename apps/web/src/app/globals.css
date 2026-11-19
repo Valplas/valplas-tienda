@@ -72,6 +72,16 @@
   border-color: var(--color-border);
 }
 
+/* Tailwind v4 resets button cursor to `default`; restore pointer for enabled buttons.
+   In @layer base so explicit utilities (cursor-default, cursor-not-allowed) still win. */
+@layer base {
+  button:not(:disabled):not([aria-disabled="true"]),
+  [role="button"]:not(:disabled):not([aria-disabled="true"]),
+  input:is([type="button"], [type="submit"], [type="reset"]):not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);
