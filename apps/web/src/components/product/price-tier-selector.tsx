@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCartStore } from '@/stores/cart-store';
 import { formatPrice } from '@/lib/formatters';
+import { computeBundlePrice, computeLineSubtotal, presentationLabel } from '@/lib/pricing';
 import type { PriceTier } from '@/types';
 
 interface PriceTierSelectorProps {
@@ -20,9 +21,11 @@ interface PriceTierSelectorProps {
 export function PriceTierSelector({
   productId,
   productName,
-  tiers,
+  tiers: rawTiers,
   availableStock
 }: PriceTierSelectorProps) {
+  // Presentaciones de menor a mayor (unidad primero, que queda como default)
+  const tiers = [...rawTiers].sort((a, b) => a.minQuantity - b.minQuantity);
   const [selectedTierId, setSelectedTierId] = useState(tiers[0]?.priceListId ?? '');
   const [bundleCount, setBundleCount] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,8 +36,8 @@ export function PriceTierSelector({
   if (!selectedTier) return null;
 
   const unitTier = tiers.find((t) => t.minQuantity === 1);
-  const pricePerBundle = Math.trunc(selectedTier.unitPrice * selectedTier.minQuantity * 100) / 100;
-  const subtotal = Math.trunc(pricePerBundle * bundleCount * 100) / 100;
+  const pricePerBundle = computeBundlePrice(selectedTier.unitPrice, selectedTier.minQuantity);
+  const subtotal = computeLineSubtotal(pricePerBundle, bundleCount);
   const totalUnits = bundleCount * selectedTier.minQuantity;
   const maxBundles = Math.floor(availableStock / selectedTier.minQuantity);
 
@@ -48,7 +51,7 @@ export function PriceTierSelector({
     try {
       await addItem(productId, bundleCount, selectedTierId);
       toast.success('Producto agregado', {
-        description: `${productName} (${bundleCount} ${selectedTier.minQuantity > 1 ? `bultos × ${selectedTier.minQuantity}` : 'unidad'})`
+        description: `${productName} (${bundleCount} × ${presentationLabel(selectedTier.minQuantity)})`
       });
     } catch (error) {
       toast.error('Error al agregar producto', {
@@ -63,30 +66,30 @@ export function PriceTierSelector({
     <div className="space-y-4">
       {/* Tier selector */}
       <div>
-        <p className="mb-2 text-sm font-medium">Comprar por:</p>
+        <p className="mb-2 text-sm font-medium">Presentación:</p>
         <RadioGroup value={selectedTierId} onValueChange={handleTierChange} className="gap-2">
           {tiers.map((tier) => {
             const discount =
               unitTier && tier.priceListId !== unitTier.priceListId
                 ? Math.round((1 - tier.unitPrice / unitTier.unitPrice) * 100)
                 : null;
-            const label =
-              tier.minQuantity === 1 ? 'Unidad' : `${tier.priceListName} x${tier.minQuantity}`;
+            const exceedsStock = tier.minQuantity > availableStock;
 
             return (
               <div
                 key={tier.priceListId ?? tier.minQuantity}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 hover:bg-muted/50 has-[input:checked]:border-primary has-[input:checked]:bg-primary/5"
+                className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 hover:bg-muted/50 has-[input:checked]:border-primary has-[input:checked]:bg-primary/5 has-[button:disabled]:cursor-not-allowed has-[button:disabled]:opacity-50"
               >
                 <RadioGroupItem
                   value={tier.priceListId ?? ''}
                   id={`tier-${tier.priceListId ?? ''}`}
+                  disabled={exceedsStock}
                 />
                 <Label
                   htmlFor={`tier-${tier.priceListId}`}
                   className="flex flex-1 cursor-pointer items-center justify-between"
                 >
-                  <span className="font-medium">{label}</span>
+                  <span className="font-medium">{presentationLabel(tier.minQuantity)}</span>
                   <span className="flex items-center gap-2">
                     <span>{formatPrice(tier.unitPrice)}/u</span>
                     {discount && discount > 0 && (

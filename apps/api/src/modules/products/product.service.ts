@@ -30,13 +30,12 @@ export function resolveIsActiveFilter(
  * nombre de lista, por eso se busca el mínimo explícitamente.
  */
 export function toPublicProduct(product: ProductWithDetails): PublicProduct {
-  const { costPrice, ...rest } = product;
-  const baseTier = product.priceTiers.reduce<ProductWithDetails['priceTiers'][number] | null>(
-    (min, tier) => (min === null || tier.minQuantity < min.minQuantity ? tier : min),
-    null
-  );
+  const { costPrice, priceTiers, ...rest } = product;
+  const publicTiers = [...priceTiers]
+    .sort((a, b) => a.minQuantity - b.minQuantity)
+    .map(({ priceListId, minQuantity, unitPrice }) => ({ priceListId, minQuantity, unitPrice }));
 
-  return { ...rest, price: baseTier?.unitPrice ?? costPrice };
+  return { ...rest, priceTiers: publicTiers, price: publicTiers[0]?.unitPrice ?? costPrice };
 }
 
 /**

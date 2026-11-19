@@ -141,7 +141,7 @@ interface RawProduct {
   images?: RawProductImage[];
   priceTiers?: Array<{
     priceListId: string;
-    priceListName: string;
+    priceListName?: string; // solo endpoints admin: el detalle público no lo expone (margen)
     minQuantity: number;
     unitPrice: number;
   }>;

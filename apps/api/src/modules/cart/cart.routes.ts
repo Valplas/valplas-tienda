@@ -2,7 +2,11 @@ import { Router } from 'express';
 import * as cartController from './cart.controller.js';
 import { validate } from '../../shared/middleware/validation.middleware.js';
 import { authMiddleware } from '../../shared/middleware/auth.middleware.js';
-import { addToCartSchema, updateCartItemSchema } from './cart.validator.js';
+import {
+  addToCartSchema,
+  updateCartItemSchema,
+  removeCartItemQuerySchema
+} from './cart.validator.js';
 
 const router = Router();
 
@@ -10,7 +14,11 @@ const router = Router();
 router.get('/', cartController.getCart);
 router.post('/items', validate(addToCartSchema), cartController.addToCart);
 router.put('/items/:productId', validate(updateCartItemSchema), cartController.updateCartItem);
-router.delete('/items/:productId', cartController.removeFromCart);
+router.delete(
+  '/items/:productId',
+  validate(removeCartItemQuerySchema, 'query'),
+  cartController.removeFromCart
+);
 router.delete('/', cartController.clearCart);
 
 // Esta ruta SÍ requiere autenticación

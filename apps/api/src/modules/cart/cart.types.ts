@@ -36,4 +36,5 @@ export interface AddToCartData {
 
 export interface UpdateCartItemData {
   quantity: number;
+  priceListId?: string; // presentación de la línea a actualizar
 }

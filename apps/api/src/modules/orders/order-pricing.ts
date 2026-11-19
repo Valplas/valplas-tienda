@@ -93,6 +93,9 @@ export async function priceOrderItems(
   const lines: PricedOrderLine[] = [];
   const problems: OrderPricingProblem[] = [];
   let subtotal = 0;
+  // Unidades pedidas por producto acumuladas entre líneas: el mismo producto puede venir en
+  // varias presentaciones (una línea por tier) y entre todas comparten el stock.
+  const requestedUnitsByProduct = new Map<string, number>();
 
   for (const item of items) {
     const product = productMap.get(item.product_id);
@@ -133,15 +136,17 @@ export async function priceOrderItems(
     const pricePerBundle = computeBundlePrice(unitPrice, bundleSize);
     const itemSubtotal = Math.trunc(pricePerBundle * item.quantity * 100) / 100;
 
-    // El stock se controla en unidades reales, no en bultos.
+    // El stock se controla en unidades reales (no bultos), sumando las líneas del producto.
     const availableStock = product.stock - product.reservedStock;
-    if (availableStock < realQuantity) {
+    const requestedUnits = (requestedUnitsByProduct.get(item.product_id) ?? 0) + realQuantity;
+    requestedUnitsByProduct.set(item.product_id, requestedUnits);
+    if (availableStock < requestedUnits) {
       problems.push({
         code: 'INSUFFICIENT_STOCK',
         product_id: item.product_id,
         product_name: product.name,
         available: availableStock,
-        requested: realQuantity
+        requested: requestedUnits
       });
     }
 
