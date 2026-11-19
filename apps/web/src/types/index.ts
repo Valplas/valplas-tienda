@@ -173,6 +173,7 @@ export interface CartItem {
   quantity: number; // cantidad de bultos
   priceListId?: string; // lista de precios del tier elegido (para la orden)
   minQuantity?: number; // unidades por bulto (1 si no hay tier)
+  unitPrice?: number; // precio por unidad de la lista del tier
   product?: Product; // Populated for display
 }
 

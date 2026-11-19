@@ -63,10 +63,14 @@ export async function addToCart(
 }
 
 /**
- * Actualizar cantidad de producto en carrito
+ * Actualizar cantidad de una línea (producto + presentación) del carrito
  */
-export async function updateCartItem(productId: string, quantity: number): Promise<Cart> {
-  const response = await put<CartResponse>(`/cart/items/${productId}`, { quantity });
+export async function updateCartItem(
+  productId: string,
+  quantity: number,
+  priceListId?: string
+): Promise<Cart> {
+  const response = await put<CartResponse>(`/cart/items/${productId}`, { quantity, priceListId });
 
   if (response.success && response.data) {
     return response.data.cart;
@@ -76,10 +80,11 @@ export async function updateCartItem(productId: string, quantity: number): Promi
 }
 
 /**
- * Eliminar producto del carrito
+ * Eliminar una línea (producto + presentación) del carrito
  */
-export async function removeFromCart(productId: string): Promise<Cart> {
-  const response = await del<CartResponse>(`/cart/items/${productId}`);
+export async function removeFromCart(productId: string, priceListId?: string): Promise<Cart> {
+  const query = priceListId ? `?priceListId=${encodeURIComponent(priceListId)}` : '';
+  const response = await del<CartResponse>(`/cart/items/${productId}${query}`);
 
   if (response.success && response.data) {
     return response.data.cart;

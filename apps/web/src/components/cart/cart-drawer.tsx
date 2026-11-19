@@ -6,7 +6,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCartStore } from '@/stores/cart-store';
+import { useCartStore, cartLineKey } from '@/stores/cart-store';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,7 +34,7 @@ export function CartDrawer() {
             <ScrollArea className="flex-1 px-6">
               <div className="py-4">
                 {items.map((item) => (
-                  <CartItem key={item.productId} item={item} />
+                  <CartItem key={cartLineKey(item)} item={item} />
                 ))}
               </div>
             </ScrollArea>

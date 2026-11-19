@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Minus, Plus, ShoppingCart } from 'lucide-react';
+import { Loader2, Minus, Plus, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProductPublic } from '@/types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StockBadge } from './stock-badge';
 import { formatPrice } from '@/lib/formatters';
+import { computeBundlePrice, computeLineSubtotal } from '@/lib/pricing';
 import { useCartStore } from '@/stores/cart-store';
 import { cn } from '@/lib/utils';
 
@@ -25,12 +26,18 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem);
 
   const isOutOfStock = product.availableStock === 0;
-  const hasTiers = product.tiers.length > 0;
   const hasMultipleTiers = product.tiers.length > 1;
 
-  const selectedTier = hasTiers ? product.tiers[selectedTierIndex] : null;
-  const unitPrice = hasTiers ? product.tiers[0].unitPrice : product.price;
-  const bulkTier = hasMultipleTiers ? product.tiers[product.tiers.length - 1] : null;
+  // Todo se deriva de la presentación elegida: cada una tiene su lista de precios.
+  // tiers vienen ordenados por minQuantity ASC → índice 0 = unidad.
+  const selectedTier = product.tiers[selectedTierIndex] ?? null;
+  const presentation = selectedTier?.minQuantity ?? 1;
+  const unitPrice = selectedTier?.unitPrice ?? product.price;
+  const bundlePrice = computeBundlePrice(unitPrice, presentation);
+  const totalPrice = computeLineSubtotal(bundlePrice, counter);
+  const totalUnits = presentation * counter;
+  const maxCounter = Math.floor(product.availableStock / presentation);
+  const showTotal = presentation > 1 || counter > 1;
 
   const handleTierSelect = (index: number) => {
     setSelectedTierIndex(index);
@@ -38,18 +45,11 @@ export function ProductCard({ product, className }: ProductCardProps) {
   };
 
   const handleDecrement = () => setCounter((c) => Math.max(1, c - 1));
-  const handleIncrement = () => {
-    const presentation = selectedTier?.minQuantity ?? 1;
-    const maxCounter = Math.floor(product.availableStock / presentation);
-    setCounter((c) => Math.min(c + 1, maxCounter));
-  };
+  const handleIncrement = () => setCounter((c) => Math.min(c + 1, maxCounter));
 
   const handleAddToCart = async () => {
     // counter = cantidad de bultos. El backend multiplica por minQuantity del tier.
     // Pasar el priceListId del tier para que el carrito use el precio de lista.
-    const presentation = selectedTier?.minQuantity ?? 1;
-    const totalUnits = presentation * counter;
-
     setIsLoading(true);
     try {
       await addItem(product.id, counter, selectedTier?.priceListId);
@@ -112,20 +112,18 @@ export function ProductCard({ product, className }: ProductCardProps) {
           <span className="hidden text-xs text-muted-foreground sm:inline">SKU {product.sku}</span>
         </div>
 
-        {/* Precios */}
+        {/* Precios de la presentación elegida */}
         <div className="space-y-0.5">
-          {bulkTier && (
-            <div>
-              <p className="text-xs text-muted-foreground">Precio unitario por bulto cerrado:</p>
-              <p className="text-base font-bold">{formatPrice(bulkTier.unitPrice)}</p>
-            </div>
-          )}
           <div>
             <p className="text-xs text-muted-foreground">Precio unitario:</p>
-            <p className={cn('font-semibold', bulkTier ? 'text-sm' : 'text-base font-bold')}>
-              {formatPrice(unitPrice)}
-            </p>
+            <p className="text-base font-bold">{formatPrice(unitPrice)}</p>
           </div>
+          {presentation > 1 && (
+            <div>
+              <p className="text-xs text-muted-foreground">Precio del bulto (x{presentation}):</p>
+              <p className="text-sm font-semibold">{formatPrice(bundlePrice)}</p>
+            </div>
+          )}
         </div>
 
         {/* Selector de presentación */}
@@ -139,8 +137,9 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 <button
                   key={tier.minQuantity}
                   onClick={() => handleTierSelect(index)}
+                  disabled={tier.minQuantity > product.availableStock}
                   className={cn(
-                    'min-w-10 rounded border px-2 py-1 text-sm font-medium transition-colors',
+                    'min-w-10 rounded border px-2 py-1 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40',
                     selectedTierIndex === index
                       ? 'border-destructive bg-destructive/5 text-destructive'
                       : 'border-muted-foreground/30 hover:border-muted-foreground'
@@ -151,6 +150,17 @@ export function ProductCard({ product, className }: ProductCardProps) {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Total: bultos × presentación */}
+        {showTotal && (
+          <p className="text-xs text-muted-foreground">
+            Total{' '}
+            {presentation > 1
+              ? `${counter} × ${presentation} = ${totalUnits} u.`
+              : `${totalUnits} u.`}
+            : <span className="font-semibold text-foreground">{formatPrice(totalPrice)}</span>
+          </p>
         )}
       </CardContent>
 
@@ -167,7 +177,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
           <span className="min-w-6 text-center text-sm">{counter}</span>
           <button
             onClick={handleIncrement}
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || counter >= maxCounter}
             className="px-2 py-1 text-sm disabled:opacity-40"
           >
             <Plus className="h-3 w-3" />
@@ -179,8 +189,13 @@ export function ProductCard({ product, className }: ProductCardProps) {
           disabled={isOutOfStock || isLoading}
           size="sm"
           className="flex-1"
+          aria-label="Agregar al carrito"
         >
-          <ShoppingCart className="h-4 w-4" />
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ShoppingCart className="h-4 w-4" />
+          )}
         </Button>
       </CardFooter>
     </Card>

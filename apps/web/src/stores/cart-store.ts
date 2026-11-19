@@ -12,6 +12,14 @@ import type { Cart as ServiceCart } from '@/services';
 type CartStore = CartState & CartActions;
 
 /**
+ * Key única de una línea del carrito: el mismo producto puede estar en varias
+ * presentaciones (una línea por priceListId).
+ */
+export function cartLineKey(item: { productId: string; priceListId?: string }): string {
+  return `${item.productId}:${item.priceListId ?? 'unit'}`;
+}
+
+/**
  * Convierte el Cart del servicio al formato del frontend.
  * El backend devuelve items "planos" (name, imageUrl, pricePerBundle, etc.);
  * los componentes leen item.product.{...}, así que armamos ese objeto.
@@ -26,6 +34,7 @@ function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
       quantity: item.quantity,
       priceListId: item.priceListId,
       minQuantity: item.minQuantity,
+      unitPrice: item.unitPrice,
       product: {
         id: item.productId,
         name: item.name,
@@ -74,12 +83,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
     }
   },
 
-  updateQuantity: async (productId, quantity) => {
+  updateQuantity: async (productId, quantity, priceListId) => {
     const { setLoading } = get();
     setLoading(true);
 
     try {
-      const serviceCart = await updateCartItem(productId, quantity);
+      const serviceCart = await updateCartItem(productId, quantity, priceListId);
       const cart = mapServiceCartToFrontendCart(serviceCart);
 
       set({
@@ -95,12 +104,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
     }
   },
 
-  removeItem: async (productId) => {
+  removeItem: async (productId, priceListId) => {
     const { setLoading } = get();
     setLoading(true);
 
     try {
-      const serviceCart = await removeFromCart(productId);
+      const serviceCart = await removeFromCart(productId, priceListId);
       const cart = mapServiceCartToFrontendCart(serviceCart);
 
       set({

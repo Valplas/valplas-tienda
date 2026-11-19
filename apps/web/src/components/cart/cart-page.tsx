@@ -6,7 +6,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCartStore } from '@/stores/cart-store';
+import { useCartStore, cartLineKey } from '@/stores/cart-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CartItem } from './cart-item';
@@ -49,7 +49,7 @@ export function CartPage() {
             <CardContent className="p-0">
               <div className="divide-y px-6">
                 {items.map((item) => (
-                  <CartItem key={item.productId} item={item} />
+                  <CartItem key={cartLineKey(item)} item={item} />
                 ))}
               </div>
             </CardContent>
