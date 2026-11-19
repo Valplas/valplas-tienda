@@ -53,7 +53,8 @@ export const listOrdersSchema = z.object({
   status: z.enum(ORDER_STATUSES).optional(),
   from_date: dateInput.optional(),
   to_date: dateInput.optional(),
-  order_number: z.string().optional()
+  order_number: z.string().optional(),
+  cursor: z.string().max(500).optional()
 });
 
 export const createAdminOrderItemSchema = z.object({

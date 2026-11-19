@@ -4,6 +4,7 @@ import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRequireAuth } from '@/hooks/use-require-auth';
+import { useInfiniteList } from '@/hooks/use-infinite-list';
 import { UserRole } from '@/types';
 import { ColumnDef } from '@tanstack/react-table';
 import { MoreHorizontal, Pencil, Trash2, Plus, Loader2, Tags } from 'lucide-react';
@@ -42,11 +43,6 @@ export default function AdminProductsPage() {
   const { user, isLoading: authLoading } = useRequireAuth({
     allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
   });
-  const [products, setProducts] = React.useState<Product[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [page, setPage] = React.useState(1);
-  const [hasMore, setHasMore] = React.useState(true);
   const [search, setSearch] = React.useState('');
   const [sortBy, setSortBy] = React.useState<AdminProductSort>('name_asc');
   const [statusFilter, setStatusFilter] = React.useState<'all' | 'active' | 'inactive'>('all');
@@ -54,88 +50,38 @@ export default function AdminProductsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [productToDelete, setProductToDelete] = React.useState<Product | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
-  const sentinelRef = React.useRef<HTMLDivElement>(null);
 
-  // Load page 1 whenever search, sort, or reloadKey changes
-  React.useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setPage(1);
-    setHasMore(true);
-
-    getAdminProducts({
-      page: 1,
-      limit: PAGE_SIZE,
-      search: search || undefined,
-      sort: sortBy,
-      isActive: isActiveParam
-    })
-      .then((result) => {
-        if (cancelled) return;
-        setProducts(result.products);
-        setHasMore(result.products.length === PAGE_SIZE);
-      })
-      .catch(() => {
-        if (!cancelled) toast.error('Error al cargar productos');
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
+  const {
+    items: products,
+    loading: isLoading,
+    loadingMore: isLoadingMore,
+    hasMore,
+    sentinelRef
+  } = useInfiniteList<Product>({
+    // Cualquier cambio de búsqueda, orden o filtro (o una recarga tras borrar/editar) arranca de
+    // nuevo: un cursor solo vale para la lista que lo generó.
+    resetKey: JSON.stringify([search, sortBy, isActiveParam, reloadKey]),
+    fetchPage: async ({ cursor }) => {
+      const result = await getAdminProducts({
+        cursor,
+        limit: PAGE_SIZE,
+        search: search || undefined,
+        sort: sortBy,
+        isActive: isActiveParam
       });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [search, sortBy, isActiveParam, reloadKey]);
-
-  const loadMore = React.useCallback(
-    async (nextPage: number) => {
-      setIsLoadingMore(true);
-      try {
-        const result = await getAdminProducts({
-          page: nextPage,
-          limit: PAGE_SIZE,
-          search: search || undefined,
-          sort: sortBy,
-          isActive: isActiveParam
-        });
-        setProducts((prev) => [...prev, ...result.products]);
-        setHasMore(result.products.length === PAGE_SIZE);
-        setPage(nextPage);
-      } catch {
-        setHasMore(false);
-        toast.error('Error al cargar más productos');
-      } finally {
-        setIsLoadingMore(false);
-      }
+      return {
+        items: result.products,
+        hasMore: result.hasMore,
+        nextCursor: result.nextCursor
+      };
     },
-    [search, sortBy, isActiveParam]
-  );
+    onError: (_error, phase) =>
+      toast.error(phase === 'first' ? 'Error al cargar productos' : 'Error al cargar más productos')
+  });
 
   const handleSearch = React.useCallback((value: string) => {
     setSearch(value);
   }, []);
-
-  // IntersectionObserver for infinite scroll
-  React.useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    let active = true;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (active && entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading) {
-          loadMore(page + 1);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(sentinel);
-    return () => {
-      active = false;
-      observer.disconnect();
-    };
-  }, [hasMore, isLoadingMore, isLoading, page, loadMore]);
 
   const handleDeleteProduct = (product: Product) => {
     setProductToDelete(product);

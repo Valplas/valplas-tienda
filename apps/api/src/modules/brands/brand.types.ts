@@ -22,6 +22,9 @@ export interface UpdateBrandData {
 export interface BrandFilters {
   search?: string;
   isActive?: boolean;
+  /** Paginación clásica (OFFSET). Si se omite, se pagina por cursor. */
   page?: number;
+  /** Cursor opaco de la página anterior. */
+  cursor?: string;
   limit?: number;
 }

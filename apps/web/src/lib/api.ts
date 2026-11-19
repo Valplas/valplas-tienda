@@ -11,7 +11,8 @@ export interface ApiResponse<T> {
   pagination?: {
     page?: number;
     limit: number;
-    total: number;
+    /** En paginación por cursor solo viene en la primera página. */
+    total?: number;
     totalPages?: number;
     cursor?: string;
     hasMore: boolean;

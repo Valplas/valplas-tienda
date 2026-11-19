@@ -187,7 +187,8 @@ export async function getCustomerOrders(customerId: string, pagination: Paginati
     page: pagination.page,
     limit: pagination.limit
   });
-  return { orders: orders.map(toBotOrderSummary), total };
+  // El bot siempre pagina con page: el total viene calculado (null solo en modo cursor)
+  return { orders: orders.map(toBotOrderSummary), total: total ?? orders.length };
 }
 
 // ============= COTIZACIÓN =============

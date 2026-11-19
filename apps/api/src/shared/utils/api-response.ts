@@ -9,7 +9,7 @@ export interface ApiPaginatedResponse<T> {
   pagination: {
     page?: number;
     limit: number;
-    total: number;
+    total?: number;
     totalPages?: number;
     cursor?: string;
     hasMore: boolean;
@@ -49,7 +49,7 @@ export class ApiResponseBuilder {
     pagination: {
       page?: number;
       limit: number;
-      total: number;
+      total?: number;
       totalPages?: number;
       cursor?: string;
       hasMore: boolean;
@@ -75,7 +75,7 @@ export class ApiResponseBuilder {
       | {
           page?: number;
           limit: number;
-          total: number;
+          total?: number;
           totalPages?: number;
           cursor?: string;
           hasMore: boolean;

@@ -1,6 +1,13 @@
 // apps/api/src/modules/users/user.repository.ts
 
 import { query } from '../../infrastructure/database/client.js';
+import {
+  decodeCursor,
+  encodeCursor,
+  keysetPredicate,
+  sliceKeysetPage,
+  tsKey
+} from '../../shared/utils/keyset.js';
 import type {
   User,
   UserWithStats,
@@ -14,25 +21,34 @@ import type {
 } from './user.types.js';
 import type { SalesChannel } from '../orders/order.types.js';
 
+export interface FindUsersResult {
+  users: User[] | UserWithAddresses[];
+  /** null en páginas con cursor: el total solo se calcula en la primera página. */
+  total: number | null;
+  /** La respuesta se pagina por cursor (si no, OFFSET con total). */
+  keyset: boolean;
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
 /**
- * Find users with filters and pagination
+ * Find users with filters and pagination.
+ * Sin `page` (y sin contact_status=missing) se pagina por cursor; con `page`, OFFSET.
  */
-export async function findUsers(
-  filters: UserFilters
-): Promise<{ users: User[] | UserWithAddresses[]; total: number }> {
+export async function findUsers(filters: UserFilters): Promise<FindUsersResult> {
   const {
     role,
     is_active,
     email_verified,
     search,
     contact_status,
-    page = 1,
+    page,
+    cursor,
     limit = 20,
     sort = 'first_name',
     includeAddresses = false
   } = filters;
 
-  const offset = (page - 1) * limit;
   const conditions: string[] = ['deleted_at IS NULL'];
   const params: unknown[] = [];
   let paramIndex = 1;
@@ -83,41 +99,83 @@ export async function findUsers(
   // Con contact_status=missing se prioriza a quien compró más recientemente
   const lastOrderOrder = (alias: string) =>
     `(SELECT MAX(o.created_at) FROM orders o WHERE o.user_id = ${alias}.id) DESC NULLS LAST`;
-  const innerOrder =
-    contact_status === 'missing'
-      ? `${lastOrderOrder('users')}, id`
-      : sort === 'first_name'
-        ? 'first_name ASC, last_name ASC, id'
-        : 'created_at DESC, id';
-  const outerOrder =
-    contact_status === 'missing'
-      ? `${lastOrderOrder('u')}, u.id`
-      : sort === 'first_name'
-        ? 'u.first_name ASC, u.last_name ASC, u.id'
-        : 'u.created_at DESC, u.id';
+
+  // Cursor (keyset) cuando no llega `page` y el orden es indexable. El orden por último pedido
+  // es calculado (no hay índice que lo sirva): sigue con OFFSET.
+  const useKeyset = page === undefined && contact_status !== 'missing';
+  const pageNumber = page ?? 1;
+  const offset = useKeyset ? 0 : (pageNumber - 1) * limit;
+
+  // Todas las columnas del orden con la misma dirección y `id` al final (único): sin eso el
+  // orden no es determinista. last_name es nullable → COALESCE para que el row value no sea NULL.
+  const keysetFor = (a: string) =>
+    sort === 'first_name'
+      ? {
+          tag: 'first_name_asc',
+          direction: 'ASC' as const,
+          columns: [`${a}first_name`, `COALESCE(${a}last_name, '')`, `${a}id`],
+          // Valor de cada columna tal cual viaja en el cursor
+          values: [`${a}first_name`, `COALESCE(${a}last_name, '')`, `${a}id::text`],
+          types: ['text', 'text', 'uuid']
+        }
+      : {
+          tag: 'created_desc',
+          direction: 'DESC' as const,
+          columns: [`${a}created_at`, `${a}id`],
+          values: [tsKey(`${a}created_at`), `${a}id::text`],
+          types: ['timestamptz', 'uuid']
+        };
+  const keyset = keysetFor('');
+  const orderBy = (a: string) =>
+    keysetFor(a)
+      .columns.map((c) => `${c} ${keyset.direction}`)
+      .join(', ');
+  const keyExprs = keyset.values;
+
+  const innerOrder = contact_status === 'missing' ? `${lastOrderOrder('users')}, id` : orderBy('');
+  const outerOrder = contact_status === 'missing' ? `${lastOrderOrder('u')}, u.id` : orderBy('u.');
 
   const whereClause = conditions.join(' AND ');
 
-  // Count total
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM users WHERE ${whereClause}`,
-    params
-  );
+  // Total: con cursor solo en la primera página (el predicado del cursor no entra en el count)
+  let total: number | null = null;
+  if (!useKeyset || !cursor) {
+    const countResult = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM users WHERE ${whereClause}`,
+      params
+    );
+    total = parseInt(countResult.rows[0].count, 10);
+  }
 
-  const total = parseInt(countResult.rows[0].count, 10);
+  let pageWhere = whereClause;
+  const pageParams = [...params];
+  let pageParamIndex = paramIndex;
+  if (useKeyset && cursor) {
+    const values = decodeCursor(cursor, keyset.tag, keyset.columns.length);
+    pageWhere = `${whereClause} AND ${keysetPredicate(
+      keyset.columns,
+      keyset.direction,
+      keyset.types,
+      pageParamIndex
+    )}`;
+    pageParams.push(...values);
+    pageParamIndex += keyset.columns.length;
+  }
+  const pageLimit = useKeyset ? limit + 1 : limit;
 
   // Get users
-  let usersRows: User[] | UserWithAddresses[];
+  let usersRows: (User & { _k?: string[] })[] | (UserWithAddresses & { _k?: string[] })[];
 
   if (includeAddresses) {
-    const result = await query<UserWithAddresses>(
+    const result = await query<UserWithAddresses & { _k: string[] }>(
       `WITH paged_users AS (
-         SELECT id FROM users
-         WHERE ${whereClause}
+         SELECT id, ARRAY[${keyExprs.join(', ')}] AS k FROM users
+         WHERE ${pageWhere}
          ORDER BY ${innerOrder}
-         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+         LIMIT $${pageParamIndex} OFFSET $${pageParamIndex + 1}
        )
        SELECT
+         pu.k AS _k,
          u.id, u.email, u.username, u.phone, u.first_name, u.last_name, u.role,
          u.is_active, u.email_verified, u.phone_verified, u.created_at, u.updated_at, u.deleted_at,
          COALESCE(
@@ -142,29 +200,39 @@ export async function findUsers(
        JOIN paged_users pu ON u.id = pu.id
        LEFT JOIN user_addresses a
          ON a.user_id = u.id AND a.deleted_at IS NULL AND a.is_active = true
-       GROUP BY u.id, u.email, u.username, u.phone, u.first_name, u.last_name, u.role,
+       GROUP BY pu.k, u.id, u.email, u.username, u.phone, u.first_name, u.last_name, u.role,
                 u.is_active, u.email_verified, u.phone_verified, u.created_at, u.updated_at, u.deleted_at
        ORDER BY ${outerOrder}`,
-      [...params, limit, offset]
+      [...pageParams, pageLimit, offset]
     );
     usersRows = result.rows;
   } else {
-    const result = await query<User>(
+    const result = await query<User & { _k: string[] }>(
       `SELECT id, email, username, phone, first_name, last_name, role,
-              is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
+              is_active, email_verified, phone_verified, created_at, updated_at, deleted_at,
+              ARRAY[${keyExprs.join(', ')}] AS _k
        FROM users
-       WHERE ${whereClause}
+       WHERE ${pageWhere}
        ORDER BY ${innerOrder}
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      [...params, limit, offset]
+       LIMIT $${pageParamIndex} OFFSET $${pageParamIndex + 1}`,
+      [...pageParams, pageLimit, offset]
     );
     usersRows = result.rows;
   }
 
-  return {
-    users: usersRows,
-    total
-  };
+  const { rows, hasMore } = useKeyset
+    ? sliceKeysetPage(usersRows, limit)
+    : { rows: usersRows, hasMore: false };
+  const last = rows[rows.length - 1];
+  const nextCursor = useKeyset && hasMore && last?._k ? encodeCursor(keyset.tag, last._k) : null;
+
+  // _k es solo para armar el cursor: no se expone en la respuesta
+  const users = rows.map(({ _k, ...user }) => {
+    void _k;
+    return user;
+  }) as User[] | UserWithAddresses[];
+
+  return { users, total, keyset: useKeyset, hasMore, nextCursor };
 }
 
 /**

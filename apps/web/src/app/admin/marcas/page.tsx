@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useRequireAuth } from '@/hooks/use-require-auth';
+import { useInfiniteList } from '@/hooks/use-infinite-list';
 import { UserRole } from '@/types';
 import { Brand } from '@/types';
 import {
@@ -27,87 +28,36 @@ export default function MarcasPage() {
   const { user, isLoading: authLoading } = useRequireAuth({
     allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
   });
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [search, setSearch] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const isMountedRef = useRef(false);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
+  const {
+    items: brands,
+    loading: isLoading,
+    loadingMore: isLoadingMore,
+    hasMore,
+    sentinelRef,
+    reload: loadBrands
+  } = useInfiniteList<Brand>({
+    // La búsqueda va al servidor: antes solo filtraba las filas ya cargadas
+    resetKey: search,
+    fetchPage: async ({ cursor }) => {
+      const data = await getAdminBrands({
+        cursor,
+        limit: PAGE_SIZE,
+        search: search || undefined
+      });
+      return { items: data.brands, hasMore: data.hasMore, nextCursor: data.nextCursor };
+    },
+    onError: (_error, phase) =>
+      toast.error(phase === 'first' ? 'Error al cargar marcas' : 'Error al cargar más marcas')
+  });
+
+  const handleSearch = useCallback((value: string) => {
+    setSearch(value);
   }, []);
-
-  const loadBrands = useCallback(async () => {
-    setIsLoading(true);
-    setPage(1);
-    setHasMore(true);
-    try {
-      const data = await getAdminBrands({ page: 1, limit: PAGE_SIZE });
-      if (!isMountedRef.current) return;
-      setBrands(data.brands);
-      setHasMore(data.brands.length === PAGE_SIZE);
-    } catch {
-      if (!isMountedRef.current) return;
-      toast.error('Error al cargar marcas');
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, []);
-
-  const loadMore = useCallback(async (nextPage: number) => {
-    setIsLoadingMore(true);
-    try {
-      const data = await getAdminBrands({ page: nextPage, limit: PAGE_SIZE });
-      if (!isMountedRef.current) return;
-      setBrands((prev) => [...prev, ...data.brands]);
-      setHasMore(data.brands.length === PAGE_SIZE);
-      setPage(nextPage);
-    } catch {
-      if (!isMountedRef.current) return;
-      setHasMore(false);
-      toast.error('Error al cargar más marcas');
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoadingMore(false);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    loadBrands();
-  }, [loadBrands]);
-
-  // IntersectionObserver for infinite scroll
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    let active = true;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (active && entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading) {
-          loadMore(page + 1);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(sentinel);
-    return () => {
-      active = false;
-      observer.disconnect();
-    };
-  }, [hasMore, isLoadingMore, isLoading, page, loadMore]);
 
   const handleCreate = () => {
     setSelectedBrand(undefined);
@@ -138,7 +88,7 @@ export default function MarcasPage() {
         toast.success('Marca creada correctamente');
       }
       setSheetOpen(false);
-      loadBrands();
+      void loadBrands();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error al guardar marca';
       toast.error(message);
@@ -153,7 +103,7 @@ export default function MarcasPage() {
       toast.success(
         `${items.length} marca${items.length > 1 ? 's' : ''} eliminada${items.length > 1 ? 's' : ''} correctamente`
       );
-      loadBrands();
+      void loadBrands();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error al eliminar marcas';
       toast.error(message);
@@ -244,8 +194,8 @@ export default function MarcasPage() {
       <DataTable
         data={brands}
         columns={columns}
-        searchKey="name"
-        searchPlaceholder="Buscar por nombre o slug..."
+        onSearch={handleSearch}
+        searchPlaceholder="Buscar por nombre..."
         onDelete={handleDelete}
         isLoading={isLoading}
         getRowId={(row) => row.id}

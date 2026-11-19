@@ -34,10 +34,10 @@ describe('productFiltersSchema: normalización snake_case', () => {
     expect(parsed.brandId).toBe(UUID);
   });
 
-  it('aplica defaults de paginación y sort con query vacío', () => {
+  it('aplica defaults de limit y sort; sin page se pagina por cursor', () => {
     const parsed = productFiltersSchema.parse({});
 
-    expect(parsed.page).toBe(1);
+    expect(parsed.page).toBeUndefined();
     expect(parsed.limit).toBe(24);
     expect(parsed.sort).toBe('newest');
   });

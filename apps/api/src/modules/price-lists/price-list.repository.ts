@@ -1,4 +1,10 @@
 import { query } from '../../infrastructure/database/client.js';
+import {
+  decodeCursor,
+  encodeCursor,
+  keysetPredicate,
+  sliceKeysetPage
+} from '../../shared/utils/keyset.js';
 import type { PriceList } from '@valplas/shared/types';
 import type {
   CreatePriceListData,
@@ -6,9 +12,28 @@ import type {
   PriceListFilters
 } from './price-list.types.js';
 
-export async function findPriceLists(filters: PriceListFilters = {}) {
-  const { search, isActive, page = 1, limit = 50 } = filters;
-  const offset = (page - 1) * limit;
+const PRICE_LISTS_SORT_TAG = 'margin_asc';
+
+export interface FindPriceListsResult {
+  data: PriceList[];
+  /** null en páginas con cursor: el total solo se calcula en la primera página. */
+  total: number | null;
+  /** La respuesta se pagina por cursor (si no, OFFSET con total). */
+  keyset: boolean;
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+/**
+ * Listas de precio por margen. Sin `page` se pagina por cursor (margin, id); con `page`, OFFSET.
+ * `id` desempata: dos listas con el mismo margen son comunes y sin él el orden no es determinista.
+ */
+export async function findPriceLists(
+  filters: PriceListFilters = {}
+): Promise<FindPriceListsResult> {
+  const { search, isActive, page, cursor, limit = 50 } = filters;
+  const useKeyset = page === undefined;
+  const offset = useKeyset ? 0 : (page - 1) * limit;
 
   const conditions: string[] = ['deleted_at IS NULL'];
   const params: unknown[] = [];
@@ -28,17 +53,57 @@ export async function findPriceLists(filters: PriceListFilters = {}) {
 
   const where = conditions.join(' AND ');
 
+  let pageWhere = where;
+  const pageParams = [...params];
+  let pageParamIndex = i;
+  if (useKeyset && cursor) {
+    const values = decodeCursor(cursor, PRICE_LISTS_SORT_TAG, 2);
+    pageWhere = `${where} AND ${keysetPredicate(
+      ['margin', 'id'],
+      'ASC',
+      ['numeric', 'uuid'],
+      pageParamIndex
+    )}`;
+    pageParams.push(...values);
+    pageParamIndex += 2;
+  }
+  const pageLimit = useKeyset ? limit + 1 : limit;
+
+  // Total: con cursor solo en la primera página (el predicado del cursor no entra en el count)
+  const needsTotal = !useKeyset || !cursor;
   const [listResult, countResult] = await Promise.all([
-    query<PriceList>(
-      `SELECT * FROM price_lists WHERE ${where} ORDER BY margin ASC LIMIT $${i} OFFSET $${i + 1}`,
-      [...params, limit, offset]
+    query<PriceList & { _k0: string }>(
+      `SELECT *, margin::text AS _k0 FROM price_lists
+       WHERE ${pageWhere}
+       ORDER BY margin ASC, id ASC
+       LIMIT $${pageParamIndex} OFFSET $${pageParamIndex + 1}`,
+      [...pageParams, pageLimit, offset]
     ),
-    query<{ count: string }>(`SELECT COUNT(*) as count FROM price_lists WHERE ${where}`, params)
+    needsTotal
+      ? query<{ count: string }>(`SELECT COUNT(*) as count FROM price_lists WHERE ${where}`, params)
+      : Promise.resolve(null)
   ]);
 
+  const { rows, hasMore } = useKeyset
+    ? sliceKeysetPage(listResult.rows, limit)
+    : { rows: listResult.rows, hasMore: false };
+
+  const last = rows[rows.length - 1];
+  const nextCursor =
+    useKeyset && hasMore && last ? encodeCursor(PRICE_LISTS_SORT_TAG, [last._k0, last.id]) : null;
+
+  // _k0 es solo para armar el cursor: no se expone en la respuesta
+  const data = rows.map(({ _k0, ...priceList }) => {
+    void _k0;
+    return priceList as PriceList;
+  });
+
   return {
-    data: listResult.rows,
-    total: parseInt(countResult.rows[0].count, 10)
+    data,
+    total: countResult ? parseInt(countResult.rows[0].count, 10) : null,
+    keyset: useKeyset,
+    hasMore,
+    nextCursor
   };
 }
 

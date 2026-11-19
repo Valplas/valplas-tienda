@@ -157,7 +157,10 @@ export function getValidNextStatuses(currentStatus: string): string[] {
 }
 
 export async function getAdminOrders(params?: {
+  /** Paginación clásica (OFFSET). Si se omite, se pagina por cursor. */
   page?: number;
+  /** Cursor devuelto por la página anterior (solo modo cursor). */
+  cursor?: string;
   limit?: number;
   status?: string;
   fromDate?: string;
@@ -167,6 +170,7 @@ export async function getAdminOrders(params?: {
 }) {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
+  if (params?.cursor) query.set('cursor', params.cursor);
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.status && params.status !== 'all') query.set('status', params.status);
   if (params?.fromDate) query.set('from_date', params.fromDate);
@@ -176,11 +180,22 @@ export async function getAdminOrders(params?: {
 
   const qs = query.toString();
   const res = await get<Order[]>(`/orders/admin/all${qs ? `?${qs}` : ''}`);
-  if (!res.success || !res.data) return { orders: [], total: 0, totalPages: 0 };
+  if (!res.success || !res.data) {
+    return {
+      orders: [],
+      total: 0,
+      totalPages: 0,
+      hasMore: false,
+      nextCursor: null as string | null
+    };
+  }
   return {
     orders: res.data,
+    // Con cursor el total solo llega en la primera página: ahí es el que se muestra
     total: res.pagination?.total ?? res.data.length,
-    totalPages: res.pagination?.totalPages ?? 1
+    totalPages: res.pagination?.totalPages ?? 1,
+    hasMore: res.pagination?.hasMore ?? false,
+    nextCursor: (res.pagination?.cursor ?? null) as string | null
   };
 }
 

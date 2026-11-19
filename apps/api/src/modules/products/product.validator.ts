@@ -43,7 +43,8 @@ export const productFiltersSchema = z.preprocess(
     // Visibilidad admin: true = activos, false = inactivos, ausente = todos.
     // El controller lo fuerza a true para roles sin privilegio.
     isActive: queryBoolean.optional(),
-    page: z.coerce.number().min(1).optional().default(1),
+    page: z.coerce.number().min(1).optional(),
+    cursor: z.string().max(500).optional(),
     limit: z.coerce.number().min(1).max(100).optional().default(24),
     sort: z
       .enum([

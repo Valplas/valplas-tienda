@@ -3,14 +3,17 @@
 import { get, post, put, del } from '../api';
 import type { Brand } from '@/types';
 
+/** Máximo que acepta la API por página: alcanza para los selectores de marca. */
+const MAX_BRANDS_PAGE = 100;
+
 /**
- * Obtener todas las marcas activas
- * API returns: { success: true, data: { brands: Brand[], pagination: {...} } }
+ * Obtener las marcas para selectores y filtros (hasta 100; antes quedaban cortadas en 24).
+ * API returns: { success: true, data: Brand[], pagination: {...} }
  */
 export async function getBrands(): Promise<Brand[]> {
-  const response = await get<{ brands: Brand[] }>('/brands');
+  const response = await get<Brand[]>(`/brands?limit=${MAX_BRANDS_PAGE}`);
   if (response.success && response.data) {
-    return response.data.brands ?? [];
+    return response.data;
   }
   return [];
 }
@@ -30,28 +33,31 @@ export async function getBrandBySlug(slug: string): Promise<Brand> {
 
 // ─── Admin CRUD ───────────────────────────────────────────────────────────────
 
-export async function getAdminBrands(params?: { page?: number; limit?: number; search?: string }) {
+export async function getAdminBrands(params?: {
+  /** Sin page se pagina por cursor; con page, OFFSET clásico. */
+  page?: number;
+  cursor?: string;
+  limit?: number;
+  search?: string;
+}) {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
+  if (params?.cursor) query.set('cursor', params.cursor);
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.search) query.set('search', params.search);
 
   const qs = query.toString();
-  const res = await get<{
-    brands: Brand[];
-    pagination: {
-      total: number;
-      totalPages: number;
-      page: number;
-      limit: number;
-      hasMore: boolean;
-    };
-  }>(`/brands${qs ? `?${qs}` : ''}`);
-  if (!res.success || !res.data) return { brands: [], total: 0, totalPages: 0 };
+  const res = await get<Brand[]>(`/brands${qs ? `?${qs}` : ''}`);
+  if (!res.success || !res.data) {
+    return { brands: [], total: 0, totalPages: 0, hasMore: false, nextCursor: null };
+  }
+  const pagination = res.pagination;
   return {
-    brands: res.data.brands ?? [],
-    total: res.data.pagination?.total ?? res.data.brands?.length ?? 0,
-    totalPages: res.data.pagination?.totalPages ?? 1
+    brands: res.data,
+    total: pagination?.total ?? res.data.length,
+    totalPages: pagination?.totalPages ?? 1,
+    hasMore: pagination?.hasMore ?? false,
+    nextCursor: pagination?.cursor ?? null
   };
 }
 

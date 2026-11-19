@@ -70,4 +70,71 @@ describe('findProducts (admin)', () => {
     expect(new Set(paged).size).toBe(paged.length);
     expect(paged).toEqual(all.products.map((p) => p.id));
   });
+
+  describe('por cursor', () => {
+    const SORTS = [
+      'name_asc',
+      'name_desc',
+      'price_asc',
+      'price_desc',
+      'newest',
+      'oldest',
+      'updated_asc',
+      'updated_desc',
+      'stock_asc',
+      'stock_desc'
+    ] as const;
+
+    async function walkByCursor(sort: (typeof SORTS)[number]) {
+      const ids: string[] = [];
+      let cursor: string | undefined;
+      let firstTotal: number | null | undefined;
+      let pages = 0;
+      do {
+        const page = await findProducts({ sort, limit: 100, cursor });
+        if (pages === 0) firstTotal = page.total;
+        else expect(page.total).toBeNull();
+        expect(page.keyset).toBe(true);
+        expect(page.hasMore).toBe(page.nextCursor !== null);
+        ids.push(...page.products.map((p) => p.id));
+        cursor = page.nextCursor ?? undefined;
+        pages++;
+      } while (cursor && pages < 200);
+      return { ids, firstTotal };
+    }
+
+    async function walkByPage(sort: (typeof SORTS)[number]) {
+      const ids: string[] = [];
+      for (let page = 1; page < 200; page++) {
+        const result = await findProducts({ sort, limit: 100, page });
+        ids.push(...result.products.map((p) => p.id));
+        if (result.products.length < 100) break;
+      }
+      return ids;
+    }
+
+    for (const sort of SORTS) {
+      it(`recorre todos los productos sin repetir con sort=${sort}`, async () => {
+        const byCursor = await walkByCursor(sort);
+        const byPage = await walkByPage(sort);
+
+        expect(new Set(byCursor.ids).size).toBe(byCursor.ids.length);
+        expect(byCursor.firstTotal).toBe(byPage.length);
+        expect(new Set(byCursor.ids)).toEqual(new Set(byPage));
+        // El stock disponible cambia con otros tests en paralelo: solo se compara el orden
+        // exacto en los órdenes estables
+        if (!sort.startsWith('stock') && !sort.startsWith('updated')) {
+          expect(byCursor.ids).toEqual(byPage);
+        }
+      });
+    }
+
+    it('rechaza un cursor de otro orden con 400', async () => {
+      const first = await findProducts({ sort: 'name_asc', limit: 1 });
+
+      await expect(
+        findProducts({ sort: 'newest', cursor: first.nextCursor ?? 'x' })
+      ).rejects.toMatchObject({ code: 'INVALID_CURSOR', statusCode: 400 });
+    });
+  });
 });

@@ -202,7 +202,9 @@ export type AdminProductSort =
   | 'updated_asc';
 
 export async function getAdminProducts(params?: {
+  /** Sin page se pagina por cursor; con page, OFFSET clásico. */
   page?: number;
+  cursor?: string;
   limit?: number;
   search?: string;
   categoryId?: string;
@@ -212,6 +214,7 @@ export async function getAdminProducts(params?: {
 }) {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
+  if (params?.cursor) query.set('cursor', params.cursor);
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.search) query.set('search', params.search);
   if (params?.categoryId) query.set('category_id', params.categoryId);
@@ -222,11 +225,16 @@ export async function getAdminProducts(params?: {
   const qs = query.toString();
   // API returns paginated shape: { success, data: RawProduct[], pagination: { total, totalPages, ... } }
   const res = await get<RawProduct[]>(`/products${qs ? `?${qs}` : ''}`);
-  if (!res.success || !res.data) return { products: [], total: 0, totalPages: 0 };
+  if (!res.success || !res.data) {
+    return { products: [], total: 0, totalPages: 0, hasMore: false, nextCursor: null };
+  }
+  const pagination = res.pagination;
   return {
     products: res.data.map(normalizeProduct),
-    total: res.pagination?.total ?? 0,
-    totalPages: res.pagination?.totalPages ?? 0
+    total: pagination?.total ?? 0,
+    totalPages: pagination?.totalPages ?? 0,
+    hasMore: pagination?.hasMore ?? false,
+    nextCursor: pagination?.cursor ?? null
   };
 }
 
