@@ -50,13 +50,18 @@ export interface MergeResult {
   discarded: DiscardedField[];
 }
 
+export type MergeSignal = 'phone' | 'address';
+
 export interface MergeSuggestion {
   user: {
     id: string;
     firstName: string;
     lastName: string | null;
     email: string | null;
+    phone: string | null;
     hasGoogle: boolean;
+    /** Canal de alta de la cuenta nueva: 'whatsapp' = creada por el bot */
+    signupChannel: 'web' | 'admin' | 'whatsapp' | 'legacy';
     createdAt: string;
   };
   /** Cuenta sin uso en la web: migrada del CRM (isLegacy) o cargada por el admin */
@@ -69,8 +74,13 @@ export interface MergeSuggestion {
     isLegacy: boolean;
     ordersCount: number;
   };
+  /** high = mismo teléfono, o misma dirección + nombre en común; medium = solo dirección */
   confidence: 'high' | 'medium';
-  matchedAddress: { street: string; streetNumber: string; city: string };
+  matchSignals: MergeSignal[];
+  /** null cuando el par coincidió solo por teléfono */
+  matchedAddress: { street: string; streetNumber: string; city: string } | null;
+  /** Teléfono de la cuenta legacy que coincidió (con o sin el 9 de móvil) */
+  matchedPhone: string | null;
 }
 
 export async function getMergePreview(targetId: string, sourceId: string): Promise<MergePreview> {

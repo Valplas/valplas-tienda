@@ -118,4 +118,13 @@ describe('csrfProtection', () => {
   it('deja pasar el webhook de Mercado Pago sin token', () => {
     expect(run(buildReq({ path: '/api/payments/webhook' }))).toBeUndefined();
   });
+
+  it('deja pasar la API del bot sin token (se autentica con X-Api-Key, sin cookies)', () => {
+    expect(run(buildReq({ path: '/api/bot/orders' }))).toBeUndefined();
+    expect(run(buildReq({ path: '/api/bot/customers' }))).toBeUndefined();
+  });
+
+  it('no exime rutas que solo empiezan parecido a /api/bot', () => {
+    expect(run(buildReq({ path: '/api/botines' }))).toMatchObject({ code: 'CSRF_INVALID' });
+  });
 });

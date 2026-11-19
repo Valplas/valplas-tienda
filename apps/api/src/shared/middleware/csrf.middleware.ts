@@ -31,6 +31,15 @@ export const CSRF_COOKIE_NAME = USE_CROSS_SITE_COOKIES
 // Requests server-to-server sin cookies de sesión ni token (webhook de Mercado Pago)
 const CSRF_EXEMPT_PATHS = new Set(['/api/payments/webhook']);
 
+// API del bot de WhatsApp: se autentica con X-Api-Key (requireBotApiKey) y su router nunca
+// lee cookies de sesión, así que un sitio ajeno no puede montar un ataque CSRF contra ella
+// (el navegador no conoce la key). NO montar authMiddleware ni leer cookies bajo este prefijo.
+export const CSRF_EXEMPT_PREFIX = '/api/bot/';
+
+export function isCsrfExempt(path: string): boolean {
+  return CSRF_EXEMPT_PATHS.has(path) || path.startsWith(CSRF_EXEMPT_PREFIX);
+}
+
 const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
   getSecret: () => env.CSRF_SECRET,
   // Anónimo = '' (carrito, login, registro). Al loguearse o rotar el refresh
@@ -47,7 +56,7 @@ const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
     const header = req.headers[CSRF_HEADER_NAME];
     return typeof header === 'string' ? header : undefined;
   },
-  skipCsrfProtection: (req) => CSRF_EXEMPT_PATHS.has(req.path)
+  skipCsrfProtection: (req) => isCsrfExempt(req.path)
 });
 
 /**

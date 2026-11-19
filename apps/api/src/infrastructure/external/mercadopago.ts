@@ -46,6 +46,23 @@ export interface OrderPreferenceInput {
    */
   shippingCost?: number;
   payer?: PreferencePayer;
+  /**
+   * A dónde vuelve el comprador al terminar el pago. Default: la página de resultado del
+   * checkout web (requiere sesión). El bot de WhatsApp manda un link wa.me para volver al chat.
+   */
+  backUrls?: PreferenceBackUrls;
+  /**
+   * Vencimiento de la preferencia. Default: ahora + PAYMENT_EXPIRATION_HOURS. Al regenerar el
+   * link de una orden existente se pasa created_at + PAYMENT_EXPIRATION_HOURS, así el link
+   * nunca sobrevive a la cancelación automática de la orden.
+   */
+  expiresAt?: Date;
+}
+
+export interface PreferenceBackUrls {
+  success: string;
+  failure: string;
+  pending: string;
 }
 
 /**
@@ -62,6 +79,15 @@ function toMpPhone(raw: string | undefined): { number: string } | undefined {
 
 export async function createOrderPreference(input: OrderPreferenceInput): Promise<string> {
   const notificationUrl = `${env.API_URL}/api/payments/webhook`;
+  const checkoutResultUrl = `${env.FRONTEND_URL}/checkout/resultado`;
+  const backUrls = input.backUrls ?? {
+    success: checkoutResultUrl,
+    failure: checkoutResultUrl,
+    pending: checkoutResultUrl
+  };
+  const expiresAt = input.expiresAt
+    ? dayjs(input.expiresAt)
+    : dayjs().add(PAYMENT_EXPIRATION_HOURS, 'hour');
 
   if (/localhost|127\.0\.0\.1/.test(notificationUrl)) {
     logger.warn(
@@ -108,17 +134,11 @@ export async function createOrderPreference(input: OrderPreferenceInput): Promis
           }
         : undefined,
       notification_url: notificationUrl,
-      back_urls: {
-        success: `${env.FRONTEND_URL}/checkout/resultado`,
-        failure: `${env.FRONTEND_URL}/checkout/resultado`,
-        pending: `${env.FRONTEND_URL}/checkout/resultado`
-      },
+      back_urls: backUrls,
       auto_return: 'approved',
       expires: true,
       expiration_date_from: dayjs().format('YYYY-MM-DDTHH:mm:ss.SSSZ'),
-      expiration_date_to: dayjs()
-        .add(PAYMENT_EXPIRATION_HOURS, 'hour')
-        .format('YYYY-MM-DDTHH:mm:ss.SSSZ')
+      expiration_date_to: expiresAt.format('YYYY-MM-DDTHH:mm:ss.SSSZ')
     }
   });
 
