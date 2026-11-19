@@ -59,6 +59,24 @@ describe('toPublicProduct', () => {
     expect(result.price).toBe(150);
   });
 
+  it('tiers ordenados por minQuantity y sin priceListName (el nombre expone el margen)', () => {
+    const result = toPublicProduct(
+      buildProduct({
+        priceTiers: [
+          { priceListId: 'pl-10', priceListName: 'Lista 10%', minQuantity: 50, unitPrice: 110 },
+          { priceListId: 'pl-30', priceListName: 'Lista 30%', minQuantity: 5, unitPrice: 130 },
+          { priceListId: 'pl-u', priceListName: 'Unidad', minQuantity: 1, unitPrice: 150 }
+        ]
+      })
+    );
+
+    expect(result.priceTiers).toEqual([
+      { priceListId: 'pl-u', minQuantity: 1, unitPrice: 150 },
+      { priceListId: 'pl-30', minQuantity: 5, unitPrice: 130 },
+      { priceListId: 'pl-10', minQuantity: 50, unitPrice: 110 }
+    ]);
+  });
+
   it('price cae a costPrice cuando el producto no tiene lista asignada', () => {
     const result = toPublicProduct(buildProduct({ costPrice: 100, priceTiers: [] }));
 
