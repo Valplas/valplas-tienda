@@ -218,7 +218,7 @@ export async function findProducts(filters: ProductFilters): Promise<FindProduct
       pageParamIndex
     )}`;
     pageParams.push(...values);
-    pageParamIndex += values.length;
+    pageParamIndex += 2;
   }
   const pageLimit = useKeyset ? limit + 1 : limit;
 

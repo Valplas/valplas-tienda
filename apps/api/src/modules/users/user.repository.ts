@@ -159,7 +159,7 @@ export async function findUsers(filters: UserFilters): Promise<FindUsersResult> 
       pageParamIndex
     )}`;
     pageParams.push(...values);
-    pageParamIndex += values.length;
+    pageParamIndex += keyset.columns.length;
   }
   const pageLimit = useKeyset ? limit + 1 : limit;
 
