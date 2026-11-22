@@ -124,6 +124,13 @@ import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.j
 import { scheduleStaleOrderCancellation } from './infrastructure/jobs/cancel-stale-orders.job.js';
 import { scheduleStagedImageCleanup } from './infrastructure/jobs/cleanup-staged-images.job.js';
 import { scheduleBotWebhookDelivery } from './infrastructure/jobs/deliver-bot-webhooks.job.js';
+import { scheduleAndreaniTracking } from './infrastructure/jobs/andreani-tracking.job.js';
+import {
+  getAndreaniConfig,
+  validateAndreaniConfig
+} from './infrastructure/external/andreani/config.js';
+import { pool } from './infrastructure/database/client.js';
+import type { ScheduledTask } from 'node-cron';
 
 // Montar rutas
 app.use('/api/auth', authRoutes);
@@ -174,15 +181,29 @@ app.use((req, res) => {
   });
 });
 
-// Programar jobs en background
-scheduleTokenCleanup();
+// Validar la config de Andreani antes de programar jobs (falla rápido: mock en producción,
+// credenciales faltantes en qa/prod). En modo 'disabled' no devuelve problemas.
+const andreaniProblems = validateAndreaniConfig(getAndreaniConfig(), env.IS_PRODUCTION);
+if (andreaniProblems.length > 0) {
+  for (const problem of andreaniProblems) console.error(`❌ Config Andreani: ${problem}`);
+  throw new Error(`Configuración de Andreani inválida: ${andreaniProblems.join('; ')}`);
+}
+
+// Programar jobs en background (se guardan para detenerlos en el shutdown)
+const scheduledTasks: ScheduledTask[] = [];
+scheduledTasks.push(scheduleTokenCleanup());
 console.log('🕒 Job programado: limpieza de tokens a las 3:00 AM ART (06:00 UTC)');
-scheduleStaleOrderCancellation();
+scheduledTasks.push(scheduleStaleOrderCancellation());
 console.log('🕒 Job programado: cancelación horaria de órdenes pending_payment expiradas');
-scheduleStagedImageCleanup();
+scheduledTasks.push(scheduleStagedImageCleanup());
 console.log('🕒 Job programado: limpieza de imágenes en staging abandonadas (06:30 UTC)');
-scheduleBotWebhookDelivery();
+scheduledTasks.push(...scheduleBotWebhookDelivery());
 console.log('🕒 Job programado: webhooks al bot de WhatsApp cada 15s');
+const andreaniTrackingTask = scheduleAndreaniTracking();
+if (andreaniTrackingTask) {
+  scheduledTasks.push(andreaniTrackingTask);
+  console.log(`🕒 Job programado: tracking de Andreani (${getAndreaniConfig().pollCron})`);
+}
 
 // Iniciar servidor
 const server = app.listen(PORT, () => {
@@ -191,10 +212,25 @@ const server = app.listen(PORT, () => {
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
 });
 
+let shuttingDown = false;
 const shutdown = () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  for (const task of scheduledTasks) {
+    try {
+      void task.stop();
+    } catch (error) {
+      console.error('Error deteniendo job:', error);
+    }
+  }
   server.close(() => {
-    console.log('\n🛑 Servidor cerrado correctamente');
-    process.exit(0);
+    pool
+      .end()
+      .catch((error) => console.error('Error cerrando el pool de DB:', error))
+      .finally(() => {
+        console.log('\n🛑 Servidor cerrado correctamente');
+        process.exit(0);
+      });
   });
 };
 

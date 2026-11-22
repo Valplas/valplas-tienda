@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { type ScheduledTask } from 'node-cron';
 import * as outboxRepository from '../../modules/bot/outbound-webhook.repository.js';
 import type { ClaimedWebhookEvent } from '../../modules/bot/outbound-webhook.repository.js';
 import { STATUS_LABELS } from '../../modules/orders/order.types.js';
@@ -131,8 +131,8 @@ async function runDelivery(): Promise<void> {
  * Entrega cada 15 segundos los cambios de estado de órdenes WSP al bot, y una vez por día
  * (06:45 UTC) borra los eventos de más de RETENTION_DAYS días.
  */
-export function scheduleBotWebhookDelivery(): void {
-  cron.schedule('*/15 * * * * *', async () => {
+export function scheduleBotWebhookDelivery(): ScheduledTask[] {
+  const delivery = cron.schedule('*/15 * * * * *', async () => {
     try {
       await runDelivery();
     } catch (error) {
@@ -142,7 +142,7 @@ export function scheduleBotWebhookDelivery(): void {
     }
   });
 
-  cron.schedule('45 6 * * *', async () => {
+  const pruning = cron.schedule('45 6 * * *', async () => {
     try {
       const pruned = await outboxRepository.pruneEventsOlderThan(RETENTION_DAYS);
       if (pruned > 0) logger.info(`[bot-webhooks] ${pruned} eventos viejos borrados`);
@@ -152,4 +152,6 @@ export function scheduleBotWebhookDelivery(): void {
       );
     }
   });
+
+  return [delivery, pruning];
 }

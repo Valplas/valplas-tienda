@@ -5,6 +5,8 @@ import * as orderRepository from '../orders/order.repository.js';
 import { VALID_STATUS_TRANSITIONS } from '../orders/order.types.js';
 import type { OrderStatus } from '../orders/order.types.js';
 import { env } from '../../env.js';
+import { getAndreaniConfig } from '../../infrastructure/external/andreani/config.js';
+import { tryAutoCreateForOrder } from '../shipments/shipment-auto.js';
 import { logger } from '../../infrastructure/logger/index.js';
 
 interface MPOAuthTokenResponse {
@@ -259,6 +261,18 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
           { expectedStatus: 'payment_confirmed' }
         );
         logger.info(`MP webhook: order ${order.order_number} → processing (auto)`);
+
+        // Envío Andreani automático (flag off por defecto): fuera del ciclo del webhook, que
+        // responde 200 pase lo que pase. El respaldo del job de tracking cubre un disparo perdido.
+        if (getAndreaniConfig().autoCreate) {
+          setImmediate(() => {
+            void tryAutoCreateForOrder(order.id).catch((err) => {
+              logger.error(
+                `MP webhook: auto-create de envío falló para orden ${order.order_number}: ${err instanceof Error ? err.message : String(err)}`
+              );
+            });
+          });
+        }
       }
     } else if (newStatus === 'payment_confirmed' && alreadyPaidStatuses.includes(order.status)) {
       // Reintento/duplicado de una notificación ya procesada: idempotente.

@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { type ScheduledTask } from 'node-cron';
 import dayjs from 'dayjs';
 import {
   listStagingTempIds,
@@ -37,8 +37,8 @@ export async function sweepAbandonedStagedImages(
  * Corre diariamente a las 06:30 UTC (03:30 ART) — 30min después de
  * cleanup-tokens (06:00 UTC) para no competir por logs/DB en el mismo tick.
  */
-export function scheduleStagedImageCleanup(): void {
-  cron.schedule('30 6 * * *', async () => {
+export function scheduleStagedImageCleanup(): ScheduledTask {
+  return cron.schedule('30 6 * * *', async () => {
     try {
       const deletedCount = await sweepAbandonedStagedImages();
       console.log(`[cleanup-staged-images] ${deletedCount} objetos eliminados`);

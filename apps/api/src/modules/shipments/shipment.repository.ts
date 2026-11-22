@@ -288,3 +288,42 @@ export async function findByTrackingNumber(n: string): Promise<Shipment | null> 
   );
   return result.rows[0] ?? null;
 }
+
+/** Código del carrier (shipping_carriers.code) o null si no existe. */
+export async function findCarrierCode(carrierId: string): Promise<string | null> {
+  const result = await query<{ code: string | null }>(
+    'SELECT code FROM shipping_carriers WHERE id = $1',
+    [carrierId]
+  );
+  return result.rows[0]?.code ?? null;
+}
+
+/**
+ * Pedidos de Andreani ya pagados (processing, paid_at > 2 min atrás) sin ninguna fila de envío:
+ * respaldo del auto-create por si el disparo del webhook se perdió (reinicio, error transitorio).
+ */
+export async function findOrdersPendingAutoCreate(limit: number): Promise<string[]> {
+  const result = await query<{ id: string }>(
+    `SELECT o.id
+     FROM orders o
+     JOIN shipping_carriers c ON c.id = o.shipping_carrier_id
+     WHERE c.code = 'andreani'
+       AND o.status = 'processing'
+       AND o.paid_at < NOW() - interval '2 minutes'
+       AND NOT EXISTS (SELECT 1 FROM shipments s WHERE s.order_id = o.id)
+     ORDER BY o.paid_at
+     LIMIT $1`,
+    [limit]
+  );
+  return result.rows.map((r) => r.id);
+}
+
+/** Pre-envíos (pending/created) de más de 30 días sin avanzar pasan a 'expired'. */
+export async function expireStaleShipments(): Promise<string[]> {
+  const result = await query<{ id: string }>(
+    `UPDATE shipments SET status = 'expired', updated_at = NOW()
+     WHERE status IN ('pending', 'created') AND created_at < NOW() - interval '30 days'
+     RETURNING id`
+  );
+  return result.rows.map((r) => r.id);
+}

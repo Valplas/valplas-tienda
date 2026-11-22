@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { type ScheduledTask } from 'node-cron';
 import * as orderRepository from '../../modules/orders/order.repository.js';
 import { PAYMENT_EXPIRATION_HOURS } from '../external/mercadopago.js';
 import { logger } from '../logger/index.js';
@@ -51,8 +51,8 @@ export async function cancelStaleOrders(): Promise<number> {
  * Corre cada hora (minuto 15). Cancela órdenes pending_payment con más de
  * PAYMENT_EXPIRATION_HOURS + 1 horas de antigüedad.
  */
-export function scheduleStaleOrderCancellation(): void {
-  cron.schedule('15 * * * *', async () => {
+export function scheduleStaleOrderCancellation(): ScheduledTask {
+  return cron.schedule('15 * * * *', async () => {
     try {
       await cancelStaleOrders();
     } catch (error) {

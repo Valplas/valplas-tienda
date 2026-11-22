@@ -18,6 +18,14 @@ vi.mock('../../modules/orders/order.repository.js', () => ({
   updateOrderStatus: vi.fn()
 }));
 
+vi.mock('../../modules/shipments/shipment-auto.js', () => ({
+  tryAutoCreateForOrder: vi.fn()
+}));
+
+vi.mock('../../infrastructure/external/andreani/config.js', () => ({
+  getAndreaniConfig: vi.fn().mockReturnValue({ autoCreate: false })
+}));
+
 vi.mock('../../infrastructure/logger/index.js', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }
 }));
@@ -26,6 +34,8 @@ import { handleWebhook } from '../../modules/payments/payments.controller.js';
 import { fetchPayment } from '../../infrastructure/external/mercadopago.js';
 import * as orderRepository from '../../modules/orders/order.repository.js';
 import { logger } from '../../infrastructure/logger/index.js';
+import { tryAutoCreateForOrder } from '../../modules/shipments/shipment-auto.js';
+import { getAndreaniConfig } from '../../infrastructure/external/andreani/config.js';
 import { env } from '../../env.js';
 
 const DATA_ID = '123456789';
@@ -99,6 +109,52 @@ function mockOrder(status: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(getAndreaniConfig).mockReturnValue({ autoCreate: false } as never);
+});
+
+const flushImmediates = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+describe('MP webhook: auto-create de envío Andreani', () => {
+  it('con el flag activo agenda tryAutoCreateForOrder tras pasar a processing', async () => {
+    vi.mocked(getAndreaniConfig).mockReturnValue({ autoCreate: true } as never);
+    vi.mocked(tryAutoCreateForOrder).mockResolvedValue('created');
+    mockPayment('approved');
+    mockOrder('pending_payment');
+    const res = buildRes();
+
+    await handleWebhook(buildReq(), res, next);
+    await flushImmediates();
+
+    expect(res.statusCode).toBe(200);
+    expect(tryAutoCreateForOrder).toHaveBeenCalledWith('order-1');
+  });
+
+  it('con el flag apagado no lo llama', async () => {
+    mockPayment('approved');
+    mockOrder('pending_payment');
+    const res = buildRes();
+
+    await handleWebhook(buildReq(), res, next);
+    await flushImmediates();
+
+    expect(res.statusCode).toBe(200);
+    expect(tryAutoCreateForOrder).not.toHaveBeenCalled();
+  });
+
+  it('si tryAutoCreateForOrder rechaza, la respuesta sigue siendo 200', async () => {
+    vi.mocked(getAndreaniConfig).mockReturnValue({ autoCreate: true } as never);
+    vi.mocked(tryAutoCreateForOrder).mockRejectedValue(new Error('boom'));
+    mockPayment('approved');
+    mockOrder('pending_payment');
+    const res = buildRes();
+
+    await handleWebhook(buildReq(), res, next);
+    await flushImmediates();
+
+    expect(res.statusCode).toBe(200);
+    expect(next).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalled();
+  });
 });
 
 describe('MP webhook: verificación de firma', () => {
