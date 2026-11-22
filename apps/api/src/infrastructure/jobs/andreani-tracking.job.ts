@@ -33,9 +33,11 @@ export async function pollAndreaniShipments(
   // Secuencial: una llamada a Andreani por vez, sin transacciones abiertas.
   for (const shipment of claimed) {
     try {
-      await pollShipment(shipment);
+      const after = await pollShipment(shipment);
       result.processed++;
-      if (shipment.poll_failures > 0) {
+      // Si el propio polling sumó una falla (reintento transitorio del alta), no se pisa el contador.
+      const current = after?.poll_failures ?? shipment.poll_failures;
+      if (shipment.poll_failures > 0 && current <= shipment.poll_failures) {
         await shipmentRepository.updateShipment(shipment.id, { poll_failures: 0 });
       }
     } catch (error) {

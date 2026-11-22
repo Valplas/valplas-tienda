@@ -49,7 +49,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
     // 202: el pedido a Andreani quedó pendiente de confirmación (timeout / error transitorio)
     return res
       .status(shipment.status === 'requesting' ? 202 : 201)
-      .json(ApiResponse.success(shipment));
+      .json(ApiResponse.success(await shipmentDomain.toAdminView(shipment)));
   } catch (error) {
     next(error);
   }
@@ -58,7 +58,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 export async function cancel(req: Request, res: Response, next: NextFunction) {
   try {
     const shipment = await shipmentDomain.cancelShipment(req.params.id as string);
-    return res.json(ApiResponse.success(shipment));
+    return res.json(ApiResponse.success(await shipmentDomain.toAdminView(shipment)));
   } catch (error) {
     next(error);
   }
@@ -67,10 +67,23 @@ export async function cancel(req: Request, res: Response, next: NextFunction) {
 export async function refresh(req: Request, res: Response, next: NextFunction) {
   try {
     const shipment = await shipmentDomain.refreshShipment(req.params.id as string);
-    return res.json(ApiResponse.success(shipment));
+    return res.json(ApiResponse.success(await shipmentDomain.toAdminView(shipment)));
   } catch (error) {
     next(error);
   }
+}
+
+export async function discard(req: Request, res: Response, next: NextFunction) {
+  try {
+    const shipment = await shipmentDomain.discardShipment(req.params.id as string);
+    return res.json(ApiResponse.success(await shipmentDomain.toAdminView(shipment)));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function config(_req: Request, res: Response) {
+  return res.json(ApiResponse.success(shipmentDomain.getIntegrationConfig()));
 }
 
 export async function label(req: Request, res: Response, next: NextFunction) {
@@ -80,6 +93,7 @@ export async function label(req: Request, res: Response, next: NextFunction) {
     res
       .type(file.contentType)
       .setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
     return res.send(file.data);
   } catch (error) {
     next(error);

@@ -103,6 +103,15 @@ describe('pollAndreaniShipments', () => {
     expect(repo.updateShipment).toHaveBeenCalledWith('b', { poll_failures: 0 });
   });
 
+  it('does not reset poll_failures when the polling itself incremented them', async () => {
+    vi.mocked(repo.claimDueForPolling).mockResolvedValue([ship('c', 3)]);
+    vi.mocked(pollShipment).mockImplementation(async (s) => ({ ...s, poll_failures: 4 }));
+
+    await pollAndreaniShipments();
+
+    expect(repo.updateShipment).not.toHaveBeenCalled();
+  });
+
   it('pre-envío older than 30 days in pending/created without admission → expired', async () => {
     vi.mocked(repo.expireStaleShipments).mockResolvedValue(['x', 'y']);
     const r = await pollAndreaniShipments();

@@ -50,6 +50,8 @@ const JSONB_COLUMNS: ReadonlySet<string> = new Set([
   'raw_response'
 ]);
 
+const ANDREANI_STATE_MAX_LENGTH = 100;
+
 export interface InsertRequestingInput {
   orderId: string;
   serviceType: ServiceType;
@@ -123,9 +125,14 @@ export async function updateShipment(
     ([key, value]) => UPDATABLE_COLUMNS.has(key) && value !== undefined
   );
   const sets = entries.map(([key], i) => `${key} = $${i + 2}`);
-  const values = entries.map(([key, value]) =>
-    JSONB_COLUMNS.has(key) && value !== null ? JSON.stringify(value) : value
-  );
+  const values = entries.map(([key, value]) => {
+    if (JSONB_COLUMNS.has(key) && value !== null) return JSON.stringify(value);
+    // andreani_state es VARCHAR(100); los status_label de los eventos pueden ser más largos.
+    if (key === 'andreani_state' && typeof value === 'string') {
+      return value.slice(0, ANDREANI_STATE_MAX_LENGTH);
+    }
+    return value;
+  });
   const result = await run(client).query<Shipment>(
     `UPDATE shipments SET ${[...sets, 'updated_at = NOW()'].join(', ')}
      WHERE id = $1
@@ -150,8 +157,11 @@ export async function findById(
   return result.rows[0] ?? null;
 }
 
-export async function findBlockingByOrderId(orderId: string): Promise<Shipment | null> {
-  const result = await query<Shipment>(
+export async function findBlockingByOrderId(
+  orderId: string,
+  client?: PoolClient
+): Promise<Shipment | null> {
+  const result = await run(client).query<Shipment>(
     `SELECT * FROM shipments
      WHERE order_id = $1 AND status = ANY($2)
      ORDER BY created_at DESC

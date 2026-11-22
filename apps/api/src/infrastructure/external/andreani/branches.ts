@@ -77,7 +77,8 @@ export async function findPickupBranches(postcode: string, limit = 10): Promise<
     .map(toBranchSnapshot);
 }
 
+/** Sucursal por id, solo si admite entregas (mismo filtro que el listado de retiro). */
 export async function findBranchById(id: string): Promise<BranchSnapshot | null> {
-  const found = (await getBranches()).find((b) => String(b.id) === id);
+  const found = (await getBranches()).find((b) => String(b.id) === id && canDeliver(b));
   return found ? toBranchSnapshot(found) : null;
 }

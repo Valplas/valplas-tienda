@@ -778,6 +778,32 @@ export async function advanceOrderTo(
 }
 
 /**
+ * Vuelve el pedido a 'processing' si seguía en 'ready_to_ship' (compare-and-swap; no-op en
+ * cualquier otro estado). Si el tracking del pedido es el del envío revertido, lo limpia.
+ */
+export async function revertOrderToProcessing(
+  client: PoolClient,
+  orderId: string,
+  note: string,
+  shipmentTrackingNumber?: string | null
+): Promise<Order | null> {
+  const updated = await updateOrderStatusTx(
+    client,
+    orderId,
+    { status: 'processing', notes: note },
+    null,
+    { expectedStatus: 'ready_to_ship' }
+  );
+  if (updated && shipmentTrackingNumber) {
+    await client.query(
+      'UPDATE orders SET tracking_number = NULL WHERE id = $1 AND tracking_number = $2',
+      [orderId, shipmentTrackingNumber]
+    );
+  }
+  return updated;
+}
+
+/**
  * Get order items
  */
 export async function findOrderItems(orderId: string): Promise<OrderItem[]> {

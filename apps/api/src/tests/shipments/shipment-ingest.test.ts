@@ -230,3 +230,53 @@ describe('shipment ingestion', () => {
     expect(res.status).toBe('cancelled');
   });
 });
+
+describe('ingestion vs lifecycle (cancelling / cancelled / rejected)', () => {
+  it('cancelling stays cancelling when the derived status is only created', async () => {
+    const { shipmentId } = await setup('ready_to_ship', 'cancelling');
+    const res = await ingestEvents(shipmentId, [ev('OrdenDeEnvioCreada', 0)], 'pull');
+    expect(res.status).toBe('cancelling');
+    expect((await getShipment(shipmentId)).status).toBe('cancelling');
+  });
+
+  it('cancelling moves to in_transit when the parcel was admitted', async () => {
+    const { shipmentId } = await setup('ready_to_ship', 'cancelling');
+    const res = await ingestEvents(shipmentId, [ev('Admision', 0)], 'pull');
+    expect(res.status).toBe('in_transit');
+    expect((await getShipment(shipmentId)).status).toBe('in_transit');
+  });
+
+  it('EnvioAnulado -> cancelled with cancelled_at and order back to processing', async () => {
+    const { orderId, shipmentId } = await setup('ready_to_ship', 'cancelling');
+    await query('UPDATE orders SET tracking_number = $2 WHERE id = $1', [orderId, TRACKING]);
+    const res = await ingestEvents(shipmentId, [ev('EnvioAnulado', 0)], 'push');
+    expect(res.status).toBe('cancelled');
+    const row = await query<{ cancelled_at: Date | null }>(
+      'SELECT cancelled_at FROM shipments WHERE id = $1',
+      [shipmentId]
+    );
+    expect(row.rows[0].cancelled_at).not.toBeNull();
+    const order = await getOrder(orderId);
+    expect(order.status).toBe('processing');
+    expect(order.tracking_number).toBeNull();
+  });
+
+  it('EnvioAnulado leaves an order that is not ready_to_ship untouched', async () => {
+    const { orderId, shipmentId } = await setup('processing', 'created');
+    await ingestEvents(shipmentId, [ev('EnvioAnulado', 0)], 'push');
+    expect((await getOrder(orderId)).status).toBe('processing');
+    expect(await historyStatuses(orderId)).toEqual([]);
+  });
+
+  it('OrdenDeEnvioRechazada -> rejected and order back to processing', async () => {
+    const { orderId, shipmentId } = await setup('ready_to_ship', 'pending');
+    const res = await ingestEvents(shipmentId, [ev('OrdenDeEnvioRechazada', 0)], 'push');
+    expect(res.status).toBe('rejected');
+    expect((await getOrder(orderId)).status).toBe('processing');
+    const row = await query<{ cancelled_at: Date | null }>(
+      'SELECT cancelled_at FROM shipments WHERE id = $1',
+      [shipmentId]
+    );
+    expect(row.rows[0].cancelled_at).toBeNull();
+  });
+});

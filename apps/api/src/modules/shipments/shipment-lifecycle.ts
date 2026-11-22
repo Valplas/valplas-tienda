@@ -15,11 +15,22 @@ import type {
   AndreaniOrderResponse,
   AndreaniTraceEvent
 } from '../../infrastructure/external/andreani/types.js';
-import { updateOrderStatusTx, advanceOrderTo } from '../orders/order.repository.js';
+import {
+  advanceOrderTo,
+  findOrderById,
+  revertOrderToProcessing
+} from '../orders/order.repository.js';
 import { deriveShipmentStatus, parseAndreaniDate, traceToEventInput } from './event-mapping.js';
 import * as shipmentRepository from './shipment.repository.js';
 import { ingestEvents, nextPollDelayMinutes } from './shipment-ingest.js';
 import type { Shipment, ShipmentStatus } from './shipment.types.js';
+
+/** Un alta que sigue sin confirmarse tras este tiempo o estas fallas se da por perdida. */
+const REQUESTING_GIVE_UP_MS = 24 * 60 * 60 * 1000;
+const REQUESTING_GIVE_UP_FAILURES = 12;
+export const REQUESTING_GIVE_UP_MESSAGE =
+  'Andreani no confirmó el alta tras varios intentos; verificá en el portal de Andreani antes de reintentar';
+const CREATABLE_ORDER_STATUSES = ['payment_confirmed', 'processing', 'ready_to_ship'];
 
 const minutesFromNow = (m: number): Date => new Date(Date.now() + m * 60_000);
 
@@ -55,13 +66,6 @@ function parseEstimated(s: string | undefined): Date | undefined {
   }
 }
 
-/** Vuelve el pedido a 'processing' si seguía en 'ready_to_ship' (compare-and-swap). */
-async function revertOrderToProcessing(client: PoolClient, orderId: string, note: string) {
-  await updateOrderStatusTx(client, orderId, { status: 'processing', notes: note }, null, {
-    expectedStatus: 'ready_to_ship'
-  });
-}
-
 /** Aplica la respuesta de Andreani al envío (requesting|pending) y mueve el pedido. */
 async function applyOrderResponse(
   client: PoolClient,
@@ -86,7 +90,7 @@ async function applyOrderResponse(
     patch.next_poll_at = null;
     patch.error_message = `Andreani rechazó el pre-envío (estado: ${body.estado})`;
     const updated = await shipmentRepository.updateShipment(s.id, patch, client);
-    await revertOrderToProcessing(client, s.order_id, 'Pre-envío Andreani rechazado');
+    await revertOrderToProcessing(client, s.order_id, 'Pre-envío Andreani rechazado', tracking);
     return updated;
   }
 
@@ -116,6 +120,20 @@ export async function applyCreateResult(
   });
 }
 
+/** Pasa un 'requesting' a 'error' (idempotente: si ya no está en requesting no hace nada). */
+async function markRequestingError(shipmentId: string, message: string): Promise<Shipment> {
+  return transaction(async (client) => {
+    const fresh = await shipmentRepository.findById(shipmentId, client, true);
+    if (!fresh) throw new AppError('SHIPMENT_NOT_FOUND', 'Envío no encontrado', 404);
+    if (fresh.status !== 'requesting') return fresh;
+    return shipmentRepository.updateShipment(
+      shipmentId,
+      { status: 'error', error_message: message, next_poll_at: null },
+      client
+    );
+  });
+}
+
 /** Falla del POST: error definitivo (fila 'error' + 422) o transitorio (queda 'requesting'). */
 export async function handleCreateFailure(
   shipment: Shipment,
@@ -123,6 +141,16 @@ export async function handleCreateFailure(
 ): Promise<{ shipment: Shipment; error: AppError | null }> {
   if (!(e instanceof AndreaniError)) throw e;
   if (isRetryable(e)) {
+    // Una creación real habría respondido 208 al reenviar: si tras 24 h / 12 intentos sigue sin
+    // confirmarse, el envío no existe en Andreani y se libera el pedido (estado 'error').
+    const age = Date.now() - new Date(shipment.created_at).getTime();
+    if (
+      shipment.status === 'requesting' &&
+      (age > REQUESTING_GIVE_UP_MS || shipment.poll_failures + 1 >= REQUESTING_GIVE_UP_FAILURES)
+    ) {
+      const failed = await markRequestingError(shipment.id, REQUESTING_GIVE_UP_MESSAGE);
+      return { shipment: failed, error: null };
+    }
     const updated = await shipmentRepository.updateShipment(shipment.id, {
       next_poll_at: minutesFromNow(5),
       poll_failures: shipment.poll_failures + 1
@@ -149,6 +177,14 @@ export async function handleCreateFailure(
 
 async function pollRequesting(s: Shipment): Promise<Shipment> {
   if (!s.request_payload) return s;
+  // Si el pedido ya no está activo (cancelado, reembolsado...) no se reenvía el alta.
+  const order = await findOrderById(s.order_id);
+  if (!order || !CREATABLE_ORDER_STATUSES.includes(order.status)) {
+    return markRequestingError(
+      s.id,
+      `El pedido ya no admite envío (estado: ${order?.status ?? 'inexistente'}); no se reenvió el alta a Andreani`
+    );
+  }
   try {
     const result = await getAndreaniClient().createOrder(
       s.request_payload as AndreaniCreateOrderRequest
@@ -204,7 +240,12 @@ async function pollCancelling(s: Shipment): Promise<Shipment> {
         },
         client
       );
-      await revertOrderToProcessing(client, s.order_id, 'Envío Andreani cancelado');
+      await revertOrderToProcessing(
+        client,
+        s.order_id,
+        'Envío Andreani cancelado',
+        fresh.tracking_number
+      );
       return updated;
     }
 

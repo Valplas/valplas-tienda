@@ -17,7 +17,7 @@ import {
   type BranchSnapshot
 } from '../../infrastructure/external/andreani/branches.js';
 import { resolveLocalidad } from '../../infrastructure/external/andreani/localities.js';
-import { findOrderById } from '../orders/order.repository.js';
+import { findOrderById, revertOrderToProcessing } from '../orders/order.repository.js';
 import type { Order } from '../orders/order.types.js';
 import { channelFor, computePackages, pickContract } from './packages.js';
 import { buildCreateOrderRequest } from './request-mapper.js';
@@ -29,11 +29,13 @@ import {
   handleCreateFailure
 } from './shipment-lifecycle.js';
 import type { ServiceType, Shipment, ShipmentChannel, ShipmentPackage } from './shipment.types.js';
+import { toAdminShipment, type AdminShipmentView } from './shipment.view.js';
 
 export { applyCreateResult, pollShipment, refreshShipment } from './shipment-lifecycle.js';
 
 const CREATABLE_ORDER_STATUSES = ['payment_confirmed', 'processing', 'ready_to_ship'];
 const CANCELLABLE_STATUSES = ['pending', 'created'];
+const DISCARD_MESSAGE = 'Descartado manualmente por un administrador';
 const NO_LABEL_STATUSES = ['requesting', 'error', 'rejected', 'cancelled', 'expired'];
 
 export interface ShipmentRecipient {
@@ -143,7 +145,7 @@ export async function previewForOrder(
   const recipient = await loadRecipient(order);
   const reasons: string[] = [];
 
-  if (!enabled) reasons.push('La integración con Andreani está deshabilitado');
+  if (!enabled) reasons.push('La integración con Andreani está deshabilitada');
   if (!CREATABLE_ORDER_STATUSES.includes(order.status)) {
     reasons.push('El pedido no está listo para generar el envío (falta confirmar el pago)');
   }
@@ -425,6 +427,52 @@ export async function cancelShipment(shipmentId: string): Promise<Shipment> {
     next_poll_at: new Date(Date.now() + 15 * 60_000),
     error_message: null
   });
+}
+
+/**
+ * Descarta un envío trabado ('requesting' o 'cancelling') solo en la base local, sin llamar a
+ * Andreani. Libera el pedido para poder regenerar el envío.
+ */
+export async function discardShipment(shipmentId: string): Promise<Shipment> {
+  return transaction(async (client) => {
+    const s = await shipmentRepository.findById(shipmentId, client, true);
+    if (!s) throw new AppError('SHIPMENT_NOT_FOUND', 'Envío no encontrado', 404);
+    if (s.status !== 'requesting' && s.status !== 'cancelling') {
+      throw new AppError(
+        'SHIPMENT_NOT_DISCARDABLE',
+        'Solo se pueden descartar envíos trabados en "solicitando" o "cancelando"',
+        409
+      );
+    }
+    const updated = await shipmentRepository.updateShipment(
+      s.id,
+      {
+        status: s.status === 'requesting' ? 'error' : 'cancelled',
+        cancelled_at: s.status === 'cancelling' ? new Date() : undefined,
+        error_message: DISCARD_MESSAGE,
+        next_poll_at: null
+      },
+      client
+    );
+    await revertOrderToProcessing(
+      client,
+      s.order_id,
+      'Envío Andreani descartado manualmente',
+      s.tracking_number
+    );
+    return updated;
+  });
+}
+
+/** Respuesta admin de un envío: con eventos y tracking_url, sin payloads crudos. */
+export async function toAdminView(s: Shipment): Promise<AdminShipmentView> {
+  return toAdminShipment({ ...s, events: await shipmentRepository.findEvents(s.id) });
+}
+
+/** Estado de la integración para el backoffice (sin secretos). */
+export function getIntegrationConfig(): { enabled: boolean; mode: string; autoCreate: boolean } {
+  const cfg = getAndreaniConfig();
+  return { enabled: isAndreaniEnabled(), mode: cfg.mode, autoCreate: cfg.autoCreate };
 }
 
 export async function getLabel(

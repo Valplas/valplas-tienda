@@ -539,3 +539,148 @@ describe('listPickupBranches', () => {
     expect(list[0].id).toBe('99');
   });
 });
+
+describe('stuck requesting / cancelling (give-up and discard)', () => {
+  async function requestingShipment(over: { order?: string } = {}) {
+    const o = await createOrder({ status: over.order });
+    client.createOrder.mockRejectedValueOnce(new AndreaniError('TIMEOUT', 'timeout'));
+    const s = await domain.createForOrder(o.orderId, homeInput, null);
+    expect(s.status).toBe('requesting');
+    client.createOrder.mockClear();
+    return { ...o, shipment: s };
+  }
+
+  it('requesting for more than 24 h and re-POST still failing -> error with explanatory message', async () => {
+    const { shipment, orderId } = await requestingShipment();
+    await query("UPDATE shipments SET created_at = NOW() - interval '25 hours' WHERE id = $1", [
+      shipment.id
+    ]);
+    client.createOrder.mockRejectedValueOnce(new AndreaniError('TIMEOUT', 'timeout'));
+    const out = await domain.refreshShipment(shipment.id);
+    expect(out.status).toBe('error');
+    expect(out.error_message).toBe(
+      'Andreani no confirmó el alta tras varios intentos; verificá en el portal de Andreani antes de reintentar'
+    );
+    expect(out.next_poll_at).toBeNull();
+    expect((await getOrderRow(orderId)).status).toBe('processing');
+  });
+
+  it('poll_failures reaching 12 -> error', async () => {
+    const { shipment } = await requestingShipment();
+    await query('UPDATE shipments SET poll_failures = 11 WHERE id = $1', [shipment.id]);
+    client.createOrder.mockRejectedValueOnce(new AndreaniError('TIMEOUT', 'timeout'));
+    const out = await domain.refreshShipment(shipment.id);
+    expect(out.status).toBe('error');
+  });
+
+  it('a young requesting row with few failures stays requesting', async () => {
+    const { shipment } = await requestingShipment();
+    client.createOrder.mockRejectedValueOnce(new AndreaniError('TIMEOUT', 'timeout'));
+    const out = await domain.refreshShipment(shipment.id);
+    expect(out.status).toBe('requesting');
+    expect(out.poll_failures).toBe(2); // 1 del alta + 1 del reintento
+  });
+
+  it('after the give-up the order can be shipped again (new shipment allowed)', async () => {
+    const { shipment, orderId } = await requestingShipment();
+    await query("UPDATE shipments SET created_at = NOW() - interval '25 hours' WHERE id = $1", [
+      shipment.id
+    ]);
+    client.createOrder.mockRejectedValueOnce(new AndreaniError('TIMEOUT', 'timeout'));
+    await domain.refreshShipment(shipment.id);
+    const again = await domain.createForOrder(orderId, homeInput, null);
+    expect(again.status).toBe('pending');
+  });
+
+  it('requesting with the order no longer active -> error, no re-POST', async () => {
+    const { shipment, orderId } = await requestingShipment();
+    await query("UPDATE orders SET status = 'cancelled' WHERE id = $1", [orderId]);
+    const out = await domain.refreshShipment(shipment.id);
+    expect(client.createOrder).not.toHaveBeenCalled();
+    expect(out.status).toBe('error');
+    expect(out.error_message).toContain('pedido');
+    expect(out.next_poll_at).toBeNull();
+  });
+
+  it('discard requesting -> error, local only, order reverted from ready_to_ship', async () => {
+    const { shipment, orderId } = await requestingShipment();
+    await query("UPDATE orders SET status = 'ready_to_ship', tracking_number = $2 WHERE id = $1", [
+      orderId,
+      TRACKING
+    ]);
+    await query('UPDATE shipments SET tracking_number = $2 WHERE id = $1', [shipment.id, TRACKING]);
+    const out = await domain.discardShipment(shipment.id);
+    expect(out.status).toBe('error');
+    expect(out.error_message).toBe('Descartado manualmente por un administrador');
+    expect(out.next_poll_at).toBeNull();
+    const order = await getOrderRow(orderId);
+    expect(order.status).toBe('processing');
+    expect(order.tracking_number).toBeNull();
+    expect(client.createOrder).not.toHaveBeenCalled();
+    expect(client.cancelShipment).not.toHaveBeenCalled();
+  });
+
+  it('discard cancelling -> cancelled with cancelled_at and order back to processing', async () => {
+    const { orderId } = await createOrder();
+    const s = await domain.createForOrder(orderId, homeInput, null);
+    await domain.cancelShipment(s.id);
+    const out = await domain.discardShipment(s.id);
+    expect(out.status).toBe('cancelled');
+    expect(out.cancelled_at).not.toBeNull();
+    expect(out.error_message).toBe('Descartado manualmente por un administrador');
+    expect((await getOrderRow(orderId)).status).toBe('processing');
+  });
+
+  it.each(['pending', 'created', 'in_transit', 'delivered', 'error'])(
+    'discard on %s -> SHIPMENT_NOT_DISCARDABLE (409)',
+    async (status) => {
+      const { orderId } = await createOrder();
+      const s = await domain.createForOrder(orderId, homeInput, null);
+      await query('UPDATE shipments SET status = $2 WHERE id = $1', [s.id, status]);
+      await expect(domain.discardShipment(s.id)).rejects.toMatchObject({
+        code: 'SHIPMENT_NOT_DISCARDABLE',
+        statusCode: 409
+      });
+    }
+  );
+
+  it('discard on unknown shipment -> 404', async () => {
+    await expect(
+      domain.discardShipment('00000000-0000-0000-0000-000000000099')
+    ).rejects.toMatchObject({ code: 'SHIPMENT_NOT_FOUND', statusCode: 404 });
+  });
+});
+
+describe('toAdminView (admin endpoint responses)', () => {
+  it('has events and tracking_url but no raw payloads', async () => {
+    const { orderId } = await createOrder();
+    const s = await domain.createForOrder(orderId, homeInput, null);
+    expect(s.request_payload).not.toBeNull();
+    const view = await domain.toAdminView(s);
+    expect(view).not.toHaveProperty('request_payload');
+    expect(view).not.toHaveProperty('raw_response');
+    expect(view).toHaveProperty('tracking_url');
+    expect(view.events).toEqual([]);
+  });
+});
+
+describe('ineligible destination branch', () => {
+  it('a branch that does not deliver is rejected at creation (SHIPMENT_BRANCH_INVALID)', async () => {
+    client.listBranches.mockResolvedValue([
+      { ...BRANCH, datosAdicionales: { entregaEnvios: false } }
+    ]);
+    const { orderId } = await createOrder();
+    await expect(
+      domain.createForOrder(orderId, { serviceType: 'branch_pickup', branchId: '99' }, null)
+    ).rejects.toMatchObject({ code: 'SHIPMENT_BRANCH_INVALID', statusCode: 422 });
+  });
+});
+
+describe('andreani_state truncation', () => {
+  it('a long state is cut to 100 chars instead of failing the update', async () => {
+    const { orderId } = await createOrder();
+    const s = await domain.createForOrder(orderId, homeInput, null);
+    const out = await domain.applyCreateResult(s.id, accepted('x'.repeat(300)));
+    expect(out.andreani_state).toHaveLength(100);
+  });
+});

@@ -152,6 +152,24 @@ describe('branches', () => {
   });
 });
 
+describe('findBranchById delivery filter', () => {
+  it.each([
+    ['B2B channel', { canal: 'B2B' as const }],
+    [
+      'entregaEnvios false',
+      { datosAdicionales: { seHaceAtencionAlCliente: true, entregaEnvios: false } }
+    ],
+    [
+      'seHaceAtencionAlCliente false',
+      { datosAdicionales: { seHaceAtencionAlCliente: false, entregaEnvios: true } }
+    ]
+  ])('returns null for an ineligible branch (%s)', async (_label, over) => {
+    clearBranchCache();
+    fake.listBranches.mockResolvedValue([branch(77, ['1406'], over as Partial<AndreaniBranch>)]);
+    expect(await findBranchById('77')).toBeNull();
+  });
+});
+
 describe('localities', () => {
   const loc = (name: string): AndreaniLocality => ({
     idDeProvLocalidad: 1,

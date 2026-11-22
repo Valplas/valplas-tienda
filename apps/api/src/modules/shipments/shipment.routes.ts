@@ -19,6 +19,22 @@ router.use(authMiddleware, requireRole(['admin', 'owner']));
 
 /**
  * @swagger
+ * /api/shipments/config:
+ *   get:
+ *     summary: Estado de la integración con Andreani (sin secretos)
+ *     tags: [Shipments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: "{ enabled, mode, autoCreate }"
+ *       403:
+ *         description: No es admin
+ */
+router.get('/config', shipmentController.config);
+
+/**
+ * @swagger
  * /api/shipments/branches:
  *   get:
  *     summary: Sucursales de Andreani para retiro cerca de un código postal
@@ -165,6 +181,34 @@ router.post(
  *         description: SHIPMENT_NOT_CANCELLABLE
  */
 router.post('/:id/cancel', validate(idParamSchema, 'params'), shipmentController.cancel);
+
+/**
+ * @swagger
+ * /api/shipments/{id}/discard:
+ *   post:
+ *     summary: Descartar un envío trabado en requesting o cancelling (solo local, no llama a Andreani)
+ *     description: >
+ *       Pasa el envío a error (requesting) o cancelled (cancelling) y devuelve el pedido a
+ *       processing. El envío puede seguir existiendo en el portal de Andreani: verificarlo ahí.
+ *     tags: [Shipments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Envío descartado
+ *       404:
+ *         description: Envío no encontrado
+ *       409:
+ *         description: SHIPMENT_NOT_DISCARDABLE (solo requesting o cancelling)
+ */
+router.post('/:id/discard', validate(idParamSchema, 'params'), shipmentController.discard);
 
 /**
  * @swagger

@@ -49,6 +49,8 @@ const ROUTES: [string, string][] = [
   ['POST', `/orders/${ID}`],
   ['POST', `/${ID}/cancel`],
   ['POST', `/${ID}/refresh`],
+  ['POST', `/${ID}/discard`],
+  ['GET', '/config'],
   ['GET', `/${ID}/label`],
   ['GET', '/branches?postcode=1043']
 ];
@@ -125,5 +127,27 @@ describe('validation', () => {
     });
     expect(res.status).toBe(503);
     expect((await res.json()).error.code).toBe('ANDREANI_DISABLED');
+  });
+});
+
+describe('GET /config', () => {
+  it('admin gets enabled/mode/autoCreate and nothing else', async () => {
+    const adminToken = generateAccessToken({ id: ID, email: 'a@vitest.local', role: 'admin' });
+    const res = await fetch(`${base}/config`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()).data;
+    expect(Object.keys(data).sort()).toEqual(['autoCreate', 'enabled', 'mode']);
+    expect(data.enabled).toBe(false);
+  });
+
+  it('discard of an unknown shipment answers 404 for an admin', async () => {
+    const adminToken = generateAccessToken({ id: ID, email: 'a@vitest.local', role: 'admin' });
+    const res = await fetch(`${base}/${crypto.randomUUID()}/discard`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    expect(res.status).toBe(404);
   });
 });
