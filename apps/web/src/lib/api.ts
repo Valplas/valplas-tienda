@@ -142,9 +142,10 @@ function handleSessionExpired() {
 }
 
 /**
- * Cliente HTTP para llamadas a la API
+ * Request crudo a la API: credenciales, CSRF y refresh en 401. Devuelve la
+ * Response OK sin consumir el body; lanza ApiError si falla.
  */
-async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<ApiResponse<T>> {
+async function requestRaw(endpoint: string, options?: FetchOptions): Promise<Response> {
   const url = `${API_URL}${endpoint}`;
   const { silentErrors, skipAuthRedirect, _isRetry, _isCsrfRetry, ...fetchOptions } = options || {};
 
@@ -166,14 +167,14 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<Ap
   if (res.ok) {
     // login/registro/logout cambian la sesión: el token CSRF anterior ya no vale
     if (isMutation && endpoint.startsWith('/auth/')) resetCsrfToken();
-    return res.json();
+    return res;
   }
 
   // 403 CSRF: el token quedó de una sesión anterior (otra pestaña, refresh).
   // Se pide uno nuevo y se reintenta UNA vez.
   if (isMutation && !_isCsrfRetry && (await isCsrfError(res))) {
     resetCsrfToken();
-    return fetchApi<T>(endpoint, { ...options, _isCsrfRetry: true });
+    return requestRaw(endpoint, { ...options, _isCsrfRetry: true });
   }
 
   // 401: intentar refresh UNA sola vez. Si ya es un reintento, o si el endpoint ES
@@ -183,7 +184,7 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<Ap
 
     if (refreshed) {
       // Token renovado — reintentar el request original exactamente una vez
-      return fetchApi<T>(endpoint, { ...options, _isRetry: true });
+      return requestRaw(endpoint, { ...options, _isRetry: true });
     }
 
     // Refresh falló — la sesión expiró de verdad
@@ -201,6 +202,26 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<Ap
     errorData.error?.code,
     errorData.error?.details
   );
+}
+
+/**
+ * Cliente HTTP para llamadas a la API (respuestas JSON)
+ */
+async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<ApiResponse<T>> {
+  const res = await requestRaw(endpoint, options);
+  return res.json();
+}
+
+/**
+ * GET de un archivo binario (ej: PDF de etiqueta). Mismo manejo de sesión que fetchApi.
+ */
+export async function getBlob(endpoint: string, options?: FetchOptions): Promise<Blob> {
+  const res = await requestRaw(endpoint, {
+    ...options,
+    method: 'GET',
+    headers: { Accept: '*/*', ...options?.headers }
+  });
+  return res.blob();
 }
 
 /**
