@@ -29,9 +29,11 @@ function describeError(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/** Fallo de un paso: se captura una sola vez en main (permite limpiar antes de salir). */
+class SmokeFailure extends Error {}
+
 function fail(msg: string): never {
-  console.error(`❌ ${msg}`);
-  process.exit(1);
+  throw new SmokeFailure(msg);
 }
 
 /** Ejecuta un paso, imprime ✅/❌ y corta el script en el primer error. */
@@ -138,43 +140,69 @@ async function runAuthenticated(
     };
   });
   const tracking = created.body.bultos[0]?.numeroDeEnvio;
-  if (!tracking) return fail('La respuesta no trae bultos[0].numeroDeEnvio');
+  if (!tracking) {
+    return fail(
+      `La respuesta no trae bultos[0].numeroDeEnvio (idPedido=${idPedido}, estado=${created.body.estado}, agrupador=${created.body.agrupadorDeBultos ?? '-'}). Revisá la orden a mano en Andreani`
+    );
+  }
   const group = created.body.agrupadorDeBultos ?? tracking;
+  let cancelRequested = false;
 
-  await step('Re-POST mismo idPedido (idempotencia)', async () => {
-    const r = await client.createOrder(request);
-    return { value: r, info: `HTTP ${r.httpStatus} (esperado 208)` };
-  });
+  try {
+    await step('Re-POST mismo idPedido (idempotencia)', async () => {
+      const r = await client.createOrder(request);
+      return { value: r, info: `HTTP ${r.httpStatus} (esperado 208)` };
+    });
 
-  await step(`Estado de la orden (GET /v2/ordenes-de-envio/${tracking})`, async () => {
-    const r = await client.getOrder(tracking);
-    return { value: r, info: `estado=${r.estado}` };
-  });
+    await step(`Estado de la orden (GET /v2/ordenes-de-envio/${tracking})`, async () => {
+      const r = await client.getOrder(tracking);
+      return { value: r, info: `estado=${r.estado}` };
+    });
 
-  await step('Etiqueta (GET .../etiquetas)', async () => {
-    const label = await client.getLabel(group, 'pdf');
-    writeFileSync(LABEL_PATH, label.data);
-    return {
-      value: label,
-      info: `${label.contentType}, ${label.data.length} bytes -> ${LABEL_PATH}`
-    };
-  });
+    await step('Etiqueta (GET .../etiquetas)', async () => {
+      const label = await client.getLabel(group, 'pdf');
+      writeFileSync(LABEL_PATH, label.data);
+      return {
+        value: label,
+        info: `${label.contentType}, ${label.data.length} bytes -> ${LABEL_PATH}`
+      };
+    });
 
-  await step(`Trazas (GET /v3/envios/${tracking}/trazas)`, async () => {
-    const events = await client.getTraces(tracking);
-    const labels = events.map((e) => `${e.Evento}/${e.Estado ?? '-'}`).join(', ');
-    return { value: events, info: `${events.length} eventos${labels ? `: ${labels}` : ''}` };
-  });
+    await step(`Trazas (GET /v3/envios/${tracking}/trazas)`, async () => {
+      const events = await client.getTraces(tracking);
+      const labels = events.map((e) => `${e.Evento}/${e.Estado ?? '-'}`).join(', ');
+      return { value: events, info: `${events.length} eventos${labels ? `: ${labels}` : ''}` };
+    });
 
-  await step('Cancelar (POST /v2/nueva-accion)', async () => {
-    await client.cancelShipment({ contract: cfg.contracts.home, trackingNumber: tracking });
-    return { value: true };
-  });
+    await step('Cancelar (POST /v2/nueva-accion)', async () => {
+      await client.cancelShipment({ contract: cfg.contracts.home, trackingNumber: tracking });
+      cancelRequested = true;
+      return { value: true };
+    });
 
-  await step('Estado de cancelación (GET /v2/nueva-accion/{n})', async () => {
-    const r = await client.getCancellation(tracking);
-    return { value: r, info: `state=${r.state}${r.razon ? `, razon=${r.razon}` : ''}` };
-  });
+    await step('Estado de cancelación (GET /v2/nueva-accion/{n})', async () => {
+      const r = await client.getCancellation(tracking);
+      return { value: r, info: `state=${r.state}${r.razon ? `, razon=${r.razon}` : ''}` };
+    });
+  } catch (e) {
+    // Ya existe una orden en Andreani: limpiar (best-effort) y dejar los datos para cancelarla a mano.
+    console.error(
+      `⚠️ Falló un paso con la orden ya creada. numeroDeEnvio=${tracking} contrato=${cfg.contracts.home}`
+    );
+    if (cancelRequested) {
+      console.error('   La cancelación ya se había solicitado; verificá su estado a mano.');
+    } else {
+      try {
+        await client.cancelShipment({ contract: cfg.contracts.home, trackingNumber: tracking });
+        console.error('   Cleanup: cancelación solicitada.');
+      } catch (ce) {
+        console.error(
+          `   Cleanup FALLÓ (${describeError(ce)}). Cancelá la orden ${tracking} a mano.`
+        );
+      }
+    }
+    throw e;
+  }
 }
 
 async function main(): Promise<void> {
@@ -192,10 +220,15 @@ async function main(): Promise<void> {
   );
 
   if (!publicOnly) {
+    if (cfg.mode === 'prod') {
+      console.warn('⚠️ Modo PROD: se va a crear y cancelar una orden REAL en Andreani');
+      if (!args.has('--yes-create-real-order')) {
+        fail('En prod la corrida completa requiere además el flag --yes-create-real-order');
+      }
+    }
     const problems = validateAndreaniConfig(cfg, cfg.mode === 'prod');
     if (problems.length > 0) {
-      for (const p of problems) console.error(`❌ Config: ${p}`);
-      process.exit(1);
+      fail(problems.map((p) => `Config: ${p}`).join('\n❌ '));
     }
   }
 
@@ -207,4 +240,7 @@ async function main(): Promise<void> {
   console.log('Smoke OK');
 }
 
-main().catch((e) => fail(describeError(e)));
+main().catch((e) => {
+  console.error(`❌ ${e instanceof SmokeFailure ? e.message : describeError(e)}`);
+  process.exit(1);
+});

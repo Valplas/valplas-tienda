@@ -117,13 +117,15 @@ cd apps/api
 ANDREANI_MODE=qa bun run andreani:smoke -- --public-only
 # Completo (necesita credenciales en .env): login, cotización, crear, re-POST, estado, etiqueta, trazas, cancelar
 ANDREANI_MODE=qa bun run andreani:smoke
-# Prod: solo con flag explícito
-ANDREANI_MODE=prod bun run andreani:smoke -- --prod
+# Prod: solo público con --prod; la corrida completa crea una orden REAL y exige --yes-create-real-order
+ANDREANI_MODE=prod bun run andreani:smoke -- --prod --public-only
+ANDREANI_MODE=prod bun run andreani:smoke -- --prod --yes-create-real-order
 ```
 
 Variables extra: `ANDREANI_SMOKE_POSTCODE` (default `1406`). El script nunca imprime credenciales ni tokens,
 sale con código 1 en el primer ❌, y escribe la etiqueta en `./andreani-smoke-label.pdf` (ignorado por git).
-La corrida completa crea una orden de prueba (`idPedido = smoke-<timestamp>`) y la cancela.
+La corrida completa crea una orden de prueba (`idPedido = smoke-<timestamp>`) y la cancela. En prod imprime una advertencia y se niega a correr sin `--yes-create-real-order`.
+Si un paso falla después de crear la orden, el script intenta cancelarla (best-effort) e imprime `numeroDeEnvio` y contrato para cancelarla a mano si el cleanup falla.
 
 **Checklist a confirmar con credenciales** (hay `TODO(smoke)` en `request-mapper.ts`):
 
