@@ -25,6 +25,10 @@ async function createOrderWithStatus(userId: string, status: OrderStatus): Promi
   return result.rows[0].id;
 }
 
+async function setAdminNotes(id: string) {
+  await query('UPDATE orders SET admin_notes = $2 WHERE id = $1', [id, 'nota interna']);
+}
+
 async function getOrder(id: string) {
   const r = await query<Record<string, unknown>>('SELECT * FROM orders WHERE id = $1', [id]);
   return r.rows[0];
@@ -33,7 +37,7 @@ async function getOrder(id: string) {
 async function getHistory(id: string) {
   const r = await query<{ status: string; changed_by: string | null }>(
     `SELECT status, changed_by FROM order_status_history
-     WHERE order_id = $1 ORDER BY created_at, status`,
+     WHERE order_id = $1 ORDER BY created_at`,
     [id]
   );
   return r.rows;
@@ -125,6 +129,33 @@ describe('order status guard', () => {
     const history = await getHistory(id);
     expect(history.map((h) => h.status)).toEqual(['processing', 'ready_to_ship', 'shipped']);
     expect(history.every((h) => h.changed_by === null)).toBe(true);
+  });
+
+  it('advanceOrderTo history keeps step order ready_to_ship -> delivered', async () => {
+    const customer = await createTestUser();
+    const id = await createOrderWithStatus(customer.id, 'ready_to_ship');
+    await transaction((c) => orderRepository.advanceOrderTo(c, id, 'delivered', 'x'));
+    const history = await getHistory(id);
+    expect(history.map((h) => h.status)).toEqual(['shipped', 'delivered']);
+  });
+
+  it('admin_notes hidden from customers on get and cancel', async () => {
+    const customer = await createTestUser();
+    const admin = await createTestUser();
+    const id = await createOrderWithStatus(customer.id, 'pending_payment');
+    await setAdminNotes(id);
+    const number = (await getOrder(id)).order_number as string;
+
+    const byId = await orderDomain.getOrderById(id, customer.id, false);
+    const byNumber = await orderDomain.getOrderByNumber(number, customer.id, false);
+    expect('admin_notes' in byId).toBe(false);
+    expect('admin_notes' in byNumber).toBe(false);
+
+    const adminView = await orderDomain.getOrderById(id, admin.id, true);
+    expect(adminView.admin_notes).toBe('nota interna');
+
+    const cancelled = await orderDomain.cancelOrder(id, 'x', customer.id, false);
+    expect('admin_notes' in cancelled).toBe(false);
   });
 
   it('advanceOrderTo is a no-op backwards or off-path', async () => {

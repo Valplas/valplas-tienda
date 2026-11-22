@@ -702,8 +702,10 @@ export async function updateOrderStatusTx(
   if (!order) return null;
 
   await client.query(
-    `INSERT INTO order_status_history (order_id, status, notes, changed_by)
-     VALUES ($1, $2, $3, $4)`,
+    // clock_timestamp(): NOW() es el inicio de la transacción y los pasos de advanceOrderTo
+    // quedarían con el mismo created_at (timeline desordenado).
+    `INSERT INTO order_status_history (order_id, status, notes, changed_by, created_at)
+     VALUES ($1, $2, $3, $4, clock_timestamp())`,
     [orderId, data.status, data.notes || null, changedBy]
   );
 

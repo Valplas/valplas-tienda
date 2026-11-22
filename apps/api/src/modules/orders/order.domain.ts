@@ -309,7 +309,7 @@ export async function cancelOrder(
     );
   }
 
-  return cancelled;
+  return isAdmin ? cancelled : stripAdminNotes(cancelled);
 }
 
 /**
