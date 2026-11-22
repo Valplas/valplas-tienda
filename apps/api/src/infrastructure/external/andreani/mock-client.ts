@@ -208,7 +208,11 @@ export function createMockAndreaniClient(opts: MockAndreaniOptions): AndreaniCli
     },
 
     async getOrder(numero) {
-      return lookup(numero).response;
+      // Como la API real: 'Pendiente' hasta que el pre-envío se procesa, luego 'Creada'
+      // (sin esto el envío quedaría en 'pending' y nunca pasaría a seguir las trazas).
+      const s = lookup(numero);
+      const processed = now() - s.createdAt >= stepMs;
+      return { ...s.response, estado: processed ? 'Creada' : 'Pendiente' };
     },
 
     async getLabel(id) {
