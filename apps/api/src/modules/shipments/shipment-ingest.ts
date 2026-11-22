@@ -37,7 +37,16 @@ export async function ingestEvents(
     if (!shipment) throw new Error(`Envío ${shipmentId} no encontrado`);
 
     const inserted = await shipmentRepository.insertEventsTx(client, shipmentId, events, source);
-    if (inserted.length === 0) return { inserted: 0, status: shipment.status };
+    if (inserted.length === 0) {
+      // Sin eventos nuevos igual se reprograma: el claim dejó solo un lease corto en next_poll_at.
+      const idleDelay = nextPollDelayMinutes(shipment.status);
+      await shipmentRepository.updateShipment(
+        shipmentId,
+        { next_poll_at: idleDelay === null ? null : new Date(Date.now() + idleDelay * 60_000) },
+        client
+      );
+      return { inserted: 0, status: shipment.status };
+    }
 
     const all = await shipmentRepository.findEvents(shipmentId, client);
     const last = all[all.length - 1];

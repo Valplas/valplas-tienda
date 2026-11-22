@@ -186,6 +186,22 @@ describe('shipment ingestion', () => {
     expect((await getShipment(b.shipmentId)).next_poll_at).toBeNull();
   });
 
+  it.each([
+    ['in_transit', 'Admision', 60],
+    ['ready_for_pickup', 'ComienzoCustodiaEnSucursal', 360]
+  ])('reschedules next_poll_at when no new events (%s)', async (status, event, minutes) => {
+    const { shipmentId } = await setup('shipped', status);
+    await ingestEvents(shipmentId, [ev(event as string, 0)], 'pull');
+    await query(`UPDATE shipments SET next_poll_at = NOW() + interval '10 minutes' WHERE id = $1`, [
+      shipmentId
+    ]);
+    const res = await ingestEvents(shipmentId, [ev(event as string, 0)], 'pull');
+    expect(res.inserted).toBe(0);
+    const poll = (await getShipment(shipmentId)).next_poll_at;
+    const diffMin = (poll!.getTime() - Date.now()) / 60000;
+    expect(Math.abs(diffMin - (minutes as number))).toBeLessThan(0.5);
+  });
+
   it('nextPollDelayMinutes table', () => {
     expect(nextPollDelayMinutes('requesting')).toBe(5);
     expect(nextPollDelayMinutes('pending')).toBe(30);
