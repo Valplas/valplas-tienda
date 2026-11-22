@@ -47,7 +47,17 @@ export function toBranchSnapshot(b: AndreaniBranch): BranchSnapshot {
 }
 
 function canDeliver(b: AndreaniBranch): boolean {
-  return b.canal !== 'B2B' && b.datosAdicionales?.entregaEnvios !== false;
+  return (
+    b.canal !== 'B2B' &&
+    b.datosAdicionales?.entregaEnvios !== false &&
+    b.datosAdicionales?.seHaceAtencionAlCliente !== false
+  );
+}
+
+/** Primer bloque de 4 digitos (soporta CPA como C1406ABC). */
+function numericPostcode(cp: string): number | null {
+  const m = /\d{4}/.exec(cp);
+  return m ? Number.parseInt(m[0], 10) : null;
 }
 
 export async function findPickupBranches(postcode: string, limit = 10): Promise<BranchSnapshot[]> {
@@ -55,11 +65,11 @@ export async function findPickupBranches(postcode: string, limit = 10): Promise<
   const serving = eligible.filter((b) => b.codigosPostalesAtendidos?.includes(postcode));
   if (serving.length > 0) return serving.slice(0, limit).map(toBranchSnapshot);
 
-  const target = Number.parseInt(postcode, 10);
-  if (Number.isNaN(target)) return [];
+  const target = numericPostcode(postcode);
+  if (target === null) return [];
   const distance = (b: AndreaniBranch): number => {
-    const cp = Number.parseInt(b.direccion?.codigoPostal ?? '', 10);
-    return Number.isNaN(cp) ? Number.POSITIVE_INFINITY : Math.abs(cp - target);
+    const cp = numericPostcode(b.direccion?.codigoPostal ?? '');
+    return cp === null ? Number.POSITIVE_INFINITY : Math.abs(cp - target);
   };
   return [...eligible]
     .sort((a, b) => distance(a) - distance(b))

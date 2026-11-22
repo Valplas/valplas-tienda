@@ -89,6 +89,29 @@ describe('branches', () => {
     expect(r.map((b) => b.id)).toEqual(['2', '3']);
   });
 
+  it('excludes branches without customer service', async () => {
+    fake.listBranches.mockResolvedValue([
+      branch(1, ['1406']),
+      branch(2, ['1406'], {
+        datosAdicionales: {
+          seHaceAtencionAlCliente: false,
+          admiteEnvios: true,
+          entregaEnvios: true
+        }
+      })
+    ]);
+    expect((await findPickupBranches('1406')).map((b) => b.id)).toEqual(['1']);
+  });
+
+  it('fallback handles CPA-format postcodes', async () => {
+    fake.listBranches.mockResolvedValue([
+      branch(1, ['9999'], {}, '9000'),
+      branch(2, ['9999'], {}, '1406')
+    ]);
+    const r = await findPickupBranches('C1406ABC', 1);
+    expect(r.map((b) => b.id)).toEqual(['2']);
+  });
+
   it('respects limit', async () => {
     fake.listBranches.mockResolvedValue([1, 2, 3, 4].map((i) => branch(i, ['1406'])));
     expect(await findPickupBranches('1406', 2)).toHaveLength(2);
