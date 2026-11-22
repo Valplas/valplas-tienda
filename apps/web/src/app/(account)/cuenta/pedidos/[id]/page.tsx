@@ -24,7 +24,8 @@ import {
 } from '@/components/ui/table';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
 import { getOrderById } from '@/services';
-import { Order } from '@/types';
+import type { Order } from '@/lib/services/orders.service';
+import { ShipmentTrackingCard } from '@/components/shipments/shipment-tracking-card';
 import { formatDate, formatDateTime, formatPrice } from '@/lib/formatters';
 import { ArrowLeft, Package, MapPin, Truck, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
@@ -43,7 +44,7 @@ export default function OrderDetailPage() {
       setIsLoading(true);
       try {
         const order = await getOrderById(params.id as string);
-        setOrder(order as any);
+        setOrder(order);
       } catch (error: any) {
         console.error('Error fetching order:', error);
         if (error?.message?.includes('403') || error?.message?.includes('Forbidden')) {
@@ -158,49 +159,48 @@ export default function OrderDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Shipping Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Truck className="h-5 w-5" />
-                Información de Envío
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Carrier</p>
-                <p className="text-base">{order.shippingCarrier}</p>
-              </div>
-
-              {order.trackingNumber && (
+          {/* Shipment tracking or legacy shipping info */}
+          {order.shipments?.[0] ? (
+            <ShipmentTrackingCard shipment={order.shipments[0]} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Información de Envío
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Número de Seguimiento</p>
-                  <p className="text-base font-mono">{order.trackingNumber}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Carrier</p>
+                  <p className="text-base">{order.carrierName ?? '-'}</p>
                 </div>
-              )}
 
-              {order.shippedAt && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Fecha de Envío</p>
-                  <p className="text-base">{formatDateTime(order.shippedAt)}</p>
-                </div>
-              )}
+                {order.trackingNumber && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Número de Seguimiento
+                    </p>
+                    <p className="text-base font-mono">{order.trackingNumber}</p>
+                  </div>
+                )}
 
-              {order.deliveredAt && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Fecha de Entrega</p>
-                  <p className="text-base">{formatDateTime(order.deliveredAt)}</p>
-                </div>
-              )}
+                {order.shippedAt && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Fecha de Envío</p>
+                    <p className="text-base">{formatDateTime(order.shippedAt)}</p>
+                  </div>
+                )}
 
-              {order.cancelledAt && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Fecha de Cancelación</p>
-                  <p className="text-base">{formatDateTime(order.cancelledAt)}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                {order.deliveredAt && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Fecha de Entrega</p>
+                    <p className="text-base">{formatDateTime(order.deliveredAt)}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar */}
@@ -214,23 +214,28 @@ export default function OrderDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-1 text-sm">
-                <p className="font-medium">{order.shippingAddress.label}</p>
-                <p>
-                  {order.shippingAddress.street} {order.shippingAddress.streetNumber}
-                </p>
-                {(order.shippingAddress.floor || order.shippingAddress.apartment) && (
+              {order.shippingAddress ? (
+                <div className="space-y-1 text-sm">
+                  <p className="font-medium">{order.shippingAddress.alias}</p>
                   <p>
-                    {order.shippingAddress.floor && `Piso ${order.shippingAddress.floor}`}
-                    {order.shippingAddress.floor && order.shippingAddress.apartment && ', '}
-                    {order.shippingAddress.apartment && `Depto ${order.shippingAddress.apartment}`}
+                    {order.shippingAddress.street} {order.shippingAddress.streetNumber}
                   </p>
-                )}
-                <p>
-                  {order.shippingAddress.city}, {order.shippingAddress.province}
-                </p>
-                <p>CP: {order.shippingAddress.postcode}</p>
-              </div>
+                  {(order.shippingAddress.floor || order.shippingAddress.apartment) && (
+                    <p>
+                      {order.shippingAddress.floor && `Piso ${order.shippingAddress.floor}`}
+                      {order.shippingAddress.floor && order.shippingAddress.apartment && ', '}
+                      {order.shippingAddress.apartment &&
+                        `Depto ${order.shippingAddress.apartment}`}
+                    </p>
+                  )}
+                  <p>
+                    {order.shippingAddress.city}, {order.shippingAddress.province}
+                  </p>
+                  <p>CP: {order.shippingAddress.postcode}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Retiro en sucursal</p>
+              )}
             </CardContent>
           </Card>
 
@@ -252,13 +257,6 @@ export default function OrderDetailPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">ID de Pago</p>
                   <p className="text-base font-mono text-xs">{order.paymentId}</p>
-                </div>
-              )}
-
-              {order.paymentStatus && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Estado del Pago</p>
-                  <p className="text-base capitalize">{order.paymentStatus}</p>
                 </div>
               )}
             </CardContent>
