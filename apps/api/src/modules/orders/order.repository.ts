@@ -16,6 +16,8 @@ import type {
   OrderChannel
 } from './order.types.js';
 import type { User } from '../users/user.types.js';
+import { INACTIVE_SHIPMENT_STATUSES } from '../shipments/shipment.types.js';
+import type { ShipmentWithEvents } from '../shipments/shipment.types.js';
 import { fromBoundSql, toBoundSql } from '../../shared/utils/date-range.js';
 import {
   decodeCursor,
@@ -218,7 +220,7 @@ export async function findOrders(filters: OrderFilters): Promise<FindOrdersResul
        ORDER BY o.created_at DESC, o.id DESC
        LIMIT $${pageParamIndex} OFFSET $${pageParamIndex + 1}
      )
-     SELECT o.*, paged.k0 AS _k0,
+     SELECT o.*, paged.k0 AS _k0, ash.active_shipment,
             CASE WHEN u.id IS NOT NULL THEN
               json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
             END as user,
@@ -239,8 +241,15 @@ export async function findOrders(filters: OrderFilters): Promise<FindOrdersResul
      JOIN orders o ON o.id = paged.id
      LEFT JOIN users u ON u.id = o.user_id
      ${itemsJoin}
+     LEFT JOIN LATERAL (
+       SELECT json_build_object('id', sh.id, 'status', sh.status, 'tracking_number', sh.tracking_number) AS active_shipment
+       FROM shipments sh
+       WHERE sh.order_id = o.id AND sh.status <> ALL($${pageParamIndex + 2}::text[])
+       ORDER BY sh.created_at DESC
+       LIMIT 1
+     ) ash ON true
      ORDER BY o.created_at DESC, o.id DESC`,
-    [...pageParams, pageLimit, offset]
+    [...pageParams, pageLimit, offset, INACTIVE_SHIPMENT_STATUSES]
   );
 
   const { rows, hasMore } = useKeyset
@@ -319,11 +328,12 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
   if (!order) return null;
 
   // Get items, user, status history and carrier in parallel
-  const [itemsResult, userResult, historyResult, carrierResult] = await Promise.all([
-    // Columnas explícitas: cost_price_snapshot y revenue (margen) nunca
-    // salen en el detalle — esta query la ven también los clientes.
-    query(
-      `SELECT
+  const [itemsResult, userResult, historyResult, carrierResult, shipmentsResult] =
+    await Promise.all([
+      // Columnas explícitas: cost_price_snapshot y revenue (margen) nunca
+      // salen en el detalle — esta query la ven también los clientes.
+      query(
+        `SELECT
         oi.id, oi.order_id, oi.product_id, oi.product_image_url,
         oi.quantity, oi.bundle_size_snapshot, oi.real_quantity,
         oi.unit_price, oi.subtotal, oi.price_list_id,
@@ -335,28 +345,42 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
        JOIN products p ON oi.product_id = p.id
        WHERE oi.order_id = $1
        ORDER BY oi.created_at`,
-      [id]
-    ),
-    query<Omit<User, 'passwordHash'>>(
-      `SELECT id, email, username, phone, first_name, last_name, role,
+        [id]
+      ),
+      query<Omit<User, 'passwordHash'>>(
+        `SELECT id, email, username, phone, first_name, last_name, role,
               is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
        FROM users
        WHERE id = $1`,
-      [order.user_id]
-    ),
-    query<OrderStatusHistory>(
-      `SELECT * FROM order_status_history
+        [order.user_id]
+      ),
+      query<OrderStatusHistory>(
+        `SELECT * FROM order_status_history
        WHERE order_id = $1
        ORDER BY created_at DESC`,
-      [id]
-    ),
-    // Carrier externo: la dirección de entrega del pedido no se puede modificar
-    order.shipping_carrier_id
-      ? query<{ is_external: boolean }>('SELECT is_external FROM shipping_carriers WHERE id = $1', [
-          order.shipping_carrier_id
-        ])
-      : null
-  ]);
+        [id]
+      ),
+      // Carrier externo: la dirección de entrega del pedido no se puede modificar
+      order.shipping_carrier_id
+        ? query<{ is_external: boolean }>(
+            'SELECT is_external FROM shipping_carriers WHERE id = $1',
+            [order.shipping_carrier_id]
+          )
+        : null,
+      // Envíos con sus eventos (más nuevo primero): una sola query, sin consultas por envío
+      query<ShipmentWithEvents>(
+        `SELECT s.*, COALESCE(ev.events, '[]'::json) AS events
+       FROM shipments s
+       LEFT JOIN LATERAL (
+         SELECT json_agg(e ORDER BY e.occurred_at DESC, e.id DESC) AS events
+         FROM shipment_events e
+         WHERE e.shipment_id = s.id
+       ) ev ON true
+       WHERE s.order_id = $1
+       ORDER BY s.created_at DESC`,
+        [id]
+      )
+    ]);
 
   // Build shipping_address object from denormalized columns
   const shipping_address = order.shipping_street
@@ -389,7 +413,8 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
     status_history: historyResult.rows,
     user: userResult.rows[0] ?? undefined,
     shipping_address,
-    shipping_carrier_is_external: carrierResult?.rows[0]?.is_external ?? false
+    shipping_carrier_is_external: carrierResult?.rows[0]?.is_external ?? false,
+    shipments: shipmentsResult.rows
   };
 }
 

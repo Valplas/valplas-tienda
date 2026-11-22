@@ -16,10 +16,12 @@ import { findProductsByIds } from '../products/product.repository.js';
 import { getTiersForCartItems } from '../cart/cart.repository.js';
 import { findPriceListsByIds } from '../price-lists/price-list.repository.js';
 import { findBlockingByOrderId } from '../shipments/shipment.repository.js';
+import { customerVisibleShipments, toAdminShipment } from '../shipments/shipment.view.js';
 import { VALID_STATUS_TRANSITIONS } from './order.types.js';
 import type {
   Order,
   OrderWithDetails,
+  OrderDetailView,
   CreateOrderInput,
   CreateAdminOrderInput,
   UpdateAdminOrderInput,
@@ -31,13 +33,15 @@ import type {
  * Get user's orders
  */
 export async function getUserOrders(userId: string, filters: Omit<OrderFilters, 'user_id'>) {
-  return orderRepository.findOrders({
+  const result = await orderRepository.findOrders({
     ...filters,
     user_id: userId,
     // La vista "Mis pedidos" del cliente renderiza la cantidad de items de
     // cada orden — sin esto el front recibe orders sin `items` y explota.
     includeItems: true
   });
+  // Las notas internas del admin nunca se exponen al cliente (tampoco en el listado)
+  return { ...result, orders: result.orders.map(stripAdminNotes) };
 }
 
 /**
@@ -54,7 +58,7 @@ export async function getOrderById(
   id: string,
   userId: string,
   isAdmin: boolean = false
-): Promise<OrderWithDetails> {
+): Promise<OrderDetailView> {
   const order = await orderRepository.findOrderWithDetails(id);
 
   if (!order) {
@@ -66,13 +70,20 @@ export async function getOrderById(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para ver esta orden', 403);
   }
 
-  return isAdmin ? order : stripAdminNotes(order);
+  return toOrderDetailView(order, isAdmin);
 }
 
 /** Las notas internas del admin nunca se exponen al cliente. */
-function stripAdminNotes<T extends { admin_notes: string | null }>(order: T): T {
-  delete (order as Partial<T>).admin_notes;
-  return order;
+function stripAdminNotes<T extends { admin_notes?: string | null }>(order: T): T {
+  const copy = { ...order };
+  delete (copy as Partial<T>).admin_notes;
+  return copy;
+}
+
+/** Admin: envíos sin payloads crudos. Cliente: sin notas internas y solo envíos visibles y saneados. */
+function toOrderDetailView(order: OrderWithDetails, isAdmin: boolean): OrderDetailView {
+  if (isAdmin) return { ...order, shipments: order.shipments.map(toAdminShipment) };
+  return { ...stripAdminNotes(order), shipments: customerVisibleShipments(order.shipments) };
 }
 
 /** Bloquea la cancelación del pedido si hay un envío activo con el correo. */
@@ -94,7 +105,7 @@ export async function getOrderByNumber(
   orderNumber: string,
   userId: string,
   isAdmin: boolean = false
-): Promise<OrderWithDetails> {
+): Promise<OrderDetailView> {
   const order = await orderRepository.findOrderByNumber(orderNumber);
 
   if (!order) {
@@ -112,7 +123,7 @@ export async function getOrderByNumber(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para ver esta orden', 403);
   }
 
-  return isAdmin ? orderWithDetails : stripAdminNotes(orderWithDetails);
+  return toOrderDetailView(orderWithDetails, isAdmin);
 }
 
 export interface CreateOrderOptions extends CreateOrderChannelOptions, OrderPricingOptions {

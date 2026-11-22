@@ -3,6 +3,9 @@
 import type { UserAddress } from '../addresses/address.types.js';
 import type { ShippingCarrier } from '../shipping/shipping.types.js';
 import type { User } from '../users/user.types.js';
+import type { BranchSnapshot } from '../../infrastructure/external/andreani/branches.js';
+import type { ShipmentWithEvents } from '../shipments/shipment.types.js';
+import type { AdminShipmentView, CustomerShipmentView } from '../shipments/shipment.view.js';
 
 export type OrderStatus =
   | 'pending_payment'
@@ -51,8 +54,8 @@ export interface Order {
   paid_at: Date | null;
   // Envío / entrega
   shipping_method: 'home_delivery' | 'branch_pickup';
-  /** Snapshot de la sucursal elegida; se tipa con BranchSnapshot en una tarea posterior. */
-  pickup_branch: Record<string, unknown> | null;
+  /** Snapshot de la sucursal elegida. */
+  pickup_branch: BranchSnapshot | null;
   recipient_document: string | null;
   tracking_number: string | null;
   shipped_at: Date | null;
@@ -66,6 +69,14 @@ export interface Order {
   user?: Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'phone'> | null;
   /** Presente cuando el listado se pide con includeItems (json_agg en el repo). */
   items?: OrderItemWithProduct[];
+  /** Solo en listados: último envío activo del pedido (LEFT JOIN LATERAL). */
+  active_shipment?: ActiveShipmentSummary | null;
+}
+
+export interface ActiveShipmentSummary {
+  id: string;
+  status: string;
+  tracking_number: string | null;
 }
 
 export interface OrderItem {
@@ -96,7 +107,14 @@ export interface OrderWithDetails extends Order {
   /** El envío lo gestiona un proveedor externo: la dirección no se puede editar */
   shipping_carrier_is_external?: boolean;
   user?: Omit<User, 'passwordHash'>;
+  /** Envíos del pedido, el más nuevo primero. El repositorio devuelve la fila completa. */
+  shipments: ShipmentWithEvents[];
 }
+
+/** Detalle de pedido tal como sale por la API: los envíos ya proyectados según el rol. */
+export type OrderDetailView = Omit<OrderWithDetails, 'shipments'> & {
+  shipments: (AdminShipmentView | CustomerShipmentView)[];
+};
 
 export interface OrderItemWithProduct extends OrderItem {
   product_name: string;
