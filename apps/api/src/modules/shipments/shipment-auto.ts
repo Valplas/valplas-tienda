@@ -33,12 +33,16 @@ export async function tryAutoCreateForOrder(
     const message = error instanceof Error ? error.message : String(error);
     logger.warn(`[andreani-auto] No se pudo crear el envío del pedido ${orderId}: ${message}`);
     try {
-      await shipmentRepository.insertError({
-        orderId,
-        serviceType: order.shipping_method,
-        message,
-        createdBy: null
-      });
+      // createForOrder puede haber dejado ya una fila (error de Andreani, requesting en curso,
+      // o la del create concurrente ganador): solo se registra el error si no hay ninguna.
+      if ((await shipmentRepository.countByOrderId(orderId)) === 0) {
+        await shipmentRepository.insertError({
+          orderId,
+          serviceType: order.shipping_method,
+          message,
+          createdBy: null
+        });
+      }
     } catch (insertErr) {
       logger.error(
         `[andreani-auto] No se pudo registrar el error del pedido ${orderId}: ${insertErr instanceof Error ? insertErr.message : String(insertErr)}`

@@ -74,14 +74,28 @@ describe('tryAutoCreateForOrder', () => {
     );
   });
 
-  it('on AppError inserts error row with message and created_by null and returns failed', async () => {
+  it('on AppError with no row written inserts error row with message and created_by null and returns failed', async () => {
     vi.mocked(createForOrder).mockRejectedValue(new AppError('X', 'sin localidad', 422));
     expect(await tryAutoCreateForOrder('o1')).toBe('failed');
+    expect(repo.insertError).toHaveBeenCalledTimes(1);
     expect(repo.insertError).toHaveBeenCalledWith({
       orderId: 'o1',
       serviceType: 'branch_pickup',
       message: 'sin localidad',
       createdBy: null
     });
+  });
+
+  it('does not insert an error row when createForOrder already left a row', async () => {
+    vi.mocked(repo.countByOrderId).mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    vi.mocked(createForOrder).mockRejectedValue(new AppError('ANDREANI_VALIDATION', 'malo', 422));
+    expect(await tryAutoCreateForOrder('o1')).toBe('failed');
+    expect(repo.insertError).not.toHaveBeenCalled();
+  });
+
+  it('re-checks countByOrderId after a failure (guard + re-check)', async () => {
+    vi.mocked(createForOrder).mockRejectedValue(new Error('boom'));
+    await tryAutoCreateForOrder('o1');
+    expect(repo.countByOrderId).toHaveBeenCalledTimes(2);
   });
 });
