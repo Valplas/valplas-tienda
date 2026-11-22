@@ -74,9 +74,10 @@ async function runPublic(client: AndreaniClient, postcode: string): Promise<stri
     };
   });
 
-  return step(`Localidades (GET /v1/localidades?codigosPostales=${postcode})`, async () => {
+  // El código postal no se loguea (dato personal según CodeQL js/clear-text-logging).
+  return step('Localidades (GET /v1/localidades)', async () => {
     const locs = await client.listLocalities(postcode);
-    if (locs.length === 0) throw new Error(`sin localidades para ${postcode}`);
+    if (locs.length === 0) throw new Error('sin localidades para el código postal de prueba');
     return { value: locs[0].localidad, info: locs.map((l) => l.localidad).join(', ') };
   });
 }

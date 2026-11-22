@@ -102,7 +102,7 @@ export async function label(req: Request, res: Response, next: NextFunction) {
 
 export async function branches(req: Request, res: Response, next: NextFunction) {
   try {
-    const { postcode, limit } = req.query as { postcode: string; limit?: string };
+    const { postcode, limit } = req.body as { postcode: string; limit?: number | string };
     // validate() no escribe los valores parseados: los defaults se aplican acá.
     const parsed = limit ? Number(limit) : DEFAULT_BRANCH_LIMIT;
     const effective = Math.min(Math.max(parsed, 1), MAX_BRANCH_LIMIT);

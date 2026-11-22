@@ -19,7 +19,8 @@ export const createShipmentSchema = z.object({
   packages: z.array(shipmentPackageSchema).min(1).max(300).optional()
 });
 
-export const branchesQuerySchema = z.object({
+// Va en el body (POST /branches/search): el código postal no viaja en la URL ni en los logs de acceso.
+export const branchesSearchSchema = z.object({
   postcode: z
     .string()
     .trim()

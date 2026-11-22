@@ -82,13 +82,35 @@ describe('Andreani push webhook', () => {
     ['wrong user', { authorization: basic('x', 's3cret') }],
     ['missing header', {}],
     ['non-basic scheme', { authorization: 'Bearer abc' }],
-    ['different length creds', { authorization: basic('andreani', 's3cret-and-more') }]
+    ['different length creds', { authorization: basic('andreani', 's3cret-and-more') }],
+    ['password prefix of the real one', { authorization: basic('andreani', 's3cre') }],
+    ['scheme without token', { authorization: 'Basic' }],
+    ['pathological whitespace', { authorization: `basic\t${'\t'.repeat(50_000)}x` }]
   ])('401 on %s', async (_n, headers) => {
     const { res, done } = run(headers as Record<string, string>, BODY);
     await done;
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ message: '', error: 'No autorizado', status: 'ERROR' });
     expect(ingestEvents).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['lowercase scheme', `basic ${Buffer.from('andreani:s3cret').toString('base64')}`],
+    ['tab separator', `Basic\t${Buffer.from('andreani:s3cret').toString('base64')}`],
+    ['colon inside password', null]
+  ])('accepts valid credentials with %s', async (name, authorization) => {
+    if (name === 'colon inside password') {
+      vi.mocked(getAndreaniConfig).mockReturnValue({
+        push: { username: 'andreani', password: 'a:b:c' }
+      } as ReturnType<typeof getAndreaniConfig>);
+    }
+    vi.mocked(shipmentRepository.findByTrackingNumber).mockResolvedValue({
+      id: 'ship-1'
+    } as Awaited<ReturnType<typeof shipmentRepository.findByTrackingNumber>>);
+    const header = authorization ?? basic('andreani', 'a:b:c');
+    const { res, done } = run({ authorization: header }, BODY);
+    await done;
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("ingests event with source 'push' and returns OK", async () => {

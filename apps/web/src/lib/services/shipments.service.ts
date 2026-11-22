@@ -184,9 +184,11 @@ export async function getAdminPickupBranches(
   postcode: string,
   limit?: number
 ): Promise<BranchSnapshot[]> {
-  const query = new URLSearchParams({ postcode });
-  if (limit) query.set('limit', String(limit));
-  const res = await get<BranchSnapshot[]>(`/shipments/branches?${query.toString()}`);
+  // POST: el código postal no viaja en la URL
+  const res = await post<BranchSnapshot[]>('/shipments/branches/search', {
+    postcode,
+    ...(limit ? { limit } : {})
+  });
   if (!res.success || !res.data) {
     throw new Error(res.error?.message ?? 'Error al obtener las sucursales');
   }

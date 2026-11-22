@@ -5,7 +5,7 @@ import * as shipmentController from './shipment.controller.js';
 import { validate } from '../../shared/middleware/validation.middleware.js';
 import { authMiddleware, requireRole } from '../../shared/middleware/auth.middleware.js';
 import {
-  branchesQuerySchema,
+  branchesSearchSchema,
   createShipmentSchema,
   idParamSchema,
   orderIdParamSchema,
@@ -35,32 +35,41 @@ router.get('/config', shipmentController.config);
 
 /**
  * @swagger
- * /api/shipments/branches:
- *   get:
+ * /api/shipments/branches/search:
+ *   post:
  *     summary: Sucursales de Andreani para retiro cerca de un código postal
+ *     description: POST para que el código postal no viaje en la URL.
  *     tags: [Shipments]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: postcode
- *         required: true
- *         schema:
- *           type: string
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 50
- *           default: 20
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [postcode]
+ *             properties:
+ *               postcode:
+ *                 type: string
+ *               limit:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 50
+ *                 default: 20
  *     responses:
  *       200:
  *         description: Lista de sucursales
+ *       400:
+ *         description: Código postal inválido
  *       503:
  *         description: Integración con Andreani deshabilitada
  */
-router.get('/branches', validate(branchesQuerySchema, 'query'), shipmentController.branches);
+router.post(
+  '/branches/search',
+  validate(branchesSearchSchema, 'body'),
+  shipmentController.branches
+);
 
 /**
  * @swagger

@@ -5,7 +5,7 @@
 // ({ message, error, status }), por eso NO usa ApiResponseBuilder. Andreani trata 200/201/202
 // como éxito, reintenta ante 5xx (cada 5 min, hasta 3 veces) y no reintenta otros códigos.
 
-import { createHash, timingSafeEqual } from 'crypto';
+import { timingSafeEqual } from 'crypto';
 import type { Request, Response } from 'express';
 import { getAndreaniConfig } from '../../infrastructure/external/andreani/config.js';
 import { logger } from '../../infrastructure/logger/index.js';
@@ -15,20 +15,33 @@ import * as shipmentRepository from './shipment.repository.js';
 
 type PushResponse = { message: string; error: string; status: 'OK' | 'ERROR' };
 
-const sha256 = (s: string): Buffer => createHash('sha256').update(s).digest();
-
-/** Compara en tiempo constante: ambos lados se hashean, así los buffers siempre miden lo mismo. */
+/**
+ * Compara en tiempo constante. Ambos lados se copian a buffers del mismo largo (timingSafeEqual
+ * exige largos iguales) y la igualdad de largo se chequea después, sin cortocircuitar antes de
+ * comparar el contenido.
+ */
 function safeEqual(a: string, b: string): boolean {
-  return timingSafeEqual(sha256(a), sha256(b));
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
+  const len = Math.max(bufA.length, bufB.length, 1);
+  const padA = Buffer.alloc(len);
+  const padB = Buffer.alloc(len);
+  bufA.copy(padA);
+  bufB.copy(padB);
+  const sameContent = timingSafeEqual(padA, padB);
+  return sameContent && bufA.length === bufB.length;
 }
 
+const NO_CREDENTIALS = { user: '', pass: '' };
+
+/** Parsea `Authorization: Basic <base64>` sin regex sobre el header completo (evita ReDoS). */
 function parseBasicAuth(header: string | undefined): { user: string; pass: string } {
-  const match = /^Basic\s+(.+)$/i.exec(header ?? '');
-  const decoded = match ? Buffer.from(match[1], 'base64').toString('utf8') : '';
+  const value = (header ?? '').trim();
+  const sep = value.search(/\s/);
+  if (sep < 0 || value.slice(0, sep).toLowerCase() !== 'basic') return NO_CREDENTIALS;
+  const decoded = Buffer.from(value.slice(sep + 1).trim(), 'base64').toString('utf8');
   const idx = decoded.indexOf(':');
-  return idx < 0
-    ? { user: '', pass: '' }
-    : { user: decoded.slice(0, idx), pass: decoded.slice(idx + 1) };
+  return idx < 0 ? NO_CREDENTIALS : { user: decoded.slice(0, idx), pass: decoded.slice(idx + 1) };
 }
 
 const reply = (res: Response, http: number, body: PushResponse): void => {

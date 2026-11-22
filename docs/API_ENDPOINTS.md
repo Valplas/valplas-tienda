@@ -112,7 +112,7 @@ Si `ANDREANI_MODE=disabled` responden 503.
 
 | Method | Endpoint                             | Auth  | Roles        | Description                                                    |
 | ------ | ------------------------------------ | ----- | ------------ | -------------------------------------------------------------- |
-| GET    | `/shipments/branches`                | ✅    | admin, owner | Sucursales de retiro cerca de un CP (`postcode`, `limit`)      |
+| POST   | `/shipments/branches/search`         | ✅    | admin, owner | Sucursales de retiro cerca de un CP (body `postcode`, `limit`) |
 | GET    | `/shipments/orders/:orderId/preview` | ✅    | admin, owner | Bultos, contrato, localidad y warnings antes de crear el envío |
 | POST   | `/shipments/orders/:orderId`         | ✅    | admin, owner | Crear envío en Andreani (pre-envío + etiqueta)                 |
 | POST   | `/shipments/:id/cancel`              | ✅    | admin, owner | Cancelar envío (asíncrono; confirma el job)                    |

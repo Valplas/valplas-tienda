@@ -18,7 +18,7 @@ vi.mock('../../infrastructure/external/andreani/index.js', () => ({
 import shipmentRoutes from '../../modules/shipments/shipment.routes.js';
 import {
   createShipmentSchema,
-  branchesQuerySchema,
+  branchesSearchSchema,
   previewQuerySchema
 } from '../../modules/shipments/shipment.validators.js';
 import { errorHandler } from '../../shared/middleware/error.middleware.js';
@@ -52,7 +52,7 @@ const ROUTES: [string, string][] = [
   ['POST', `/${ID}/discard`],
   ['GET', '/config'],
   ['GET', `/${ID}/label`],
-  ['GET', '/branches?postcode=1043']
+  ['POST', '/branches/search']
 ];
 
 describe('role guard', () => {
@@ -105,10 +105,10 @@ describe('validation', () => {
     ).toBe(true);
   });
 
-  it('branches query accepts a postcode and rejects limit over 50', () => {
-    expect(branchesQuerySchema.safeParse({ postcode: '1043' }).success).toBe(true);
-    expect(branchesQuerySchema.safeParse({ postcode: '1043', limit: '51' }).success).toBe(false);
-    expect(branchesQuerySchema.safeParse({}).success).toBe(false);
+  it('branches search body accepts a postcode and rejects limit over 50', () => {
+    expect(branchesSearchSchema.safeParse({ postcode: '1043' }).success).toBe(true);
+    expect(branchesSearchSchema.safeParse({ postcode: '1043', limit: 51 }).success).toBe(false);
+    expect(branchesSearchSchema.safeParse({}).success).toBe(false);
   });
 
   it('admin POST with invalid body -> 400 VALIDATION_ERROR', async () => {
@@ -121,12 +121,24 @@ describe('validation', () => {
     expect((await res.json()).error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('admin GET /branches is not shadowed by /:id routes and answers 503 when disabled', async () => {
-    const res = await fetch(`${base}/branches?postcode=1043`, {
-      headers: { Authorization: `Bearer ${adminToken()}` }
+  it('admin POST /branches/search answers 503 when disabled', async () => {
+    const res = await fetch(`${base}/branches/search`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postcode: '1043' })
     });
     expect(res.status).toBe(503);
     expect((await res.json()).error.code).toBe('ANDREANI_DISABLED');
+  });
+
+  it('admin POST /branches/search rejects an invalid postcode with 400', async () => {
+    const res = await fetch(`${base}/branches/search`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postcode: '1' })
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe('VALIDATION_ERROR');
   });
 });
 
