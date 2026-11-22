@@ -39,6 +39,10 @@ contrato domicilio, sucursal de origen y datos del remitente.
 
 `.env.example` solo lleva placeholders. Nunca commitear credenciales.
 
+Al arrancar se valida la config y el servidor no levanta si hay problemas: `ANDREANI_MODE` desconocido (antes se tomaba como
+`disabled` en silencio), `ANDREANI_POLL_CRON` inválido, `ANDREANI_AUTO_CREATE_SHIPMENT=true` con el modo `disabled`, `mock` en
+producción, o credenciales faltantes en `qa`/`prod`. `qa` en producción solo genera una advertencia en el log.
+
 ## 3. Flujo admin
 
 1. Pedido en `payment_confirmed`, `processing` o `ready_to_ship` (web, `ADM-`, `WSP-` o "a mano").
@@ -47,12 +51,29 @@ contrato domicilio, sucursal de origen y datos del remitente.
 3. `POST /api/shipments/orders/:orderId` registra el envío (`requesting`), llama a Andreani **fuera de transacción** y,
    si sale bien, deja el envío `pending`/`created` y el pedido en `ready_to_ship`.
    - Timeout o 5xx: queda `requesting`; el job re-POSTea el mismo payload (misma `idPedido`, Andreani responde 208).
+     Si tras 24 h o 12 reintentos Andreani sigue sin confirmar, el envío pasa a `error` ("Andreani no confirmó el alta
+     tras varios intentos; verificá en el portal de Andreani antes de reintentar"). Si mientras tanto el pedido dejó de
+     estar activo (cancelado, reembolsado), el job no reenvía el alta y lo marca `error`.
    - 4xx: envío en `error` con el mensaje de Andreani; se puede reintentar.
 4. **Descargar etiqueta** (`GET /api/shipments/:id/label`, PDF proxiado por la API), **Actualizar tracking**, **Cancelar**.
 5. El pedido pasa solo a `shipped` (con `shipped_at` y `tracking_number`) y `delivered` según las trazas.
 
 Cancelar un envío es asíncrono (solo antes del procesamiento logístico): queda `cancelling`, el job confirma con
 `GET /v2/nueva-accion/{n}` y, si Andreani acepta, el envío pasa a `cancelled` y el pedido vuelve a `processing`.
+**Descartar** (`POST /api/shipments/:id/discard`, solo admin/owner): para envíos trabados en `requesting` (pasa a `error`)
+o `cancelling` (pasa a `cancelled`). Es solo local, **no llama a Andreani**, y devuelve el pedido a `processing`
+(y limpia su `tracking_number` si era el del envío). El envío puede seguir existiendo en el portal de Andreani:
+verificarlo y cancelarlo ahí antes de generar uno nuevo. El botón del backoffice lo advierte en un diálogo.
+
+`GET /api/shipments/config` (solo admin/owner) devuelve `{ enabled, mode, autoCreate }` sin secretos; el backoffice lo usa
+para ocultar "Crear envío Andreani" con la integración deshabilitada.
+
+`quoted_price` queda en `NULL` hasta el PR-B (cotización de Andreani en el checkout); hoy no se guarda ninguna cotización.
+
+Mientras hay un envío activo no se puede editar el pedido (admin) ni volverlo manualmente de `ready_to_ship` a `processing`
+(409 `SHIPMENT_ACTIVE`). La cancelación del pedido chequea los envíos dentro de la misma transacción que bloquea el pedido,
+así que no puede cruzarse con un alta en curso.
+
 Un pedido con envío activo no se puede cancelar (409 `SHIPMENT_ACTIVE`); primero cancelá el envío.
 
 Seguridad relacionada: `PATCH /api/orders/:id/status` es solo admin/owner; los clientes solo cancelan `pending_payment`.
@@ -125,12 +146,13 @@ ANDREANI_MODE=prod bun run andreani:smoke -- --prod --yes-create-real-order
 Variables extra: `ANDREANI_SMOKE_POSTCODE` (default `1406`). El script nunca imprime credenciales ni tokens,
 sale con código 1 en el primer ❌, y escribe la etiqueta en `./andreani-smoke-label.pdf` (ignorado por git).
 La corrida completa crea una orden de prueba (`idPedido = smoke-<timestamp>`) y la cancela. En prod imprime una advertencia y se niega a correr sin `--yes-create-real-order`.
+Si el re-POST no devuelve 208 el script imprime una línea `⚠️` (Andreani podría no deduplicar por `idPedido`).
 Si un paso falla después de crear la orden, el script intenta cancelarla (best-effort) e imprime `numeroDeEnvio` y contrato para cancelarla a mano si el cleanup falla.
 
 **Checklist a confirmar con credenciales** (hay `TODO(smoke)` en `request-mapper.ts`):
 
 - [ ] **Token**: ¿viene en el header `x-authorization-token` o en el body? (el cliente soporta ambos; el smoke lo informa).
-- [ ] **208 por `idPedido`**: un re-POST con el mismo `idPedido` ¿devuelve 208? Si no, el reintento de `requesting` podría duplicar el envío.
+- [ ] **208 por `idPedido`**: un re-POST con el mismo `idPedido` ¿devuelve 208? Si no, el reintento de `requesting` podría duplicar el envío (el smoke avisa con `⚠️` cuando el status no es 208).
 - [ ] **Teléfonos**: códigos de `telefonos[].tipo` (hoy remitente `1`, destinatario `2`; las tablas del spec no coinciden).
 - [ ] **Origen**: ¿`origen.sucursal.id` acepta el `id` (ej. `10568`) o hay que mandar el `numero` (ej. `568`)? En QA público `id` y `numero` difieren.
 - [ ] **Cancelación**: body real de `POST /v2/nueva-accion` y forma de su respuesta / de `GET /v2/nueva-accion/{n}` (`state`, `razon`).
