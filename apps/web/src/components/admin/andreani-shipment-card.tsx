@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Copy, Download, ExternalLink, Loader2, RefreshCw, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -22,13 +22,16 @@ import { ShipmentTimeline } from '@/components/shipments/shipment-timeline';
 import type { Order } from '@/lib/services/orders.service';
 import {
   cancelShipment,
+  discardShipment,
   downloadShipmentLabel,
+  getShipmentsConfig,
   refreshShipment,
   type Shipment
 } from '@/lib/services/shipments.service';
 
 const NON_BLOCKING_STATUSES = ['cancelled', 'rejected', 'error', 'expired'];
 const CREATABLE_ORDER_STATUSES = ['payment_confirmed', 'processing', 'ready_to_ship'];
+const DISCARDABLE_STATUSES = ['requesting', 'cancelling'];
 const BLOB_REVOKE_DELAY_MS = 60_000;
 
 interface AndreaniShipmentCardProps {
@@ -46,12 +49,32 @@ export function AndreaniShipmentCard({ order, onChanged }: AndreaniShipmentCardP
   const [downloading, setDownloading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  // null mientras carga o si la consulta falla: en ese caso no se oculta nada.
+  const [integrationEnabled, setIntegrationEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getShipmentsConfig()
+      .then((cfg) => {
+        if (!cancelled) setIntegrationEnabled(cfg.enabled);
+      })
+      .catch(() => {
+        if (!cancelled) setIntegrationEnabled(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const shipments = latestFirst(order.shipments ?? []);
   const latest = shipments[0];
   const active = shipments.find((s) => !NON_BLOCKING_STATUSES.includes(s.status));
   const errorShipment = !active && latest?.status === 'error' ? latest : undefined;
-  const canCreate = !active && CREATABLE_ORDER_STATUSES.includes(order.status);
+  const integrationDisabled = integrationEnabled === false;
+  const canCreate =
+    !active && !integrationDisabled && CREATABLE_ORDER_STATUSES.includes(order.status);
 
   const handleCopy = async (value: string) => {
     try {
@@ -67,7 +90,14 @@ export function AndreaniShipmentCard({ order, onChanged }: AndreaniShipmentCardP
     try {
       const blob = await downloadShipmentLabel(shipment.id);
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      // Link con download en vez de window.open: después de un await los bloqueadores de
+      // popups cancelan la ventana.
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `etiqueta-${order.orderNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
       setTimeout(() => URL.revokeObjectURL(url), BLOB_REVOKE_DELAY_MS);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al descargar la etiqueta');
@@ -93,7 +123,7 @@ export function AndreaniShipmentCard({ order, onChanged }: AndreaniShipmentCardP
     setCancelling(true);
     try {
       await cancelShipment(shipment.id);
-      toast.success('Envío cancelado');
+      toast.success('Cancelación solicitada');
       setCancelOpen(false);
       onChanged();
     } catch (err) {
@@ -103,7 +133,21 @@ export function AndreaniShipmentCard({ order, onChanged }: AndreaniShipmentCardP
     }
   };
 
-  const busy = downloading || refreshing || cancelling;
+  const handleDiscard = async (shipment: Shipment) => {
+    setDiscarding(true);
+    try {
+      await discardShipment(shipment.id);
+      toast.success('Envío descartado');
+      setDiscardOpen(false);
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al descartar el envío');
+    } finally {
+      setDiscarding(false);
+    }
+  };
+
+  const busy = downloading || refreshing || cancelling || discarding;
 
   return (
     <Card>
@@ -180,6 +224,16 @@ export function AndreaniShipmentCard({ order, onChanged }: AndreaniShipmentCardP
                   Cancelar envío
                 </Button>
               )}
+              {DISCARDABLE_STATUSES.includes(active.status) && (
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setDiscardOpen(true)}
+                  disabled={busy}
+                >
+                  Descartar
+                </Button>
+              )}
             </div>
 
             <Separator />
@@ -209,6 +263,33 @@ export function AndreaniShipmentCard({ order, onChanged }: AndreaniShipmentCardP
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+
+            <AlertDialog open={discardOpen} onOpenChange={(o) => !discarding && setDiscardOpen(o)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Descartar envío</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esto solo descarta el envío en Valplas y libera el pedido. Andreani no es
+                    notificado: el envío puede seguir existiendo en su portal. Verificalo y, si
+                    existe, cancelalo ahí antes de generar uno nuevo.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={discarding}>Volver</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDiscard(active);
+                    }}
+                    disabled={discarding}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {discarding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {discarding ? 'Procesando...' : 'Descartar envío'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         ) : (
           <>
@@ -218,6 +299,11 @@ export function AndreaniShipmentCard({ order, onChanged }: AndreaniShipmentCardP
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">Sin envío Andreani generado.</p>
+            )}
+            {integrationDisabled && (
+              <p className="text-sm text-muted-foreground">
+                Integración con Andreani deshabilitada
+              </p>
             )}
             {canCreate && (
               <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">

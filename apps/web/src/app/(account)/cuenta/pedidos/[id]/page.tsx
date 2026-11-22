@@ -239,7 +239,11 @@ export default function OrderDetailPage() {
                   <p>CP: {order.shippingAddress.postcode}</p>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Retiro en sucursal</p>
+                <p className="text-sm text-muted-foreground">
+                  {order.shippingMethod === 'branch_pickup'
+                    ? 'Retiro en sucursal'
+                    : 'Sin dirección de entrega'}
+                </p>
               )}
             </CardContent>
           </Card>

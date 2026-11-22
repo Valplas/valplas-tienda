@@ -145,6 +145,29 @@ export async function cancelShipment(id: string): Promise<Shipment> {
   return res.data;
 }
 
+/** Descarta un envío trabado en requesting/cancelling (solo local; no llama a Andreani). */
+export async function discardShipment(id: string): Promise<Shipment> {
+  const res = await post<Shipment>(`/shipments/${id}/discard`);
+  if (!res.success || !res.data) {
+    throw new Error(res.error?.message ?? 'Error al descartar el envío');
+  }
+  return res.data;
+}
+
+export interface ShipmentsConfig {
+  enabled: boolean;
+  mode: string;
+  autoCreate: boolean;
+}
+
+export async function getShipmentsConfig(): Promise<ShipmentsConfig> {
+  const res = await get<ShipmentsConfig>('/shipments/config');
+  if (!res.success || !res.data) {
+    throw new Error(res.error?.message ?? 'Error al obtener la configuración de envíos');
+  }
+  return res.data;
+}
+
 export async function refreshShipment(id: string): Promise<Shipment> {
   const res = await post<Shipment>(`/shipments/${id}/refresh`);
   if (!res.success || !res.data) {
