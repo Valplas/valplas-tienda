@@ -231,11 +231,19 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
     ];
 
     if (newStatus && VALID_STATUS_TRANSITIONS[order.status].includes(newStatus)) {
-      await orderRepository.updateOrderStatus(
+      const updated = await orderRepository.updateOrderStatus(
         order.id,
         { status: newStatus, payment_id: paymentId, notes: `MP payment ${payment.status}` },
-        order.user_id
+        order.user_id,
+        { expectedStatus: order.status }
       );
+      if (!updated) {
+        // Otro proceso cambió el estado entre la lectura y el UPDATE: no se pisa.
+        logger.warn(
+          `MP webhook: conflicto de estado para orden ${order.order_number} (esperado ${order.status}, payment ${paymentId})`
+        );
+        return res.status(200).json({ received: true });
+      }
       logger.info(`MP webhook: order ${order.order_number} → ${newStatus}`);
 
       // Pago confirmado → la orden entra en preparación sin paso manual del
@@ -247,7 +255,8 @@ export async function handleWebhook(req: Request, res: Response, next: NextFunct
             status: 'processing',
             notes: 'Preparación iniciada automáticamente al confirmarse el pago'
           },
-          order.user_id
+          order.user_id,
+          { expectedStatus: 'payment_confirmed' }
         );
         logger.info(`MP webhook: order ${order.order_number} → processing (auto)`);
       }

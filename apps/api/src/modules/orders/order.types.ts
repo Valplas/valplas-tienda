@@ -49,6 +49,15 @@ export interface Order {
   payment_method: string | null;
   payment_id: string | null;
   paid_at: Date | null;
+  // Envío / entrega
+  shipping_method: 'home_delivery' | 'branch_pickup';
+  /** Snapshot de la sucursal elegida; se tipa con BranchSnapshot en una tarea posterior. */
+  pickup_branch: Record<string, unknown> | null;
+  recipient_document: string | null;
+  tracking_number: string | null;
+  shipped_at: Date | null;
+  delivered_at: Date | null;
+  cancelled_at: Date | null;
   // Notes
   customer_notes: string | null;
   admin_notes: string | null;
@@ -176,7 +185,7 @@ export const VALID_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ['payment_confirmed', 'cancelled', 'failed'],
   payment_confirmed: ['processing', 'refunded', 'cancelled'],
   processing: ['ready_to_ship', 'cancelled'],
-  ready_to_ship: ['shipped', 'cancelled'],
+  ready_to_ship: ['shipped', 'processing', 'cancelled'],
   shipped: ['delivered', 'cancelled'],
   delivered: ['refunded'],
   cancelled: [],

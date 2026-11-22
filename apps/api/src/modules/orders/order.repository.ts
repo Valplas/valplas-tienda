@@ -624,42 +624,130 @@ export async function createAdminOrder(
 export async function updateOrderStatus(
   orderId: string,
   data: UpdateOrderStatusInput,
-  changedBy: string
+  changedBy: string | null,
+  opts?: UpdateOrderStatusOptions
 ): Promise<Order | null> {
-  return transaction(async (client) => {
-    // Update order
-    const updates: string[] = ['status = $1', 'updated_at = NOW()'];
-    const params: unknown[] = [data.status];
-    let paramIndex = 2;
+  return transaction((client) => updateOrderStatusTx(client, orderId, data, changedBy, opts));
+}
 
-    if (data.payment_id !== undefined) {
-      updates.push(`payment_id = $${paramIndex}`);
-      params.push(data.payment_id);
-      paramIndex++;
-    }
+/** Camino feliz de una orden pagada; advanceOrderTo solo avanza sobre este orden. */
+export const ORDER_FORWARD_PATH: OrderStatus[] = [
+  'payment_confirmed',
+  'processing',
+  'ready_to_ship',
+  'shipped',
+  'delivered'
+];
 
-    params.push(orderId);
+export interface UpdateOrderStatusOptions {
+  /** Compare-and-swap: solo actualiza si el estado actual es (uno de) estos. */
+  expectedStatus?: OrderStatus | OrderStatus[];
+  trackingNumber?: string;
+}
 
-    const orderResult = await client.query<Order>(
-      `UPDATE orders
-       SET ${updates.join(', ')}
-       WHERE id = $${paramIndex}
-       RETURNING *`,
-      params
+/**
+ * Update order status dentro de una transacción existente. Devuelve null cuando no se
+ * actualizó ninguna fila (orden inexistente o el estado actual no coincide con expectedStatus).
+ */
+export async function updateOrderStatusTx(
+  client: PoolClient,
+  orderId: string,
+  data: UpdateOrderStatusInput,
+  changedBy: string | null,
+  opts: UpdateOrderStatusOptions = {}
+): Promise<Order | null> {
+  const updates: string[] = ['status = $1', 'updated_at = NOW()'];
+  const params: unknown[] = [data.status];
+  let paramIndex = 2;
+
+  if (data.payment_id !== undefined) {
+    updates.push(`payment_id = $${paramIndex}`);
+    params.push(data.payment_id);
+    paramIndex++;
+  }
+
+  if (data.status === 'payment_confirmed') updates.push('paid_at = COALESCE(paid_at, NOW())');
+  if (data.status === 'shipped') updates.push('shipped_at = COALESCE(shipped_at, NOW())');
+  if (data.status === 'delivered') updates.push('delivered_at = COALESCE(delivered_at, NOW())');
+  if (data.status === 'cancelled') updates.push('cancelled_at = COALESCE(cancelled_at, NOW())');
+
+  if (opts.trackingNumber) {
+    updates.push(`tracking_number = COALESCE($${paramIndex}, tracking_number)`);
+    params.push(opts.trackingNumber);
+    paramIndex++;
+  }
+
+  params.push(orderId);
+  const idIndex = paramIndex;
+  paramIndex++;
+
+  let casClause = '';
+  if (opts.expectedStatus !== undefined) {
+    const expected = Array.isArray(opts.expectedStatus)
+      ? opts.expectedStatus
+      : [opts.expectedStatus];
+    casClause = ` AND status = ANY($${paramIndex}::order_status[])`;
+    params.push(expected);
+  }
+
+  const orderResult = await client.query<Order>(
+    `UPDATE orders
+     SET ${updates.join(', ')}
+     WHERE id = $${idIndex}${casClause}
+     RETURNING *`,
+    params
+  );
+
+  const order = orderResult.rows[0];
+  if (!order) return null;
+
+  await client.query(
+    `INSERT INTO order_status_history (order_id, status, notes, changed_by)
+     VALUES ($1, $2, $3, $4)`,
+    [orderId, data.status, data.notes || null, changedBy]
+  );
+
+  return order;
+}
+
+/**
+ * Avanza la orden por ORDER_FORWARD_PATH hasta `target`, registrando cada paso intermedio.
+ * No-op (devuelve la orden tal cual) si el estado actual está fuera del camino
+ * (cancelled/refunded/failed/pending_payment) o ya está en/después de `target`.
+ */
+export async function advanceOrderTo(
+  client: PoolClient,
+  orderId: string,
+  target: 'processing' | 'ready_to_ship' | 'shipped' | 'delivered',
+  note: string,
+  opts: { trackingNumber?: string } = {}
+): Promise<Order | null> {
+  const current = await client.query<Order>('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [
+    orderId
+  ]);
+  const order = current.rows[0];
+  if (!order) return null;
+
+  const currentIdx = ORDER_FORWARD_PATH.indexOf(order.status);
+  const targetIdx = ORDER_FORWARD_PATH.indexOf(target);
+  if (currentIdx === -1 || currentIdx >= targetIdx) return order;
+
+  let latest: Order = order;
+  let previous: OrderStatus = order.status;
+  for (let i = currentIdx + 1; i <= targetIdx; i++) {
+    const next = ORDER_FORWARD_PATH[i];
+    const updated = await updateOrderStatusTx(
+      client,
+      orderId,
+      { status: next, notes: note },
+      null,
+      { expectedStatus: previous, trackingNumber: opts.trackingNumber }
     );
-
-    const order = orderResult.rows[0];
-    if (!order) return null;
-
-    // Add to status history
-    await client.query(
-      `INSERT INTO order_status_history (order_id, status, notes, changed_by)
-       VALUES ($1, $2, $3, $4)`,
-      [orderId, data.status, data.notes || null, changedBy]
-    );
-
-    return order;
-  });
+    if (!updated) return latest;
+    latest = updated;
+    previous = next;
+  }
+  return latest;
 }
 
 /**
@@ -694,9 +782,10 @@ export async function findOrderStatusHistory(orderId: string): Promise<OrderStat
 export async function cancelOrder(
   orderId: string,
   notes: string,
-  changedBy: string
+  changedBy: string | null,
+  opts?: UpdateOrderStatusOptions
 ): Promise<Order | null> {
-  return updateOrderStatus(orderId, { status: 'cancelled', notes }, changedBy);
+  return updateOrderStatus(orderId, { status: 'cancelled', notes }, changedBy, opts);
 }
 
 /**

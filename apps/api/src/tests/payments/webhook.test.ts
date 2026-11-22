@@ -115,14 +115,16 @@ describe('MP webhook: verificación de firma', () => {
       1,
       'order-1',
       expect.objectContaining({ status: 'payment_confirmed', payment_id: DATA_ID }),
-      'user-1'
+      'user-1',
+      { expectedStatus: 'pending_payment' }
     );
     // Pedido pago → pasa automáticamente a preparación (sin paso manual del admin)
     expect(orderRepository.updateOrderStatus).toHaveBeenNthCalledWith(
       2,
       'order-1',
       expect.objectContaining({ status: 'processing' }),
-      'user-1'
+      'user-1',
+      { expectedStatus: 'payment_confirmed' }
     );
   });
 
@@ -283,7 +285,8 @@ describe('MP webhook: mapeo de estados', () => {
     expect(orderRepository.updateOrderStatus).toHaveBeenCalledWith(
       'order-1',
       expect.objectContaining({ status: 'failed' }),
-      'user-1'
+      'user-1',
+      { expectedStatus: expect.any(String) }
     );
   });
 
@@ -297,7 +300,8 @@ describe('MP webhook: mapeo de estados', () => {
     expect(orderRepository.updateOrderStatus).toHaveBeenCalledWith(
       'order-1',
       expect.objectContaining({ status: 'refunded' }),
-      'user-1'
+      'user-1',
+      { expectedStatus: expect.any(String) }
     );
   });
 
@@ -311,7 +315,8 @@ describe('MP webhook: mapeo de estados', () => {
     expect(orderRepository.updateOrderStatus).toHaveBeenCalledWith(
       'order-1',
       expect.objectContaining({ status: 'refunded' }),
-      'user-1'
+      'user-1',
+      { expectedStatus: expect.any(String) }
     );
   });
 

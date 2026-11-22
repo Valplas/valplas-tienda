@@ -27,7 +27,8 @@ export async function cancelStaleOrders(): Promise<number> {
           status: 'cancelled',
           notes: 'Cancelación automática: pago no completado (preferencia de MP expirada)'
         },
-        order.user_id
+        order.user_id,
+        { expectedStatus: 'pending_payment' }
       );
       cancelled++;
     } catch (error) {

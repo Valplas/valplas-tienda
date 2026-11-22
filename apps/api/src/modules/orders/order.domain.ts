@@ -65,7 +65,21 @@ export async function getOrderById(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para ver esta orden', 403);
   }
 
+  return isAdmin ? order : stripAdminNotes(order);
+}
+
+/** Las notas internas del admin nunca se exponen al cliente. */
+function stripAdminNotes<T extends { admin_notes: string | null }>(order: T): T {
+  delete (order as Partial<T>).admin_notes;
   return order;
+}
+
+/**
+ * Hook: bloquea la cancelación si hay un envío activo con el correo. Se implementa junto con
+ * la integración de envíos; por ahora no bloquea nada.
+ */
+export async function assertNoBlockingShipment(_orderId: string): Promise<void> {
+  // Sin envíos todavía: no-op.
 }
 
 /**
@@ -93,7 +107,7 @@ export async function getOrderByNumber(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para ver esta orden', 403);
   }
 
-  return orderWithDetails;
+  return isAdmin ? orderWithDetails : stripAdminNotes(orderWithDetails);
 }
 
 export interface CreateOrderOptions extends CreateOrderChannelOptions, OrderPricingOptions {
@@ -197,9 +211,18 @@ export async function updateOrderStatus(
     throw new AppError('ORDER_NOT_FOUND', 'Orden no encontrada', 404);
   }
 
-  // Check ownership unless admin
-  if (!isAdmin && order.user_id !== userId) {
+  // Solo admin/owner cambian estados (el controller y la ruta ya lo exigen; defensa en profundidad)
+  if (!isAdmin) {
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para modificar esta orden', 403);
+  }
+
+  // Otro admin ya aplicó este mismo estado (doble click / request concurrente): conflicto
+  if (order.status === data.status) {
+    throw new AppError(
+      'ORDER_STATUS_CONFLICT',
+      'El estado de la orden cambió mientras se procesaba la solicitud',
+      409
+    );
   }
 
   // Validate status transition
@@ -213,11 +236,21 @@ export async function updateOrderStatus(
     );
   }
 
-  // Update status
-  const updated = await orderRepository.updateOrderStatus(orderId, data, userId);
+  if (data.status === 'cancelled') {
+    await assertNoBlockingShipment(orderId);
+  }
+
+  // Compare-and-swap: si otro proceso cambió el estado entre la lectura y el UPDATE, 409
+  const updated = await orderRepository.updateOrderStatus(orderId, data, userId, {
+    expectedStatus: order.status
+  });
 
   if (!updated) {
-    throw new AppError('ORDER_OPERATION_FAILED', 'Error al actualizar estado de la orden', 500);
+    throw new AppError(
+      'ORDER_STATUS_CONFLICT',
+      'El estado de la orden cambió mientras se procesaba la solicitud',
+      409
+    );
   }
 
   return updated;
@@ -243,6 +276,15 @@ export async function cancelOrder(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para cancelar esta orden', 403);
   }
 
+  // El cliente solo puede cancelar mientras el pago está pendiente
+  if (!isAdmin && order.status !== 'pending_payment') {
+    throw new AppError(
+      'ORDER_NOT_CANCELLABLE',
+      `No se puede cancelar una orden en estado: ${order.status}`,
+      400
+    );
+  }
+
   // Check if cancellation is allowed
   const validTransitions = VALID_STATUS_TRANSITIONS[order.status];
   if (!validTransitions.includes('cancelled')) {
@@ -253,11 +295,18 @@ export async function cancelOrder(
     );
   }
 
-  // Cancel order
-  const cancelled = await orderRepository.cancelOrder(orderId, notes, userId);
+  await assertNoBlockingShipment(orderId);
+
+  const cancelled = await orderRepository.cancelOrder(orderId, notes, userId, {
+    expectedStatus: order.status
+  });
 
   if (!cancelled) {
-    throw new AppError('ORDER_OPERATION_FAILED', 'Error al cancelar orden', 500);
+    throw new AppError(
+      'ORDER_STATUS_CONFLICT',
+      'El estado de la orden cambió mientras se procesaba la solicitud',
+      409
+    );
   }
 
   return cancelled;

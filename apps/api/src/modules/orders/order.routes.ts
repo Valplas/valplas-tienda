@@ -157,6 +157,7 @@ router.get('/:id', orderController.getOrderById);
  */
 router.patch(
   '/:id/status',
+  requireRole(['admin', 'owner']),
   validate(updateOrderStatusSchema, 'body'),
   orderController.updateOrderStatus
 );
