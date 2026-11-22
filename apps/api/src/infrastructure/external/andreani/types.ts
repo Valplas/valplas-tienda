@@ -110,21 +110,31 @@ export interface AndreaniCancellationStatus {
 
 export interface AndreaniBranch {
   id: string | number;
+  codigo?: string;
   numero?: string | number;
   descripcion?: string;
   canal?: string;
   direccion?: {
     calle?: string;
     numero?: string;
-    localidad?: string;
     provincia?: string;
+    localidad?: string;
+    region?: string;
+    pais?: string;
     codigoPostal?: string;
-    [extra: string]: unknown;
   };
+  coordenadas?: { latitud?: string; longitud?: string };
   horarioDeAtencion?: string;
-  entregaEnvios?: boolean;
+  datosAdicionales?: {
+    seHaceAtencionAlCliente?: boolean;
+    conBuzonInteligente?: boolean;
+    tipo?: string;
+    tipoPd3?: string;
+    admiteEnvios?: boolean;
+    entregaEnvios?: boolean;
+  };
+  telefonos?: string[];
   codigosPostalesAtendidos?: string[];
-  [extra: string]: unknown;
 }
 
 export interface AndreaniLocality {
