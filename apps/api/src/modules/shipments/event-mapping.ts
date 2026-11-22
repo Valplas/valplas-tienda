@@ -125,6 +125,15 @@ const EVENT_RULES: Record<string, Rule> = {
 /** Reglas por prefijo (eventos con sufijo variable). */
 const EVENT_PREFIX_RULES: [prefix: string, rule: Rule][] = [['ExpedicionHojaDeRuta', toInTransit]];
 
+/** En ciclo de devolución, "en movimiento o esperando" significa que la devolución sigue en curso. */
+const RETURN_CYCLE_OVERRIDDEN: ReadonlySet<ShipmentStatus> = new Set([
+  'in_transit',
+  'out_for_delivery',
+  'ready_for_pickup',
+  'delivery_failed',
+  'delivered'
+]);
+
 /**
  * Estado de envío que implica un evento, o `null` si solo va al timeline.
  * Un evento de ciclo de devolución sin regla propia implica `returning`.
@@ -136,9 +145,12 @@ export function mapEvent(e: MapInput, serviceType: ServiceType): ShipmentStatus 
   };
   const rule =
     EVENT_RULES[e.event] ?? EVENT_PREFIX_RULES.find(([prefix]) => e.event.startsWith(prefix))?.[1];
-  if (rule) return rule(ctx, serviceType);
-  if (isReturnCycle(ctx.cycle)) return 'returning';
-  return null;
+  const returnCycle = isReturnCycle(ctx.cycle);
+  if (rule) {
+    const status = rule(ctx, serviceType);
+    return returnCycle && RETURN_CYCLE_OVERRIDDEN.has(status) ? 'returning' : status;
+  }
+  return returnCycle ? 'returning' : null;
 }
 
 export function deriveShipmentStatus(

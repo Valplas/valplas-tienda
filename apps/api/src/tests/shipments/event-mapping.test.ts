@@ -38,6 +38,13 @@ describe('mapEvent', () => {
     ['SolicitudDeRescate', 'Rescate', null, 'home_delivery', 'returning'],
     ['Rescate', 'Rescate', null, 'home_delivery', 'returning'],
     ['Impresion', 'Drop', null, 'home_delivery', 'returning'],
+    ['ComienzoCustodiaEnSucursal', 'Drop', null, 'branch_pickup', 'returning'],
+    ['ComienzoCustodiaEnSucursal', 'Devolucion', 'Entregado', 'home_delivery', 'returning'],
+    ['Admision', 'Devolucion', null, 'home_delivery', 'returning'],
+    ['AltaAutomatica', 'Drop', null, 'home_delivery', 'returning'],
+    ['Distribucion', 'DEVOLUCION', null, 'home_delivery', 'returning'],
+    ['Siniestro', 'Drop', null, 'home_delivery', 'incident'],
+    ['EnvioAnulado', 'Devolucion', null, 'home_delivery', 'cancelled'],
     ['EnvioEntregado', 'Devolucion', null, 'home_delivery', 'returned'],
     ['EnvioEntregado', 'DEVOLUCION', null, 'home_delivery', 'returned'],
     ['EnvioRendido', 'Distribution', null, 'home_delivery', 'returned'],
@@ -206,6 +213,21 @@ describe('deriveShipmentStatus', () => {
         'created'
       )
     ).toBe('cancelled');
+  });
+
+  it('return-cycle movement keeps returning', () => {
+    expect(
+      deriveShipmentStatus(
+        [
+          ev('Admision', '2025-01-01T00:00:00Z'),
+          ev('EnvioNoEntregado', '2025-01-02T00:00:00Z'),
+          ev('Admision', '2025-01-03T00:00:00Z', 'Drop'),
+          ev('ComienzoCustodiaEnSucursal', '2025-01-04T00:00:00Z', 'Drop')
+        ],
+        'home_delivery',
+        'created'
+      )
+    ).toBe('returning');
   });
 
   it('uses service type for branch custody', () => {
