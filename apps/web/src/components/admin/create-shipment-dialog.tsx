@@ -73,10 +73,13 @@ export function CreateShipmentDialog({
   const [branches, setBranches] = useState<BranchSnapshot[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [previewKey, setPreviewKey] = useState<string | null>(null);
   const requestRef = useRef(0);
+  const branchesRequestRef = useRef(0);
   const rowsInitialized = useRef(false);
 
   const serviceType = requestedService ?? preview?.serviceType ?? 'home_delivery';
+  const selectionKey = `${requestedService ?? ''}|${branchId ?? ''}`;
   const effectivePostcode = (postcode || postcodeInput).trim();
 
   // Reset when closing
@@ -85,6 +88,7 @@ export function CreateShipmentDialog({
     setRequestedService(undefined);
     setBranchId(undefined);
     setPreview(null);
+    setPreviewKey(null);
     setPreviewError(null);
     setRows([]);
     setLocalidad('');
@@ -103,6 +107,7 @@ export function CreateShipmentDialog({
       .then((data) => {
         if (requestId !== requestRef.current) return;
         setPreview(data);
+        setPreviewKey(`${requestedService ?? ''}|${branchId ?? ''}`);
         if (!rowsInitialized.current) {
           rowsInitialized.current = true;
           setRows(
@@ -123,14 +128,22 @@ export function CreateShipmentDialog({
   }, [open, orderId, requestedService, branchId]);
 
   const loadBranches = useCallback(async (cp: string) => {
+    const requestId = ++branchesRequestRef.current;
     setLoadingBranches(true);
     try {
-      setBranches(await getAdminPickupBranches(cp));
+      const list = await getAdminPickupBranches(cp);
+      if (requestId !== branchesRequestRef.current) return;
+      setBranches(list);
+      setBranchId((current) =>
+        current && list.some((b) => b.id === current) ? current : undefined
+      );
     } catch (err) {
+      if (requestId !== branchesRequestRef.current) return;
       setBranches([]);
+      setBranchId(undefined);
       toast.error(err instanceof Error ? err.message : 'Error al obtener las sucursales');
     } finally {
-      setLoadingBranches(false);
+      if (requestId === branchesRequestRef.current) setLoadingBranches(false);
     }
   }, []);
 
@@ -154,6 +167,8 @@ export function CreateShipmentDialog({
     rows.length > 0 && rows.every((r) => Number(r.kilos) > 0 && Number(r.volumeCm3) > 0);
   const canSubmit =
     !!preview &&
+    previewKey === selectionKey &&
+    !previewError &&
     preview.canCreate &&
     rowsValid &&
     !loadingPreview &&
@@ -201,12 +216,13 @@ export function CreateShipmentDialog({
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-10 w-full" />
           </div>
-        ) : previewError && !preview ? (
-          <Alert variant="destructive">
-            <AlertDescription>{previewError}</AlertDescription>
-          </Alert>
         ) : preview ? (
           <div className="space-y-5">
+            {previewError && (
+              <Alert variant="destructive">
+                <AlertDescription>{previewError}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label>Tipo de servicio</Label>
               <RadioGroup
@@ -233,7 +249,14 @@ export function CreateShipmentDialog({
                     <Input
                       placeholder="Código postal"
                       value={postcodeInput}
-                      onChange={(e) => setPostcodeInput(e.target.value)}
+                      onChange={(e) => {
+                        setPostcodeInput(e.target.value);
+                        // Invalida búsquedas en curso y la lista/selección anterior
+                        branchesRequestRef.current++;
+                        setLoadingBranches(false);
+                        setBranches([]);
+                        setBranchId(undefined);
+                      }}
                       inputMode="numeric"
                     />
                     <Button
@@ -276,7 +299,11 @@ export function CreateShipmentDialog({
                 <Label>Bultos</Label>
                 <span className="text-xs text-muted-foreground">
                   Canal {channelFor(rows)}
-                  {preview.contract ? ` · Contrato ${preview.contract}` : ''}
+                  {channelFor(rows) !== preview.channel
+                    ? ` · Contrato: se determina al crear (canal ${channelFor(rows)})`
+                    : preview.contract
+                      ? ` · Contrato ${preview.contract}`
+                      : ''}
                 </span>
               </div>
               {rows.map((row, index) => (
@@ -371,6 +398,10 @@ export function CreateShipmentDialog({
               </Alert>
             )}
           </div>
+        ) : previewError ? (
+          <Alert variant="destructive">
+            <AlertDescription>{previewError}</AlertDescription>
+          </Alert>
         ) : null}
 
         <DialogFooter className="flex-col gap-2 sm:flex-row">
