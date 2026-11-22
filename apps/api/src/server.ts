@@ -119,6 +119,7 @@ import paymentsRoutes from './modules/payments/payments.routes.js';
 import bannerRoutes from './modules/banners/banner.routes.js';
 import settingsRoutes from './modules/settings/settings.routes.js';
 import botRoutes from './modules/bot/bot.routes.js';
+import shipmentRoutes from './modules/shipments/shipment.routes.js';
 import { scheduleTokenCleanup } from './infrastructure/jobs/cleanup-tokens.job.js';
 import { scheduleStaleOrderCancellation } from './infrastructure/jobs/cancel-stale-orders.job.js';
 import { scheduleStagedImageCleanup } from './infrastructure/jobs/cleanup-staged-images.job.js';
@@ -141,6 +142,7 @@ app.use('/api/catalog', catalogRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/shipments', shipmentRoutes);
 // Bot de WhatsApp: X-Api-Key, sin cookies (exento de CSRF y del limiter general)
 app.use('/api/bot', botRoutes);
 
