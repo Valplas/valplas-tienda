@@ -15,6 +15,7 @@ import * as shippingRepository from '../shipping/shipping.repository.js';
 import { findProductsByIds } from '../products/product.repository.js';
 import { getTiersForCartItems } from '../cart/cart.repository.js';
 import { findPriceListsByIds } from '../price-lists/price-list.repository.js';
+import { findBlockingByOrderId } from '../shipments/shipment.repository.js';
 import { VALID_STATUS_TRANSITIONS } from './order.types.js';
 import type {
   Order,
@@ -74,12 +75,16 @@ function stripAdminNotes<T extends { admin_notes: string | null }>(order: T): T 
   return order;
 }
 
-/**
- * Hook: bloquea la cancelación si hay un envío activo con el correo. Se implementa junto con
- * la integración de envíos; por ahora no bloquea nada.
- */
-export async function assertNoBlockingShipment(_orderId: string): Promise<void> {
-  // Sin envíos todavía: no-op.
+/** Bloquea la cancelación del pedido si hay un envío activo con el correo. */
+export async function assertNoBlockingShipment(orderId: string): Promise<void> {
+  const shipment = await findBlockingByOrderId(orderId);
+  if (shipment) {
+    throw new AppError(
+      'SHIPMENT_ACTIVE',
+      'El pedido tiene un envío activo con Andreani. Cancelá el envío antes de cancelar el pedido.',
+      409
+    );
+  }
 }
 
 /**
