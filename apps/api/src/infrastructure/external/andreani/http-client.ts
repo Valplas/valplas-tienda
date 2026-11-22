@@ -79,6 +79,21 @@ function toError(res: RawResponse): AndreaniError {
   return new AndreaniError('VALIDATION', message, opts);
 }
 
+function requireObject(value: unknown, what: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new AndreaniError('UPSTREAM', `Andreani devolvió una respuesta inválida (${what})`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function toOrderResponse(value: unknown): AndreaniOrderResponse {
+  const obj = requireObject(value, 'orden de envío');
+  if (!Array.isArray(obj.bultos)) {
+    throw new AndreaniError('UPSTREAM', 'Andreani devolvió una orden de envío sin bultos');
+  }
+  return obj as unknown as AndreaniOrderResponse;
+}
+
 function toNumber(value: unknown, what: string): number {
   const n = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
   if (value === '' || value === null || !Number.isFinite(n)) {
@@ -158,10 +173,14 @@ export function createHttpAndreaniClient(
     const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const hasBody = opts.body !== undefined;
 
+    let sentToken: string | null = null;
     const send = async (): Promise<RawResponse> => {
       const headers: Record<string, string> = { ...opts.headers };
       if (hasBody) headers['Content-Type'] = 'application/json';
-      if (authenticated) headers[TOKEN_HEADER] = await getToken();
+      if (authenticated) {
+        sentToken = await getToken();
+        headers[TOKEN_HEADER] = sentToken;
+      }
       return rawFetch(
         `${cfg.baseUrl}${path}`,
         {
@@ -176,7 +195,9 @@ export function createHttpAndreaniClient(
     let res = await send();
     if (res.status === 401 && authenticated) {
       logger.warn('Andreani respondió 401; reloguéo y reintento una vez');
-      token = null;
+      // Solo se invalida si el token cacheado es el que rechazó Andreani: si otra request
+      // concurrente ya renovó el token, no se fuerza un segundo login.
+      if (token && token.value === sentToken) token = null;
       res = await send();
     }
     if (res.status >= 200 && res.status < 300) return res;
@@ -212,14 +233,14 @@ export function createHttpAndreaniClient(
       const res = await request('/v2/ordenes-de-envio', { method: 'POST', body });
       return {
         httpStatus: res.status === 208 ? 208 : 202,
-        body: parseJson(res.body) as AndreaniOrderResponse
+        body: toOrderResponse(parseJson(res.body))
       };
     },
 
     async getOrder(numero: string): Promise<AndreaniOrderResponse> {
-      return (await requestJson(
-        `/v2/ordenes-de-envio/${encodeURIComponent(numero)}`
-      )) as AndreaniOrderResponse;
+      return toOrderResponse(
+        await requestJson(`/v2/ordenes-de-envio/${encodeURIComponent(numero)}`)
+      );
     },
 
     async getLabel(id: string, format: 'pdf' | 'zpl' = 'pdf') {
@@ -235,7 +256,10 @@ export function createHttpAndreaniClient(
     },
 
     async getTraces(numero: string): Promise<AndreaniTraceEvent[]> {
-      const data = asRecord(await requestJson(`/v3/envios/${encodeURIComponent(numero)}/trazas`));
+      const data = requireObject(
+        await requestJson(`/v3/envios/${encodeURIComponent(numero)}/trazas`),
+        'trazas'
+      );
       return Array.isArray(data.eventos) ? (data.eventos as AndreaniTraceEvent[]) : [];
     },
 

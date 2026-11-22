@@ -110,6 +110,29 @@ describe('login y token', () => {
     expect(headerOf(fetchImpl.mock.calls[3], 'x-authorization-token')).toBe('T2');
   });
 
+  it('401 concurrentes con el token viejo provocan un solo re-login', async () => {
+    let logins = 0;
+    const sentTokens: string[] = [];
+    fetchImpl.mockImplementation(async (url: string, init?: FetchInit) => {
+      if (String(url).endsWith('/login')) {
+        logins += 1;
+        return json({}, 200, { 'x-authorization-token': `T${logins}` });
+      }
+      const sent = new Headers(init?.headers).get('x-authorization-token') ?? '';
+      sentTokens.push(sent);
+      return sent === 'T1' ? json({}, 401) : json({ eventos: [] });
+    });
+    const client = make();
+
+    await expect(
+      Promise.all([client.getTraces('1'), client.getTraces('2'), client.getTraces('3')])
+    ).resolves.toEqual([[], [], []]);
+
+    expect(logins).toBe(2);
+    expect(sentTokens.filter((t) => t === 'T1')).toHaveLength(3);
+    expect(sentTokens.filter((t) => t === 'T2')).toHaveLength(3);
+  });
+
   it('dos 401 seguidos terminan en AUTH', async () => {
     fetchImpl.mockImplementation(async (url: string) =>
       String(url).endsWith('/login') ? loginOk() : json({}, 401)
@@ -244,6 +267,24 @@ describe('endpoints autenticados', () => {
     expect(created.httpStatus).toBe(202);
     expect(String(fetchImpl.mock.calls[1][0])).toBe(`${BASE}/v2/ordenes-de-envio`);
     expect((fetchImpl.mock.calls[1][1] as FetchInit).method).toBe('POST');
+  });
+
+  it('createOrder con body vacío en un 202 es UPSTREAM', async () => {
+    fetchImpl.mockResolvedValueOnce(new Response(null, { status: 202 }));
+
+    await expect(make().createOrder({} as never)).rejects.toMatchObject({ code: 'UPSTREAM' });
+  });
+
+  it('createOrder sin bultos en el body es UPSTREAM', async () => {
+    fetchImpl.mockResolvedValueOnce(json({ estado: 'Pendiente' }, 202));
+
+    await expect(make().createOrder({} as never)).rejects.toMatchObject({ code: 'UPSTREAM' });
+  });
+
+  it('getTraces con body no objeto es UPSTREAM', async () => {
+    fetchImpl.mockResolvedValueOnce(json('oops'));
+
+    await expect(make().getTraces('1')).rejects.toMatchObject({ code: 'UPSTREAM' });
   });
 
   it('getLabel manda Accept y devuelve Buffer', async () => {

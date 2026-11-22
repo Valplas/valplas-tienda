@@ -32,36 +32,42 @@ export interface AndreaniAddress {
   sucursal?: { id: string };
 }
 
+/** Remitente / destinatario del request de create-order (el campo es `email`, no `eMail`). */
 export interface AndreaniPerson {
-  nombreCompleto?: string;
-  eMail?: string;
+  nombreCompleto: string;
+  email?: string;
   documentoTipo?: string;
   documentoNumero?: string;
   telefonos?: { tipo: number; numero: string }[];
 }
 
+/**
+ * Bulto del request. Deliberadamente NO declara valorDeclaradoConImpuestos ni valorACobrar
+ * (gestión de cobranza / contrareembolso): Valplas nunca los envía.
+ */
 export interface AndreaniParcel {
-  kilos?: number;
+  kilos: number;
   largoCm?: number;
   altoCm?: number;
   anchoCm?: number;
-  volumenCm?: number;
+  volumenCm: number;
   valorDeclaradoSinImpuestos?: number;
-  valorDeclaradoConImpuestos?: number;
-  descripcion?: string;
   referencias?: { meta: string; contenido: string }[];
+  descripcion?: string;
 }
 
+/** Request de POST /v2/ordenes-de-envio. Sin index signature: el compilador rechaza claves extra. */
 export interface AndreaniCreateOrderRequest {
   contrato: string;
+  tipoDeServicio?: string;
+  sucursalClienteID?: number;
   idPedido?: string;
   origen: AndreaniAddress;
   destino: AndreaniAddress;
   remitente: AndreaniPerson;
   destinatario: AndreaniPerson[];
+  remito?: { numeroRemito: string; complementarios?: string[] };
   bultos: AndreaniParcel[];
-  referencias?: { meta: string; contenido: string }[];
-  [extra: string]: unknown;
 }
 
 export interface AndreaniOrderResponse {
