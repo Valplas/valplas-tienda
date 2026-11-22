@@ -28,8 +28,8 @@ export const CSRF_COOKIE_NAME = USE_CROSS_SITE_COOKIES
   ? '__Host-valplas.x-csrf-token'
   : 'valplas.x-csrf-token';
 
-// Requests server-to-server sin cookies de sesión ni token (webhook de Mercado Pago)
-const CSRF_EXEMPT_PATHS = new Set(['/api/payments/webhook']);
+// Requests server-to-server sin cookies de sesión ni token (webhooks de Mercado Pago y Andreani)
+const CSRF_EXEMPT_PATHS = new Set(['/api/payments/webhook', '/api/webhooks/andreani']);
 
 // API del bot de WhatsApp: se autentica con X-Api-Key (requireBotApiKey) y su router nunca
 // lee cookies de sesión, así que un sitio ajeno no puede montar un ataque CSRF contra ella
