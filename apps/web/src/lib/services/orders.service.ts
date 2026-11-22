@@ -77,6 +77,8 @@ export interface Order {
   trackingNumber?: string | null;
   shippedAt?: string | null;
   deliveredAt?: string | null;
+  cancelledAt?: string | null;
+  paidAt?: string | null;
   shippingMethod?: ServiceType;
   pickupBranch?: BranchSnapshot | null;
   statusHistory?: OrderStatusHistoryEntry[];

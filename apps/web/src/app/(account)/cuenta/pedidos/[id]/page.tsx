@@ -86,6 +86,11 @@ export default function OrderDetailPage() {
             Realizado el {formatDate(order.createdAt)} a las{' '}
             {formatDateTime(order.createdAt).split(' ')[1]}
           </p>
+          {order.cancelledAt && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Cancelado el {formatDateTime(order.cancelledAt)}
+            </p>
+          )}
         </div>
         <OrderStatusBadge status={order.status} />
       </div>
