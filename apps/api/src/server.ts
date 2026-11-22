@@ -128,6 +128,7 @@ import { scheduleBotWebhookDelivery } from './infrastructure/jobs/deliver-bot-we
 import { scheduleAndreaniTracking } from './infrastructure/jobs/andreani-tracking.job.js';
 import {
   getAndreaniConfig,
+  andreaniConfigWarnings,
   validateAndreaniConfig
 } from './infrastructure/external/andreani/config.js';
 import { pool } from './infrastructure/database/client.js';
@@ -186,6 +187,9 @@ app.use((req, res) => {
 
 // Validar la config de Andreani antes de programar jobs (falla rápido: mock en producción,
 // credenciales faltantes en qa/prod). En modo 'disabled' no devuelve problemas.
+for (const warning of andreaniConfigWarnings(getAndreaniConfig(), env.IS_PRODUCTION)) {
+  console.warn(`⚠️ Config Andreani: ${warning}`);
+}
 const andreaniProblems = validateAndreaniConfig(getAndreaniConfig(), env.IS_PRODUCTION);
 if (andreaniProblems.length > 0) {
   for (const problem of andreaniProblems) console.error(`❌ Config Andreani: ${problem}`);

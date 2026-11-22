@@ -125,6 +125,34 @@ describe('order shipment view', () => {
     expect(without?.active_shipment).toBeNull();
   });
 
+  it.each(['requesting', 'error', 'rejected', 'cancelled', 'expired'])(
+    'customer list hides active_shipment when it is %s',
+    async (status) => {
+      const user = await createTestUser();
+      const orderId = await createOrder(user.id);
+      // 'cancelled'/'error'/... ya están excluidos en SQL; 'requesting' llega al dominio.
+      await insertShipment(orderId, status, null);
+      const { orders } = await orderDomain.getUserOrders(user.id, { limit: 20 });
+      expect(orders.find((o) => o.id === orderId)?.active_shipment ?? null).toBeNull();
+    }
+  );
+
+  it('customer list still shows a visible active_shipment', async () => {
+    const user = await createTestUser();
+    const orderId = await createOrder(user.id);
+    await insertShipment(orderId, 'pending', TRACKING);
+    const { orders } = await orderDomain.getUserOrders(user.id, { limit: 20 });
+    expect(orders.find((o) => o.id === orderId)?.active_shipment?.status).toBe('pending');
+  });
+
+  it('admin list keeps showing a requesting active_shipment', async () => {
+    const user = await createTestUser();
+    const orderId = await createOrder(user.id);
+    await insertShipment(orderId, 'requesting', null);
+    const { orders } = await orderDomain.getAllOrders({ user_id: user.id, limit: 20 });
+    expect(orders.find((o) => o.id === orderId)?.active_shipment?.status).toBe('requesting');
+  });
+
   it('customer getUserOrders rows have no admin_notes', async () => {
     const { user } = await setup();
     const { orders } = await orderDomain.getUserOrders(user.id, { limit: 20 });

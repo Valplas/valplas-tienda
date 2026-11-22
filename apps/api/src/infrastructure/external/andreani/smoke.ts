@@ -149,10 +149,15 @@ async function runAuthenticated(
   let cancelRequested = false;
 
   try {
-    await step('Re-POST mismo idPedido (idempotencia)', async () => {
+    const rePost = await step('Re-POST mismo idPedido (idempotencia)', async () => {
       const r = await client.createOrder(request);
       return { value: r, info: `HTTP ${r.httpStatus} (esperado 208)` };
     });
+    if (rePost.httpStatus !== 208) {
+      console.warn(
+        `⚠️ El re-POST con el mismo idPedido devolvió HTTP ${rePost.httpStatus} y no 208: Andreani podría no deduplicar por idPedido y el reintento de un envío 'requesting' duplicaría el envío. Revisá la orden en el portal antes de habilitar el job de reintentos.`
+      );
+    }
 
     await step(`Estado de la orden (GET /v2/ordenes-de-envio/${tracking})`, async () => {
       const r = await client.getOrder(tracking);

@@ -3,12 +3,15 @@
 // Configuración de Andreani. Se lee de `env` en cada llamada (no al cargar el módulo) para que
 // los tests puedan mockear `env`.
 
+import cron from 'node-cron';
 import { env } from '../../../env.js';
 
 export type AndreaniMode = 'disabled' | 'mock' | 'qa' | 'prod';
 
 export interface AndreaniConfig {
   mode: AndreaniMode;
+  /** Valor crudo de ANDREANI_MODE (para detectar valores desconocidos al validar). */
+  rawMode?: string;
   baseUrl: string;
   username: string;
   password: string;
@@ -41,6 +44,7 @@ export function getAndreaniConfig(): AndreaniConfig {
   const mode = parseMode(env.ANDREANI_MODE);
   return {
     mode,
+    rawMode: env.ANDREANI_MODE,
     baseUrl: env.ANDREANI_BASE_URL || defaultBaseUrl(mode),
     username: env.ANDREANI_USERNAME,
     password: env.ANDREANI_PASSWORD,
@@ -73,6 +77,19 @@ export function getAndreaniConfig(): AndreaniConfig {
 /** Devuelve la lista de problemas de configuración (vacía = OK). Para llamar al arrancar. */
 export function validateAndreaniConfig(cfg: AndreaniConfig, isProduction: boolean): string[] {
   const problems: string[] = [];
+  if (cfg.rawMode !== undefined && !(MODES as readonly string[]).includes(cfg.rawMode)) {
+    problems.push(
+      `ANDREANI_MODE="${cfg.rawMode}" no es válido (valores: ${MODES.join(', ')}); no se asume "disabled" en silencio`
+    );
+  }
+  if (!cron.validate(cfg.pollCron)) {
+    problems.push(`ANDREANI_POLL_CRON inválido ("${cfg.pollCron}")`);
+  }
+  if (cfg.autoCreate && cfg.mode === 'disabled') {
+    problems.push(
+      'ANDREANI_AUTO_CREATE_SHIPMENT=true requiere un ANDREANI_MODE distinto de disabled'
+    );
+  }
   if (cfg.mode === 'mock' && isProduction) {
     problems.push('ANDREANI_MODE=mock no está permitido en producción');
   }
@@ -94,4 +111,15 @@ export function validateAndreaniConfig(cfg: AndreaniConfig, isProduction: boolea
     }
   }
   return problems;
+}
+
+/** Advertencias no fatales de configuración (se loguean al arrancar). */
+export function andreaniConfigWarnings(cfg: AndreaniConfig, isProduction: boolean): string[] {
+  const warnings: string[] = [];
+  if (cfg.mode === 'qa' && isProduction) {
+    warnings.push(
+      'ANDREANI_MODE=qa en producción: los envíos van al ambiente de pruebas de Andreani'
+    );
+  }
+  return warnings;
 }

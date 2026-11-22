@@ -7,6 +7,7 @@ const mockEnv = vi.hoisted(() => ({}) as Record<string, string | number | boolea
 vi.mock('../../env.js', () => ({ env: mockEnv }));
 
 import {
+  andreaniConfigWarnings,
   getAndreaniConfig,
   validateAndreaniConfig
 } from '../../infrastructure/external/andreani/config.js';
@@ -111,5 +112,40 @@ describe('validateAndreaniConfig', () => {
   it('qa completo es válido', () => {
     fullQaEnv();
     expect(validateAndreaniConfig(getAndreaniConfig(), false)).toEqual([]);
+  });
+});
+
+describe('validación estricta de la config', () => {
+  it('un modo desconocido es un problema aunque getAndreaniConfig lo mapee a disabled', () => {
+    mockEnv.ANDREANI_MODE = 'banana';
+    const cfg = getAndreaniConfig();
+    expect(cfg.mode).toBe('disabled');
+    const problems = validateAndreaniConfig(cfg, false);
+    expect(problems.some((p) => p.includes('ANDREANI_MODE') && p.includes('banana'))).toBe(true);
+  });
+
+  it('ANDREANI_POLL_CRON inválido es un problema', () => {
+    mockEnv.ANDREANI_POLL_CRON = 'cada rato';
+    const problems = validateAndreaniConfig(getAndreaniConfig(), false);
+    expect(problems.some((p) => p.includes('ANDREANI_POLL_CRON'))).toBe(true);
+  });
+
+  it('auto-create con modo disabled es un problema', () => {
+    mockEnv.ANDREANI_AUTO_CREATE_SHIPMENT = true;
+    const problems = validateAndreaniConfig(getAndreaniConfig(), false);
+    expect(problems.some((p) => p.includes('ANDREANI_AUTO_CREATE_SHIPMENT'))).toBe(true);
+  });
+
+  it('auto-create con modo mock es válido', () => {
+    mockEnv.ANDREANI_MODE = 'mock';
+    mockEnv.ANDREANI_AUTO_CREATE_SHIPMENT = true;
+    expect(validateAndreaniConfig(getAndreaniConfig(), false)).toEqual([]);
+  });
+
+  it('qa en producción es solo una advertencia, no un problema', () => {
+    fullQaEnv();
+    expect(validateAndreaniConfig(getAndreaniConfig(), true)).toEqual([]);
+    expect(andreaniConfigWarnings(getAndreaniConfig(), true)).toHaveLength(1);
+    expect(andreaniConfigWarnings(getAndreaniConfig(), false)).toEqual([]);
   });
 });
