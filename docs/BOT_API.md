@@ -540,12 +540,21 @@ export function verifyValplasSignature(rawBody, signatureHeader, secret, toleran
 | `pending_payment`   | Esperando pago                                                         | –                                         |
 | `payment_confirmed` | Mercado Pago aprobó el pago                                            | "¡Recibimos tu pago!"                     |
 | `processing`        | En preparación (llega justo después de `payment_confirmed`)            | –                                         |
-| `ready_to_ship`     | Listo para despachar                                                   | –                                         |
+| `ready_to_ship`     | Listo para despachar (envío generado en Andreani)                      | –                                         |
 | `shipped`           | En camino                                                              | "Tu pedido está en camino"                |
 | `delivered`         | Entregado                                                              | –                                         |
 | `failed`            | Pago rechazado                                                         | Ofrecer otro intento con un carrito nuevo |
 | `cancelled`         | Cancelado (por el cliente, el admin o vencimiento a las 25 h sin pago) | –                                         |
 | `refunded`          | Reembolsado                                                            | –                                         |
+
+**Envíos con Andreani.** Cuando el admin genera el envío en Andreani (o se crea solo con
+`ANDREANI_AUTO_CREATE_SHIPMENT=true`) el pedido avanza por `ready_to_ship` → `shipped` (Andreani admitió el
+paquete) → `delivered`, y cada cambio llega por este webhook. Puede llegar `ready_to_ship` y `shipped` casi
+juntos si el polling se atrasó. Además existe una transición hacia atrás: **`ready_to_ship` → `processing`**
+(el envío fue rechazado o cancelado en Andreani y el admin tiene que rehacerlo). Tratala como "volvemos a
+preparar tu pedido": no repitas el mensaje de "en preparación" si ya lo mandaste, y ante `previousStatus`
+`ready_to_ship` + `status` `processing` no asumas error del cliente. `shipped` y `delivered` pueden demorar
+horas respecto del hecho real (polling cada 30–360 min según el estado).
 
 ## 8. Pago con Mercado Pago
 
