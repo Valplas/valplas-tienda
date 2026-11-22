@@ -62,7 +62,7 @@ async function getOrder(id: string) {
     shipped_at: Date | null;
     delivered_at: Date | null;
     tracking_number: string | null;
-  }>(`SELECT status, shipped_at, delivered_at, tracking_number FROM orders WHERE id = $1`, [id]);
+  }>('SELECT status, shipped_at, delivered_at, tracking_number FROM orders WHERE id = $1', [id]);
   return r.rows[0];
 }
 
@@ -74,7 +74,7 @@ async function getShipment(id: string) {
     last_event: string | null;
     andreani_state: string | null;
   }>(
-    `SELECT status, delivered_at, next_poll_at, last_event, andreani_state FROM shipments WHERE id = $1`,
+    'SELECT status, delivered_at, next_poll_at, last_event, andreani_state FROM shipments WHERE id = $1',
     [id]
   );
   return r.rows[0];
@@ -82,7 +82,7 @@ async function getShipment(id: string) {
 
 async function historyStatuses(orderId: string): Promise<string[]> {
   const r = await query<{ status: string }>(
-    `SELECT status FROM order_status_history WHERE order_id = $1`,
+    'SELECT status FROM order_status_history WHERE order_id = $1',
     [orderId]
   );
   return r.rows.map((x) => x.status);
@@ -90,7 +90,7 @@ async function historyStatuses(orderId: string): Promise<string[]> {
 
 async function eventCount(shipmentId: string): Promise<number> {
   const r = await query<{ n: string }>(
-    `SELECT COUNT(*)::int AS n FROM shipment_events WHERE shipment_id = $1`,
+    'SELECT COUNT(*)::int AS n FROM shipment_events WHERE shipment_id = $1',
     [shipmentId]
   );
   return Number(r.rows[0].n);
@@ -158,7 +158,7 @@ describe('shipment ingestion', () => {
 
   it('ingest never moves a cancelled order', async () => {
     const { orderId, shipmentId } = await setup();
-    await query(`UPDATE orders SET status = 'cancelled' WHERE id = $1`, [orderId]);
+    await query("UPDATE orders SET status = 'cancelled' WHERE id = $1", [orderId]);
     const res = await ingestEvents(shipmentId, [ev('Admision', 0)], 'pull');
     expect(res.status).toBe('in_transit');
     expect((await getOrder(orderId)).status).toBe('cancelled');
@@ -192,7 +192,7 @@ describe('shipment ingestion', () => {
   ])('reschedules next_poll_at when no new events (%s)', async (status, event, minutes) => {
     const { shipmentId } = await setup('shipped', status);
     await ingestEvents(shipmentId, [ev(event as string, 0)], 'pull');
-    await query(`UPDATE shipments SET next_poll_at = NOW() + interval '10 minutes' WHERE id = $1`, [
+    await query("UPDATE shipments SET next_poll_at = NOW() + interval '10 minutes' WHERE id = $1", [
       shipmentId
     ]);
     const res = await ingestEvents(shipmentId, [ev(event as string, 0)], 'pull');

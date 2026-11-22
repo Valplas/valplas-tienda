@@ -4,7 +4,7 @@ import { createTestUser, createRawOrder } from '../helpers.js';
 
 async function insertShipment(orderId: string, status: string): Promise<string> {
   const r = await query<{ id: string }>(
-    `INSERT INTO shipments (order_id, service_type, status) VALUES ($1, 'home_delivery', $2) RETURNING id`,
+    "INSERT INTO shipments (order_id, service_type, status) VALUES ($1, 'home_delivery', $2) RETURNING id",
     [orderId, status]
   );
   return r.rows[0].id;
@@ -34,7 +34,7 @@ describe('shipments schema (053)', () => {
 
   it('andreani carrier exists and is external', async () => {
     const r = await query<{ is_external: boolean }>(
-      `SELECT is_external FROM shipping_carriers WHERE code = 'andreani'`
+      "SELECT is_external FROM shipping_carriers WHERE code = 'andreani'"
     );
     expect(r.rows[0]?.is_external).toBe(true);
   });
