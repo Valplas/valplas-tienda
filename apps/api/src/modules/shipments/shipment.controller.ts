@@ -4,6 +4,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 import * as shipmentDomain from './shipment.domain.js';
+import type { ServiceType } from './shipment.types.js';
 import type { CreateShipmentBody } from './shipment.validators.js';
 
 const DEFAULT_BRANCH_LIMIT = 20;
@@ -11,7 +12,14 @@ const MAX_BRANCH_LIMIT = 50;
 
 export async function preview(req: Request, res: Response, next: NextFunction) {
   try {
-    const data = await shipmentDomain.previewForOrder(req.params.orderId as string);
+    const { service_type, branch_id } = req.query as {
+      service_type?: ServiceType;
+      branch_id?: string;
+    };
+    const data = await shipmentDomain.previewForOrder(req.params.orderId as string, {
+      serviceType: service_type,
+      branchId: branch_id
+    });
     return res.json(ApiResponse.success(data));
   } catch (error) {
     next(error);

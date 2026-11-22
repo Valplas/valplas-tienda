@@ -132,11 +132,14 @@ function branchFromOrder(o: Order): BranchSnapshot | null {
   return b && typeof b.id === 'string' ? (b as BranchSnapshot) : null;
 }
 
-export async function previewForOrder(orderId: string): Promise<ShipmentPreview> {
+export async function previewForOrder(
+  orderId: string,
+  opts: { serviceType?: ServiceType; branchId?: string } = {}
+): Promise<ShipmentPreview> {
   const order = await loadOrder(orderId);
   const cfg = getAndreaniConfig();
   const enabled = isAndreaniEnabled();
-  const serviceType = order.shipping_method;
+  const serviceType = opts.serviceType ?? order.shipping_method;
   const recipient = await loadRecipient(order);
   const reasons: string[] = [];
 
@@ -177,12 +180,25 @@ export async function previewForOrder(orderId: string): Promise<ShipmentPreview>
   let destinationBranch: BranchSnapshot | null = null;
   const localidad: ShipmentPreview['localidad'] = { resolved: null, candidates: [] };
   if (serviceType === 'branch_pickup') {
-    destinationBranch = branchFromOrder(order);
-    if (!destinationBranch) reasons.push('El pedido no tiene una sucursal de retiro elegida');
+    const snapshot = branchFromOrder(order);
+    const branchId = opts.branchId ?? snapshot?.id;
+    if (!branchId) {
+      reasons.push('Elegí una sucursal Andreani');
+    } else {
+      destinationBranch =
+        snapshot?.id === branchId
+          ? snapshot
+          : enabled
+            ? await guarded(() => findBranchById(branchId))
+            : null;
+      if (!destinationBranch && enabled) {
+        reasons.push('La sucursal de Andreani elegida no existe o no admite entregas');
+      }
+    }
   } else {
     const address = orderAddress(order);
     if (!address) {
-      reasons.push('El pedido no tiene dirección de entrega');
+      reasons.push('El pedido no tiene dirección de entrega: elegí retiro en sucursal Andreani');
     } else if (enabled) {
       try {
         const r = await resolveLocalidad(address.postcode, address.city);
@@ -353,7 +369,12 @@ export async function createForOrder(
       destinationBranch,
       packages
     });
-    return shipmentRepository.updateShipment(created.id, { request_payload: payload }, client);
+    return shipmentRepository.updateShipment(
+      created.id,
+      // Lease: si el proceso muere antes de la respuesta, el job reenvía con el mismo idPedido.
+      { request_payload: payload, next_poll_at: new Date(Date.now() + 5 * 60_000) },
+      client
+    );
   });
 
   // HTTP fuera de transacción

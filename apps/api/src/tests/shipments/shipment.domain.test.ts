@@ -495,6 +495,43 @@ describe('previewForOrder', () => {
   });
 });
 
+describe('previewForOrder service selection', () => {
+  it('address-less order: default blocks, branch_pickup + branch_id allows', async () => {
+    const { orderId } = await createOrder({ admin: true, address: false });
+    const def = await domain.previewForOrder(orderId);
+    expect(def.canCreate).toBe(false);
+    expect(def.blockReason).toMatch(/sucursal/i);
+
+    const p = await domain.previewForOrder(orderId, {
+      serviceType: 'branch_pickup',
+      branchId: '99'
+    });
+    expect(p.canCreate).toBe(true);
+    expect(p.destinationBranch?.id).toBe('99');
+    expect(p.contract).toBe('C-BRANCH');
+
+    const none = await domain.previewForOrder(orderId, { serviceType: 'branch_pickup' });
+    expect(none.canCreate).toBe(false);
+    expect(none.blockReason).toBe('Elegí una sucursal Andreani');
+  });
+});
+
+describe('createForOrder lease', () => {
+  it('non-Andreani error leaves requesting row with next_poll_at about +5 min', async () => {
+    const { orderId } = await createOrder();
+    client.createOrder.mockRejectedValueOnce(new Error('boom'));
+    await expect(domain.createForOrder(orderId, homeInput, null)).rejects.toThrow('boom');
+    const r = await query<{ status: string; next_poll_at: Date }>(
+      'SELECT status, next_poll_at FROM shipments WHERE order_id = $1',
+      [orderId]
+    );
+    expect(r.rows[0].status).toBe('requesting');
+    const diffMin = (r.rows[0].next_poll_at.getTime() - Date.now()) / 60_000;
+    expect(diffMin).toBeGreaterThan(3.5);
+    expect(diffMin).toBeLessThan(5.5);
+  });
+});
+
 describe('listPickupBranches', () => {
   it('returns branches for the postcode', async () => {
     const list = await domain.listPickupBranches('1043', 5);

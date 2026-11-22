@@ -18,7 +18,8 @@ vi.mock('../../infrastructure/external/andreani/index.js', () => ({
 import shipmentRoutes from '../../modules/shipments/shipment.routes.js';
 import {
   createShipmentSchema,
-  branchesQuerySchema
+  branchesQuerySchema,
+  previewQuerySchema
 } from '../../modules/shipments/shipment.validators.js';
 import { errorHandler } from '../../shared/middleware/error.middleware.js';
 import { generateAccessToken } from '../../modules/auth/auth.service.js';
@@ -92,6 +93,13 @@ describe('validation', () => {
         service_type: 'home_delivery',
         packages: [{ kilos: 2, volume_cm3: 100, largo_cm: 10 }]
       }).success
+    ).toBe(true);
+  });
+
+  it('preview query rejects service_type drone', () => {
+    expect(previewQuerySchema.safeParse({ service_type: 'drone' }).success).toBe(false);
+    expect(
+      previewQuerySchema.safeParse({ service_type: 'branch_pickup', branch_id: '99' }).success
     ).toBe(true);
   });
 

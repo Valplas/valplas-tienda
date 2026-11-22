@@ -8,7 +8,8 @@ import {
   branchesQuerySchema,
   createShipmentSchema,
   idParamSchema,
-  orderIdParamSchema
+  orderIdParamSchema,
+  previewQuerySchema
 } from './shipment.validators.js';
 
 const router = Router();
@@ -60,6 +61,15 @@ router.get('/branches', validate(branchesQuerySchema, 'query'), shipmentControll
  *         schema:
  *           type: string
  *           format: uuid
+ *       - in: query
+ *         name: service_type
+ *         schema:
+ *           type: string
+ *           enum: [home_delivery, branch_pickup]
+ *       - in: query
+ *         name: branch_id
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: Preview con canCreate y blockReason
@@ -69,6 +79,7 @@ router.get('/branches', validate(branchesQuerySchema, 'query'), shipmentControll
 router.get(
   '/orders/:orderId/preview',
   validate(orderIdParamSchema, 'params'),
+  validate(previewQuerySchema, 'query'),
   shipmentController.preview
 );
 

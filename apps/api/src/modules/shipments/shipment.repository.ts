@@ -163,7 +163,7 @@ export async function findBlockingByOrderId(orderId: string): Promise<Shipment |
 
 export async function countByOrderId(orderId: string): Promise<number> {
   const result = await query<{ n: number }>(
-    `SELECT COUNT(*)::int AS n FROM shipments WHERE order_id = $1`,
+    'SELECT COUNT(*)::int AS n FROM shipments WHERE order_id = $1',
     [orderId]
   );
   return result.rows[0].n;
@@ -283,7 +283,7 @@ export async function claimDueForPolling(limit: number, leaseSeconds: number): P
 
 export async function findByTrackingNumber(n: string): Promise<Shipment | null> {
   const result = await query<Shipment>(
-    `SELECT * FROM shipments WHERE tracking_number = $1 ORDER BY created_at DESC LIMIT 1`,
+    'SELECT * FROM shipments WHERE tracking_number = $1 ORDER BY created_at DESC LIMIT 1',
     [n]
   );
   return result.rows[0] ?? null;
