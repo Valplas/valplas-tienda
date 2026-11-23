@@ -6,7 +6,8 @@ import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import { Providers } from '@/components/providers';
 
-const isMainBranch = process.env.VERCEL_GIT_COMMIT_REF === 'main';
+// VERCEL_ENV siempre está presente en Vercel; VERCEL_GIT_COMMIT_REF no viene en deploys por CLI.
+const isProduction = process.env.VERCEL_ENV === 'production';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -43,8 +44,8 @@ export default function RootLayout({
     <html lang="es-AR">
       <body className={inter.className}>
         <Providers>{children}</Providers>
-        {isMainBranch && <SpeedInsights />}
-        {isMainBranch && <Analytics />}
+        {isProduction && <SpeedInsights />}
+        {isProduction && <Analytics />}
       </body>
     </html>
   );
