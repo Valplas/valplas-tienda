@@ -117,16 +117,16 @@ presentación de menor `bundleSize` es la **base** (la unidad de venta del produ
 ]
 ```
 
-| Campo            | Descripción                                                                                                                  |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `unit`           | Producto: unidad de venta (`label`) y qué trae cada una (`contains`). `null` si el producto no los define                    |
-| `summary`        | Producto: texto listo con todas las presentaciones (`"<nombre> viene en: <descripción>; <descripción>"`). `null` si no tiene |
-| `unitPrice`      | Precio por **unidad** (la unidad de venta) en esa presentación                                                               |
-| `bundlePrice`    | Precio del bulto completo = `unitPrice × bundleSize`                                                                         |
-| `label`          | Nombre de la presentación (`"Paquete"`, `"Bulto"`, `"Bulto x12"`). Lo define Valplas; nunca es `null`                        |
-| `contains`       | Qué trae el bulto (`"10 paquetes (1.000 bolsas)"`). `null` si no hay datos de la unidad                                      |
-| `savingsPercent` | Ahorro por unidad frente a la presentación base, en puntos enteros (la base y los empates dan 0)                             |
-| `description`    | Texto listo para mostrar con nombre, contenido, precio y ahorro                                                              |
+| Campo            | Descripción                                                                                                                                                       |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unit`           | Producto: unidad de venta (`label`) y qué trae cada una (`contains`). `null` si el producto no los define. Si solo se cargó el contenido, `label` vale `"unidad"` |
+| `summary`        | Producto: texto listo con todas las presentaciones (`"<nombre> viene en: <descripción>; <descripción>"`). `null` si no tiene                                      |
+| `unitPrice`      | Precio por **unidad** (la unidad de venta) en esa presentación                                                                                                    |
+| `bundlePrice`    | Precio del bulto completo = `unitPrice × bundleSize`                                                                                                              |
+| `label`          | Nombre de la presentación (`"Paquete"`, `"Bulto"`, `"Bulto x12"`). Lo define Valplas; nunca es `null`                                                             |
+| `contains`       | Qué trae el bulto (`"10 paquetes (1.000 bolsas)"`). `null` si no hay datos de la unidad                                                                           |
+| `savingsPercent` | Ahorro por unidad frente a la presentación base, en puntos enteros (la base y los empates dan 0)                                                                  |
+| `description`    | Texto listo para mostrar con nombre, contenido, precio y ahorro                                                                                                   |
 
 **Cómo responder "¿cómo viene X?"**: mostrá `summary` (todo el producto) o el `description` de la
 presentación que corresponda. **No compongas los textos vos**: los montos, los plurales y los porcentajes
@@ -238,7 +238,7 @@ mismo ítem** (un ítem con `units` y `price_list_id` a la vez responde `400 VAL
 
 | Query                  | Tipo                                                                          | Descripción                                                                              |
 | ---------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `search`               | string                                                                        | Busca en nombre (sin importar acentos) o SKU                                             |
+| `search`               | string                                                                        | Texto del cliente tal cual (máx. 100). Ver [Búsqueda](#búsqueda-qué-hace-el-backend)     |
 | `category_id`          | uuid                                                                          | Filtra por categoría                                                                     |
 | `brand_id`             | uuid                                                                          | Filtra por marca                                                                         |
 | `sort`                 | `featured` · `price_asc` · `price_desc` · `name_asc` · `name_desc` · `newest` | Orden. Default `featured`                                                                |
@@ -263,6 +263,12 @@ presentaciones **y** `availableStock > 0`: un producto agotado nunca es `purchas
       "category": { "id": "…", "name": "Bolsas y Films" },
       "brand": { "id": "…", "name": "Valplas" },
       "purchasable": true,
+      "attributes": [
+        { "key": "ancho", "label": "Ancho", "value": 40, "unit": "cm" },
+        { "key": "alto", "label": "Alto", "value": 50, "unit": "cm" },
+        { "key": "color", "label": "Color", "value": "Transparente", "unit": null }
+      ],
+      "tags": ["camiseta", "bolsa de mano"],
       "unit": { "label": "paquete", "contains": { "quantity": 100, "of": "bolsas" } },
       "summary": "Bolsa Camiseta 40x50 Transparente viene en: Paquete de 100 bolsas: $1.240",
       "presentations": [
@@ -280,9 +286,64 @@ presentaciones **y** `availableStock > 0`: un producto agotado nunca es `purchas
       ]
     }
   ],
-  "pagination": { "page": 1, "limit": 10, "total": 12, "totalPages": 2, "hasMore": true }
+  "pagination": { "page": 1, "limit": 10, "total": 12, "totalPages": 2, "hasMore": true },
+  "searchMode": "exact"
 }
 ```
+
+`searchMode` va al lado de `data` y `pagination` (no dentro de `pagination`). Ver la sección siguiente.
+
+#### Atributos y tags
+
+Cada producto (lista y detalle) trae dos campos, siempre presentes:
+
+- **`attributes`**: características con valor cargado, `[{ key, label, value, unit }]`. `value` es un número
+  para los atributos numéricos (`40`) y un texto para los de texto u opción (`"Transparente"`); `unit` es la
+  unidad (`"cm"`, `"mic"`) o `null`. Es `[]` si el producto no tiene ninguno. Sirven para mostrar y
+  comparar (`"mide 40 x 50 cm"`).
+- **`tags`**: sinónimos de búsqueda del producto **más** los de su categoría y de sus categorías
+  ancestras (sin repetir, en minúscula). Es `[]` si no hay. **Son solo para el bot**: los endpoints
+  públicos de la web no los devuelven. Usalos como índice para tu propio matching si lo necesitás (por
+  ejemplo, `"bolsa de mano"` apunta a la camiseta) y **nunca se los muestres al cliente**.
+
+#### Búsqueda: qué hace el backend
+
+Mandá en `search` el texto del cliente **tal cual lo escribió** (hasta 100 caracteres), sin armar familias,
+sin extraer medidas y sin sacar saludos. El servidor se encarga de:
+
+- **Descartar palabras vacías** (`hola`, `quiero`, `cuánto`, `salen`, `precio`…) y signos.
+- **Palabras:** cada palabra significativa (singular o plural, sin importar acentos) tiene que estar en el
+  nombre, SKU, marca, categoría, `tags` (del producto o de su categoría y ancestros) o en el texto de un
+  atributo. Los sinónimos se resuelven con los tags: no hace falta una lista `FAMILIAS` en el bot.
+- **Medidas:** `40x50`, `40 x 50`, `40/50` o `40*50` coinciden con el nombre o con los atributos
+  ancho/alto. **Número + unidad** (`20 mic`, `80 m`, `5 litros`) coincide con el atributo o con el nombre.
+  El bot puede borrar sus reglas de medidas.
+- **Números de 4 dígitos:** `4050` se busca tal cual en el nombre o en el SKU (incluidos ceros a la
+  izquierda, `0042`).
+- **Orden de intentos:** (1) exacto: coinciden **todos** los términos; (2) si no hay resultados y hay un
+  número de 4 dígitos, se reintenta como medida (`4050` → `40x50`); (3) **relajado**: alcanza con una
+  palabra significativa de al menos 3 caracteres con alguna letra. Si ninguno encuentra nada, la lista
+  viene vacía con `searchMode: "exact"`.
+- **Relevancia:** sin `sort` (o con `featured`) los resultados vienen ordenados por relevancia. Con
+  cualquier otro `sort` se respeta ese orden.
+
+Ejemplo. El cliente escribió `"hola, quiero bolsas camiseta 40x50, cuánto salen?"`:
+
+```
+GET /catalog/products?search=hola, quiero bolsas camiseta 40x50, cuánto salen?
+```
+
+(Con el valor URL-encoded.) Devuelve `Bolsa Camiseta 40x50 Transparente` y otras de esa medida, con
+`"searchMode": "exact"`.
+
+| `searchMode` | Significado                                                                                                                                           |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"exact"`    | Coinciden todos los términos (también cuando no se encontró nada: lista vacía)                                                                        |
+| `"relaxed"`  | Ningún producto cumplía con todo y el modo relajado **sí** encontró algo: son resultados parecidos, no exactos. Solo se informa cuando hay resultados |
+| `null`       | No hubo búsqueda, o el texto eran solo palabras vacías o signos (se lista el catálogo)                                                                |
+
+Con `"relaxed"` aclaralo en la respuesta, por ejemplo: **"No encontré exactamente eso, pero tengo…"**, y
+mostrá los productos. No lo presentes como coincidencia exacta.
 
 #### `GET /catalog/products/:id`
 
@@ -370,9 +431,11 @@ Campos:
 - `updatedAt`: última vez que se guardó esta información.
 
 **Campo sin dato → `null`.** Si el dato que necesitás viene `null`, no lo inventes: derivá esa pregunta a
-una persona.
+una persona. Los arreglos vacíos (`deliveryDays`, `deliveryZones`, `paymentMethods`) también vuelven como
+`null`. Los duplicados de esos arreglos se eliminan sin avisar al guardar. `0` es un monto válido
+(`minimumOrder: 0` = sin mínimo, `freeShippingFrom: 0` = envío siempre gratis), no "sin dato".
 
-**Caché:** la respuesta se cachea hasta 60 s en la API; al guardar desde el admin se invalida. Para saber
+**Caché:** la respuesta se cachea hasta 60 s en cada instancia de la API (la caché es por instancia, no compartida); al guardar desde el admin se invalida. Para saber
 cuándo refrescar, usá `storeInfoUpdatedAt` de `GET /catalog/status`.
 
 **Informativo vs. fuente de verdad:** `freeShippingFrom` y `deliveryZones` son informativos. El costo y la
@@ -580,14 +643,17 @@ funcionando sin cambios.
 
 - **`items`** son las líneas planas que se cobran (una por presentación). **`requested`** tiene una
   entrada por cada ítem que mandaste, en el mismo orden: `{ productId, units, subtotal, breakdown }`, donde
-  `breakdown` son las líneas (mismo formato que `items`) en las que se resolvió ese ítem. `units` es la
-  cantidad de unidades que se cobran por ese ítem (suma de `units` de sus líneas).
+  `breakdown` son las líneas (mismo formato que `items`) en las que se resolvió ese ítem. `units`: en un
+  ítem por `units` es la cantidad de unidades que pidió ese ítem; en un ítem histórico (por presentación)
+  es la suma de `units` de sus líneas. Un ítem `units` fusionado con uno anterior del mismo producto
+  conserva su propio `units`, con `breakdown: []`, `subtotal: 0` y `mergedInto`.
 - `label` y `description` de cada línea salen de la presentación (pueden ser `null` si no hay datos).
 - **`orderable: false`** = hay `problems`. Mostrale al cliente qué pasa y ajustá el carrito antes de crear
   la orden. Cada problema tiene `code` y datos del ítem:
   - `PRODUCT_NOT_FOUND` `{ productId }`
   - `PRODUCT_UNAVAILABLE` `{ productId, productName }`
-  - `PRICE_TIER_NOT_FOUND` `{ productId, productName, priceListId }`
+  - `PRICE_TIER_NOT_FOUND` `{ productId, productName, priceListId }`. En modo `units` no hay lista
+    elegida: `priceListId` es `null`.
   - `INSUFFICIENT_STOCK` `{ productId, productName, available, requested }`. `available` y
     `requested` están en **unidades**, no en bultos.
   - `UNITS_NOT_ACHIEVABLE` `{ productId, productName, requested, nearestBelow, nearestAbove }` (solo
@@ -656,8 +722,7 @@ La API arma la combinación exacta más barata: 1 bulto + 2 paquetes (en vez de 
             "units": 10,
             "bundlePrice": 46980,
             "subtotal": 46980,
-            "label": "Bulto",
-            "…": "…"
+            "label": "Bulto"
           },
           {
             "priceListId": "6b1f…",
@@ -666,8 +731,7 @@ La API arma la combinación exacta más barata: 1 bulto + 2 paquetes (en vez de 
             "units": 2,
             "bundlePrice": 5872.5,
             "subtotal": 11745,
-            "label": "Paquete",
-            "…": "…"
+            "label": "Paquete"
           }
         ]
       }
@@ -680,7 +744,7 @@ La API arma la combinación exacta más barata: 1 bulto + 2 paquetes (en vez de 
 }
 ```
 
-(En `breakdown` las líneas traen todos los campos de `items`; acá se abrevian.) Si dos ítems por
+(En `breakdown` las líneas traen todos los campos de `items` (`productId`, `productName`, `productSku`, `availableStock`, `description`…); en el JSON de arriba se abrevian.) Si dos ítems por
 unidades son del mismo producto, el primero lleva el `breakdown` y el `subtotal` de la suma y los
 siguientes vienen con `breakdown: []`, `subtotal: 0` y `mergedInto` = índice (desde 0) del primero.
 
@@ -764,7 +828,7 @@ Errores: `400 INVALID_SHIPPING_ADDRESS` (la dirección no es del cliente o está
 `400 INVALID_CARRIER`, `400 PRODUCT_NOT_FOUND`, `400 PRODUCT_UNAVAILABLE`, `400 PRICE_TIER_NOT_FOUND`,
 `400 POSTCODE_NOT_COVERED`, `400 SHIPPING_RATE_NOT_FOUND`, `409 INSUFFICIENT_STOCK`,
 `409 IDEMPOTENCY_KEY_CONFLICT`, `409 UNITS_PLAN_MISMATCH` (modo `units`: las presentaciones
-cambiaron desde la cotización; volvé a cotizar), `422 UNITS_NOT_ACHIEVABLE` (modo `units`: no hay
+cambiaron desde la cotización; volvé a cotizar; `error.details` solo trae `productId`), `422 UNITS_NOT_ACHIEVABLE` (modo `units`: no hay
 combinación exacta; `error.details` trae `productId`, `requested`, `nearestBelow`, `nearestAbove`),
 `404 CUSTOMER_NOT_FOUND`, `403 CUSTOMER_INACTIVE`.
 
@@ -931,14 +995,14 @@ horas respecto del hecho real (polling cada 30–360 min según el estado).
 | 404  | `ORDER_NOT_FOUND` / `PRODUCT_NOT_FOUND`                                  | No existe o no es de ese cliente                                                                               |
 | 409  | `INSUFFICIENT_STOCK`                                                     | Bajar la cantidad (ver `quote`)                                                                                |
 | 409  | `UNITS_PLAN_MISMATCH`                                                    | Las presentaciones cambiaron: volvé a cotizar y confirmá el nuevo total con el cliente                         |
-| 422  | `UNITS_NOT_ACHIEVABLE`                                                   | No hay combinación exacta para esas unidades: ofrecer `nearestBelow` / `nearestAbove`                          |
 | 409  | `IDEMPOTENCY_KEY_CONFLICT`                                               | Generar una clave nueva                                                                                        |
 | 409  | `EMAIL_IN_USE` / `PHONE_IN_USE`                                          | Crear el cliente sin email / derivar a un asesor                                                               |
 | 409  | `ORDER_NOT_PAYABLE` / `ORDER_PAYMENT_EXPIRED` / `ORDER_NOT_CANCELLABLE`  | Informar el estado; ofrecer una orden nueva si corresponde                                                     |
+| 422  | `UNITS_NOT_ACHIEVABLE`                                                   | No hay combinación exacta para esas unidades: ofrecer `nearestBelow` / `nearestAbove`                          |
 | 429  | `RATE_LIMIT_EXCEEDED`                                                    | Esperar y reintentar con backoff                                                                               |
+| 500  | `INTERNAL_ERROR`                                                         | Reintentar con backoff; si persiste, avisar al equipo de Valplas                                               |
 | 502  | `PAYMENT_PROVIDER_ERROR`                                                 | Reintentar el link en unos minutos                                                                             |
 | 503  | `BOT_API_DISABLED`                                                       | La API del bot no está habilitada en ese ambiente                                                              |
-| 500  | `INTERNAL_ERROR`                                                         | Reintentar con backoff; si persiste, avisar al equipo de Valplas                                               |
 
 ## 10. Límites
 
