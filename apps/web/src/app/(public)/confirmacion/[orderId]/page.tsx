@@ -31,11 +31,9 @@ const STATUS_LABELS: Record<string, string> = {
   processing: 'En preparación',
   ready_to_ship: 'Listo para enviar',
   shipped: 'Enviado',
-  in_transit: 'En tránsito',
   delivered: 'Entregado',
   cancelled: 'Cancelado',
   failed: 'Pago fallido',
-  payment_failed: 'Pago fallido',
   refunded: 'Reembolsado'
 };
 

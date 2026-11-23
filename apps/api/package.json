@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
+    "andreani:smoke": "tsx src/infrastructure/external/andreani/smoke.ts",
     "db:migrate": "tsx src/infrastructure/database/migrate.ts",
     "db:migrate:create": "tsx src/infrastructure/database/scripts/create-migration.ts",
     "db:seed": "tsx src/infrastructure/database/seed.ts",

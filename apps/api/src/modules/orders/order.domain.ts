@@ -15,28 +15,52 @@ import * as shippingRepository from '../shipping/shipping.repository.js';
 import { findProductsByIds } from '../products/product.repository.js';
 import { getTiersForCartItems } from '../cart/cart.repository.js';
 import { findPriceListsByIds } from '../price-lists/price-list.repository.js';
+import type { PoolClient } from 'pg';
+import { transaction } from '../../infrastructure/database/client.js';
+import { findBlockingByOrderId } from '../shipments/shipment.repository.js';
+import {
+  CUSTOMER_HIDDEN_SHIPMENT_STATUSES,
+  customerVisibleShipments,
+  toAdminShipment
+} from '../shipments/shipment.view.js';
 import { VALID_STATUS_TRANSITIONS } from './order.types.js';
 import type {
   Order,
   OrderWithDetails,
+  OrderDetailView,
   CreateOrderInput,
   CreateAdminOrderInput,
   UpdateAdminOrderInput,
   UpdateOrderStatusInput,
-  OrderFilters
+  OrderFilters,
+  OrderStatus
 } from './order.types.js';
 
 /**
  * Get user's orders
  */
 export async function getUserOrders(userId: string, filters: Omit<OrderFilters, 'user_id'>) {
-  return orderRepository.findOrders({
+  const result = await orderRepository.findOrders({
     ...filters,
     user_id: userId,
     // La vista "Mis pedidos" del cliente renderiza la cantidad de items de
     // cada orden — sin esto el front recibe orders sin `items` y explota.
     includeItems: true
   });
+  // Las notas internas del admin nunca se exponen al cliente (tampoco en el listado), ni los
+  // envíos que el detalle le oculta (fallidos o sin confirmar con el correo).
+  return {
+    ...result,
+    orders: result.orders.map((o) => {
+      const visible = stripAdminNotes(o);
+      const hidden =
+        visible.active_shipment &&
+        (CUSTOMER_HIDDEN_SHIPMENT_STATUSES as readonly string[]).includes(
+          visible.active_shipment.status
+        );
+      return hidden ? { ...visible, active_shipment: null } : visible;
+    })
+  };
 }
 
 /**
@@ -53,7 +77,7 @@ export async function getOrderById(
   id: string,
   userId: string,
   isAdmin: boolean = false
-): Promise<OrderWithDetails> {
+): Promise<OrderDetailView> {
   const order = await orderRepository.findOrderWithDetails(id);
 
   if (!order) {
@@ -65,7 +89,57 @@ export async function getOrderById(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para ver esta orden', 403);
   }
 
-  return order;
+  return toOrderDetailView(order, isAdmin);
+}
+
+/** Las notas internas del admin nunca se exponen al cliente. */
+function stripAdminNotes<T extends { admin_notes?: string | null }>(order: T): T {
+  const copy = { ...order };
+  delete (copy as Partial<T>).admin_notes;
+  return copy;
+}
+
+/** Admin: envíos sin payloads crudos. Cliente: sin notas internas y solo envíos visibles y saneados. */
+function toOrderDetailView(order: OrderWithDetails, isAdmin: boolean): OrderDetailView {
+  if (isAdmin) return { ...order, shipments: order.shipments.map(toAdminShipment) };
+  return { ...stripAdminNotes(order), shipments: customerVisibleShipments(order.shipments) };
+}
+
+const SHIPMENT_ACTIVE_CANCEL_MESSAGE =
+  'El pedido tiene un envío activo con Andreani. Cancelá el envío antes de cancelar el pedido.';
+
+/** Bloquea la operación sobre el pedido si hay un envío activo con el correo. */
+export async function assertNoBlockingShipment(
+  orderId: string,
+  message: string = SHIPMENT_ACTIVE_CANCEL_MESSAGE,
+  client?: PoolClient
+): Promise<void> {
+  const shipment = await findBlockingByOrderId(orderId, client);
+  if (shipment) throw new AppError('SHIPMENT_ACTIVE', message, 409);
+}
+
+/**
+ * Cancela el pedido en UNA transacción que primero lo bloquea (FOR UPDATE): se serializa con la
+ * tx1 del alta de envío (que bloquea el pedido y luego inserta), así no se puede cancelar un
+ * pedido mientras otro request le crea un envío. Devuelve null si falló el compare-and-swap.
+ */
+async function cancelOrderGuarded(
+  orderId: string,
+  notes: string | undefined,
+  userId: string,
+  expectedStatus: OrderStatus
+): Promise<Order | null> {
+  return transaction(async (client) => {
+    await client.query('SELECT id FROM orders WHERE id = $1 FOR UPDATE', [orderId]);
+    await assertNoBlockingShipment(orderId, undefined, client);
+    return orderRepository.updateOrderStatusTx(
+      client,
+      orderId,
+      { status: 'cancelled', notes },
+      userId,
+      { expectedStatus }
+    );
+  });
 }
 
 /**
@@ -75,7 +149,7 @@ export async function getOrderByNumber(
   orderNumber: string,
   userId: string,
   isAdmin: boolean = false
-): Promise<OrderWithDetails> {
+): Promise<OrderDetailView> {
   const order = await orderRepository.findOrderByNumber(orderNumber);
 
   if (!order) {
@@ -93,7 +167,7 @@ export async function getOrderByNumber(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para ver esta orden', 403);
   }
 
-  return orderWithDetails;
+  return toOrderDetailView(orderWithDetails, isAdmin);
 }
 
 export interface CreateOrderOptions extends CreateOrderChannelOptions, OrderPricingOptions {
@@ -197,9 +271,18 @@ export async function updateOrderStatus(
     throw new AppError('ORDER_NOT_FOUND', 'Orden no encontrada', 404);
   }
 
-  // Check ownership unless admin
-  if (!isAdmin && order.user_id !== userId) {
+  // Solo admin/owner cambian estados (el controller y la ruta ya lo exigen; defensa en profundidad)
+  if (!isAdmin) {
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para modificar esta orden', 403);
+  }
+
+  // Otro admin ya aplicó este mismo estado (doble click / request concurrente): conflicto
+  if (order.status === data.status) {
+    throw new AppError(
+      'ORDER_STATUS_CONFLICT',
+      'El estado de la orden cambió mientras se procesaba la solicitud',
+      409
+    );
   }
 
   // Validate status transition
@@ -213,11 +296,29 @@ export async function updateOrderStatus(
     );
   }
 
-  // Update status
-  const updated = await orderRepository.updateOrderStatus(orderId, data, userId);
+  // Volver a "En proceso" con un envío vivo dejaría al pedido sin reflejar el envío generado
+  if (order.status === 'ready_to_ship' && data.status === 'processing') {
+    await assertNoBlockingShipment(
+      orderId,
+      'El pedido tiene un envío activo con Andreani. Cancelá o descartá el envío antes de volver el pedido a "En proceso".'
+    );
+  }
+
+  // Compare-and-swap: si otro proceso cambió el estado entre la lectura y el UPDATE, 409.
+  // Cancelar además revisa los envíos activos dentro de la misma transacción.
+  const updated =
+    data.status === 'cancelled'
+      ? await cancelOrderGuarded(orderId, data.notes, userId, order.status)
+      : await orderRepository.updateOrderStatus(orderId, data, userId, {
+          expectedStatus: order.status
+        });
 
   if (!updated) {
-    throw new AppError('ORDER_OPERATION_FAILED', 'Error al actualizar estado de la orden', 500);
+    throw new AppError(
+      'ORDER_STATUS_CONFLICT',
+      'El estado de la orden cambió mientras se procesaba la solicitud',
+      409
+    );
   }
 
   return updated;
@@ -243,6 +344,15 @@ export async function cancelOrder(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para cancelar esta orden', 403);
   }
 
+  // El cliente solo puede cancelar mientras el pago está pendiente
+  if (!isAdmin && order.status !== 'pending_payment') {
+    throw new AppError(
+      'ORDER_NOT_CANCELLABLE',
+      `No se puede cancelar una orden en estado: ${order.status}`,
+      400
+    );
+  }
+
   // Check if cancellation is allowed
   const validTransitions = VALID_STATUS_TRANSITIONS[order.status];
   if (!validTransitions.includes('cancelled')) {
@@ -253,14 +363,17 @@ export async function cancelOrder(
     );
   }
 
-  // Cancel order
-  const cancelled = await orderRepository.cancelOrder(orderId, notes, userId);
+  const cancelled = await cancelOrderGuarded(orderId, notes, userId, order.status);
 
   if (!cancelled) {
-    throw new AppError('ORDER_OPERATION_FAILED', 'Error al cancelar orden', 500);
+    throw new AppError(
+      'ORDER_STATUS_CONFLICT',
+      'El estado de la orden cambió mientras se procesaba la solicitud',
+      409
+    );
   }
 
-  return cancelled;
+  return isAdmin ? cancelled : stripAdminNotes(cancelled);
 }
 
 /**
@@ -485,6 +598,10 @@ export async function updateAdminOrder(
       400
     );
   }
+  await assertNoBlockingShipment(
+    orderId,
+    'El pedido tiene un envío activo con Andreani. Cancelá o descartá el envío antes de editar el pedido.'
+  );
 
   // Validate address belongs to the order's user and is active. Sin chequeo de zona: los
   // pedidos del admin pueden ir a direcciones sin cobertura (el front avisa).

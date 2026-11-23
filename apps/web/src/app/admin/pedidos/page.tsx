@@ -12,6 +12,7 @@ import {
 import type { Order } from '@/lib/services/orders.service';
 import { DataTable } from '@/components/admin/data-table';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
+import { ShipmentStatusBadge } from '@/components/admin/shipment-status-badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -261,6 +262,23 @@ export default function PedidosPage() {
         accessorKey: 'status',
         header: 'Estado',
         cell: ({ row }) => <OrderStatusBadge status={row.original.status} />
+      },
+      {
+        id: 'shipment',
+        header: 'Envío',
+        cell: ({ row }) => {
+          const sh = row.original.activeShipment;
+          if (!sh) return <span className="text-muted-foreground">—</span>;
+          return (
+            <div className="space-y-1">
+              <ShipmentStatusBadge status={sh.status} />
+              {sh.trackingNumber && (
+                <div className="font-mono text-xs text-muted-foreground">{sh.trackingNumber}</div>
+              )}
+            </div>
+          );
+        },
+        enableSorting: false
       },
       {
         id: 'shippingAddress',

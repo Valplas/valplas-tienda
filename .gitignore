@@ -125,3 +125,5 @@ next-env.d.ts
 .claude/.env
 .claude/settings.local.json
 .mcp.json
+# Andreani smoke output
+andreani-smoke-label.pdf

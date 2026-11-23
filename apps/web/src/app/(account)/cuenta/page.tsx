@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/table';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
 import { getUserOrders } from '@/services';
-import { Order, OrderStatus, UserRole } from '@/types';
+import { UserRole } from '@/types';
+import type { Order } from '@/lib/services/orders.service';
 import { formatDate, formatPrice } from '@/lib/formatters';
 import { Package, ShoppingBag, CheckCircle, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -64,12 +65,16 @@ export default function DashboardPage() {
 
           // Calculate stats
           const totalOrders = orders.length;
-          const pendingOrders = orders.filter(
-            (o: any) => o.status === OrderStatus.PENDING || o.status === OrderStatus.PROCESSING
+          const pendingOrders = orders.filter((o: any) =>
+            [
+              'pending_payment',
+              'payment_confirmed',
+              'processing',
+              'ready_to_ship',
+              'shipped'
+            ].includes(o.status)
           ).length;
-          const deliveredOrders = orders.filter(
-            (o: any) => o.status === OrderStatus.DELIVERED
-          ).length;
+          const deliveredOrders = orders.filter((o: any) => o.status === 'delivered').length;
           const lastOrder = orders[0] || null;
 
           setStats({

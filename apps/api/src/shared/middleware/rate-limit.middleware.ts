@@ -12,6 +12,11 @@ export function isMpWebhookRequest(req: Request): boolean {
   return req.method === 'POST' && req.path === '/payments/webhook';
 }
 
+/** Push de Andreani: server-to-server, protegido por Basic auth; no debe recibir 429. */
+export function isAndreaniWebhookRequest(req: Request): boolean {
+  return req.method === 'POST' && req.path === '/webhooks/andreani';
+}
+
 /**
  * La API del bot tiene su propio limiter (botRateLimiter): todo el tráfico de WhatsApp sale
  * de la IP del servidor del bot y con 100/min por IP se cortaría con pocos clientes a la vez.
@@ -28,7 +33,7 @@ export const apiRateLimiter = rateLimit({
   max: 100,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  skip: (req) => isMpWebhookRequest(req) || isBotApiRequest(req),
+  skip: (req) => isMpWebhookRequest(req) || isAndreaniWebhookRequest(req) || isBotApiRequest(req),
   message: {
     success: false,
     error: {

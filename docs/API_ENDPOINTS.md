@@ -105,6 +105,25 @@ Base URL: `http://localhost:3001/api` (desarrollo) / `https://valplas-tienda-dev
 | PATCH  | `/shipping/rates/:id`    | ✅   | admin, owner | Actualizar tarifa        |
 | DELETE | `/shipping/rates/:id`    | ✅   | admin, owner | Eliminar tarifa          |
 
+## 📦 Shipments (Andreani)
+
+Backoffice de envíos. Todas las rutas son solo `admin`/`owner`. Detalle y flujos: [ANDREANI_INTEGRATION.md](./ANDREANI_INTEGRATION.md).
+Si `ANDREANI_MODE=disabled` responden 503.
+
+| Method | Endpoint                             | Auth  | Roles        | Description                                                    |
+| ------ | ------------------------------------ | ----- | ------------ | -------------------------------------------------------------- |
+| POST   | `/shipments/branches/search`         | ✅    | admin, owner | Sucursales de retiro cerca de un CP (body `postcode`, `limit`) |
+| GET    | `/shipments/orders/:orderId/preview` | ✅    | admin, owner | Bultos, contrato, localidad y warnings antes de crear el envío |
+| POST   | `/shipments/orders/:orderId`         | ✅    | admin, owner | Crear envío en Andreani (pre-envío + etiqueta)                 |
+| POST   | `/shipments/:id/cancel`              | ✅    | admin, owner | Cancelar envío (asíncrono; confirma el job)                    |
+| POST   | `/shipments/:id/refresh`             | ✅    | admin, owner | Actualizar tracking ahora                                      |
+| GET    | `/shipments/:id/label`               | ✅    | admin, owner | Descargar etiqueta (PDF)                                       |
+| POST   | `/webhooks/andreani`                 | Basic | Andreani     | Novedades PUSH (opcional; 404 si no hay credenciales PUSH)     |
+
+Notas de pedidos: `GET /orders/:id` incluye `shipments` (con eventos) y `GET /orders` incluye `active_shipment`;
+`PATCH /orders/:id/status` es solo admin/owner y devuelve 409 `ORDER_STATUS_CONFLICT` si el estado cambió en el medio;
+los clientes solo pueden cancelar pedidos `pending_payment`; cancelar un pedido con envío activo da 409 `SHIPMENT_ACTIVE`.
+
 ## 👥 Users
 
 | Method | Endpoint                | Auth | Roles        | Description              |

@@ -11,6 +11,7 @@ export * from './cart.service';
 export * from './shipping.service';
 export * from './shipping-admin.service';
 export * from './orders.service';
+export * from './shipments.service';
 export * from './addresses.service';
 export * from './users.service';
 export * from './dashboard.service';

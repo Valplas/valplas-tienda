@@ -243,6 +243,11 @@ const options: swaggerJsdoc.Options = {
         description: 'Zonas y tarifas de envío'
       },
       {
+        name: 'Shipments',
+        description:
+          'Envíos Andreani (backoffice): preview, alta, cancelación, etiqueta y sucursales'
+      },
+      {
         name: 'Users',
         description: 'Gestión de usuarios (Admin)'
       },
