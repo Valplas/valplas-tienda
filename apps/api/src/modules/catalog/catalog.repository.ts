@@ -36,6 +36,11 @@ export interface PublicProduct {
   tiers: PriceTier[];
   /** Atributos activos con valor, por display_order; vacío si no tiene. */
   attributes: ProductAttributeView[];
+  /**
+   * Tags del producto + los de su categoría y ancestros. Solo se completa con `includeTags`
+   * (bot): la API pública nunca los expone.
+   */
+  tags?: string[];
 }
 
 export type CatalogSort =
@@ -104,6 +109,13 @@ interface CatalogRow {
   unit_label: string | null;
   unit_content_quantity: string | number | null;
   unit_content_label: string | null;
+  tags: string[] | null;
+}
+
+/** Opciones de lectura de productos públicos. */
+export interface PublicProductOptions {
+  /** Completa `tags` (producto + categoría y ancestros). Solo para el bot. */
+  includeTags?: boolean;
 }
 
 /**
@@ -115,7 +127,8 @@ interface CatalogRow {
  * esos ids. El LATERAL de precio entra al paso 1 únicamente si hay filtro u orden por precio.
  */
 export async function findPublicProducts(
-  filters: CatalogFilters
+  filters: CatalogFilters,
+  options: PublicProductOptions = {}
 ): Promise<{ products: PublicProduct[]; total: number }> {
   const {
     search,
@@ -206,9 +219,45 @@ export async function findPublicProducts(
   }
 
   const productIds = idsResult.rows.map((r) => r.id);
-  const products = await findPublicProductsByIds(productIds);
+  const products = await findPublicProductsByIds(productIds, options);
 
   return { products, total };
+}
+
+/** Unión sin duplicados conservando orden: primero los del producto, luego los de la categoría. */
+function mergeTags(productTags: string[], categoryTags: string[]): string[] {
+  return [...new Set([...productTags, ...categoryTags])];
+}
+
+/** Profundidad máxima al subir por categories.parent_id (guarda contra ciclos de datos). */
+const MAX_CATEGORY_DEPTH = 20;
+
+/**
+ * Tags de cada categoría dada más los de todos sus ancestros (propia primero, luego padre,
+ * abuelo…), sin duplicados. UNA query recursiva para todas las categorías de la página.
+ */
+export async function getCategoryChainTags(categoryIds: string[]): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>();
+  if (categoryIds.length === 0) return result;
+
+  const rows = await query<{ root_id: string; tags: string[] }>(
+    `WITH RECURSIVE chain AS (
+       SELECT c.id AS root_id, c.parent_id, c.tags, 0 AS depth
+       FROM categories c
+       WHERE c.id = ANY($1)
+       UNION ALL
+       SELECT ch.root_id, p.parent_id, p.tags, ch.depth + 1
+       FROM chain ch
+       JOIN categories p ON p.id = ch.parent_id AND p.deleted_at IS NULL
+       WHERE ch.depth < $2
+     )
+     SELECT root_id, tags FROM chain ORDER BY root_id, depth`,
+    [categoryIds, MAX_CATEGORY_DEPTH]
+  );
+  for (const row of rows.rows) {
+    result.set(row.root_id, mergeTags(result.get(row.root_id) ?? [], row.tags ?? []));
+  }
+  return result;
 }
 
 /**
@@ -264,7 +313,10 @@ export async function getActiveTiersByProductIds(
  * pedidos, en el mismo orden. Omite productos borrados o inactivos; NO filtra por stock (el
  * llamador decide). 3 queries en total (detalle, tiers, atributos), sin N+1. Lo usan el listado del catálogo y el bot.
  */
-export async function findPublicProductsByIds(productIds: string[]): Promise<PublicProduct[]> {
+export async function findPublicProductsByIds(
+  productIds: string[],
+  options: PublicProductOptions = {}
+): Promise<PublicProduct[]> {
   if (productIds.length === 0) return [];
 
   // Detalle, tiers y atributos solo dependen de los ids: se piden en paralelo (3 queries)
@@ -284,7 +336,8 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
         img.url AS image_url,
         p.unit_label,
         p.unit_content_quantity,
-        p.unit_content_label
+        p.unit_content_label,
+        p.tags
       FROM products p
       ${PRICE_LATERAL}
       LEFT JOIN categories c ON c.id = p.category_id
@@ -302,6 +355,11 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
     getActiveTiersByProductIds(productIds),
     findValuesByProductIds(productIds)
   ]);
+
+  // Tags de las categorías (y ancestros) de la página en UNA query, solo si se piden
+  const categoryTags = options.includeTags
+    ? await getCategoryChainTags([...new Set(detailResult.rows.map((row) => row.category_id))])
+    : null;
 
   // El detalle viene sin orden: se restituye el de la página de ids
   const detailById = new Map(detailResult.rows.map((row) => [row.id, row]));
@@ -342,7 +400,10 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
       image_url: row.image_url,
       unit: toPublicUnit(salesUnit),
       tiers,
-      attributes: attributesByProduct.get(row.id) ?? []
+      attributes: attributesByProduct.get(row.id) ?? [],
+      ...(categoryTags
+        ? { tags: mergeTags(row.tags ?? [], categoryTags.get(row.category_id) ?? []) }
+        : {})
     });
   }
 

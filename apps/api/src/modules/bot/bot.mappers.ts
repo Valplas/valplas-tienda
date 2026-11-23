@@ -64,6 +64,8 @@ export interface BotProduct {
   presentations: BotPresentation[];
   /** Atributos con valor (medidas, color, talle…) por display_order; vacío si no tiene. */
   attributes: ProductAttributeView[];
+  /** Sinónimos de búsqueda: tags del producto + los de su categoría y ancestros. */
+  tags: string[];
 }
 
 export function toBotProduct(product: PublicProduct): BotProduct {
@@ -106,7 +108,8 @@ export function toBotProduct(product: PublicProduct): BotProduct {
     unit: product.unit,
     summary,
     presentations,
-    attributes: product.attributes
+    attributes: product.attributes,
+    tags: product.tags ?? []
   };
 }
 

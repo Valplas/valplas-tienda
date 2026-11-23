@@ -1,4 +1,6 @@
 import { AppError } from '../../shared/middleware/error.middleware.js';
+import type { Category } from '@valplas/shared/types';
+import { normalizeTags } from '../../shared/utils/tags.js';
 import * as categoryRepository from './category.repository.js';
 import type {
   CategoryWithChildren,
@@ -7,12 +9,20 @@ import type {
   ReorderCategoryData
 } from './category.types.js';
 
-export async function listCategories(): Promise<CategoryWithChildren[]> {
-  const categories = await categoryRepository.findAllCategories();
-  return categoryRepository.buildCategoryTree(categories);
+/** Los tags son solo para admin/owner y el bot: la API pública los omite. */
+function withoutTags(category: Category): Category {
+  const { tags: _tags, ...rest } = category;
+  return rest;
 }
 
-export async function getCategoryById(id: string) {
+export async function listCategories(includeTags = false): Promise<CategoryWithChildren[]> {
+  const categories = await categoryRepository.findAllCategories();
+  return categoryRepository.buildCategoryTree(
+    includeTags ? categories : categories.map(withoutTags)
+  );
+}
+
+export async function getCategoryById(id: string, includeTags = false) {
   const category = await categoryRepository.findCategoryById(id);
   if (!category) {
     throw new AppError('CATEGORY_NOT_FOUND', 'Categoría no encontrada', 404);
@@ -20,9 +30,11 @@ export async function getCategoryById(id: string) {
 
   const productCount = await categoryRepository.getProductCount(id);
   const allCategories = await categoryRepository.findAllCategories();
-  const children = allCategories.filter((c) => c.parentId === id);
+  const children = allCategories
+    .filter((c) => c.parentId === id)
+    .map((c) => (includeTags ? c : withoutTags(c)));
 
-  return { ...category, productCount, children };
+  return { ...(includeTags ? category : withoutTags(category)), productCount, children };
 }
 
 export async function createCategory(data: CreateCategoryData) {
@@ -38,7 +50,11 @@ export async function createCategory(data: CreateCategoryData) {
     }
   }
 
-  return categoryRepository.createCategory(data);
+  // `validate` no reasigna req.body: los tags se normalizan acá
+  return categoryRepository.createCategory({
+    ...data,
+    tags: data.tags ? normalizeTags(data.tags) : undefined
+  });
 }
 
 export async function updateCategory(id: string, data: UpdateCategoryData) {
@@ -58,7 +74,10 @@ export async function updateCategory(id: string, data: UpdateCategoryData) {
     }
   }
 
-  const updated = await categoryRepository.updateCategory(id, data);
+  const updated = await categoryRepository.updateCategory(id, {
+    ...data,
+    tags: data.tags ? normalizeTags(data.tags) : undefined
+  });
   if (!updated) {
     throw new AppError('CATEGORY_UPDATE_FAILED', 'No se pudo actualizar la categoría', 500);
   }

@@ -25,6 +25,8 @@ export interface CreateCategoryData {
   imageUrl?: string;
   parentId?: string;
   displayOrder?: number;
+  /** Sin normalizar; el service los normaliza. */
+  tags?: string[];
 }
 
 /**
@@ -38,6 +40,7 @@ export interface UpdateCategoryData {
   parentId?: string;
   displayOrder?: number;
   isActive?: boolean;
+  tags?: string[];
 }
 
 /**

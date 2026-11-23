@@ -73,12 +73,16 @@ export async function listCategories() {
 
 /** Productos activos y con stock (mismo filtro que el catálogo web). */
 export async function searchProducts(filters: CatalogProductsQuery) {
-  const { products, total } = await catalogRepository.findPublicProducts(filters);
+  const { products, total } = await catalogRepository.findPublicProducts(filters, {
+    includeTags: true
+  });
   return { products: products.map(toBotProduct), total };
 }
 
 export async function getProduct(id: string) {
-  const [product] = await catalogRepository.findPublicProductsByIds([id]);
+  const [product] = await catalogRepository.findPublicProductsByIds([id], {
+    includeTags: true
+  });
   if (!product) {
     throw new AppError('PRODUCT_NOT_FOUND', 'Producto no encontrado', 404);
   }

@@ -1,6 +1,7 @@
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import { transaction } from '../../infrastructure/database/client.js';
 import { describePresentations, toPublicUnit } from '../catalog/presentation.js';
+import { normalizeTags } from '../../shared/utils/tags.js';
 import * as productRepository from './product.repository.js';
 import * as attributeRepository from '../attributes/attribute.repository.js';
 import * as attributeService from '../attributes/attribute.service.js';
@@ -38,7 +39,7 @@ export function toPublicProduct(
   attributes: ProductAttributeView[] = []
 ): PublicProduct {
   // `attributes` del detalle admin trae ids internos: se reemplaza por la vista pública
-  const { costPrice, priceTiers, attributes: _adminAttributes, ...rest } = product;
+  const { costPrice, priceTiers, attributes: _adminAttributes, tags: _tags, ...rest } = product;
   const salesUnit = {
     label: product.unitLabel ?? null,
     contentQuantity:
@@ -161,7 +162,10 @@ export async function createProduct(data: CreateProductData): Promise<ProductWit
   // (mover de temp/{tempId}/ a products/{id}/ + insertar filas) en la misma
   // transacción — ver product-image.service.ts#finalizeStagedImages.
   const product = await transaction(async (client) => {
-    const created = await productRepository.createProduct(data, client);
+    const created = await productRepository.createProduct(
+      { ...data, tags: data.tags ? normalizeTags(data.tags) : undefined },
+      client
+    );
     if (data.tempId) {
       await productImageService.finalizeStagedImages(
         client,
@@ -198,7 +202,9 @@ export async function updateProduct(
     }
   }
 
-  const { attributes, ...fields } = data;
+  // `validate` no reasigna req.body: los tags se normalizan acá
+  const { attributes, tags: rawTags, ...rest } = data;
+  const fields = { ...rest, tags: rawTags ? normalizeTags(rawTags) : undefined };
   const attributeValues = attributes
     ? await attributeService.resolveProductValues(attributes)
     : null;

@@ -61,6 +61,8 @@ export interface ProductWithDetails extends Omit<Product, 'categoryId' | 'brandI
   }>;
   /** Valores de atributos (solo el detalle admin los carga). */
   attributes?: AdminProductAttribute[];
+  /** Tags (sinónimos de búsqueda): solo admin; la vista pública los omite. */
+  tags?: string[];
   priceTiers: Array<{
     priceListId: string;
     priceListName: string;
@@ -89,7 +91,10 @@ export interface PublicPriceTier {
  * efectivo ya calculado (tier de menor cantidad mínima, o costo sin lista)
  * y las presentaciones ordenadas por cantidad mínima ascendente
  */
-export type PublicProduct = Omit<ProductWithDetails, 'costPrice' | 'priceTiers' | 'attributes'> & {
+export type PublicProduct = Omit<
+  ProductWithDetails,
+  'costPrice' | 'priceTiers' | 'attributes' | 'tags'
+> & {
   attributes: ProductAttributeView[];
   price: number;
   unit: PublicUnit | null;
@@ -123,6 +128,8 @@ export interface CreateProductData {
   tempImageOrder?: string[];
   /** Si viene, reemplaza los valores de atributos del producto. */
   attributes?: ProductAttributeInput[];
+  /** Tags sin normalizar; el service los normaliza. */
+  tags?: string[];
 }
 
 /**
@@ -148,4 +155,6 @@ export interface UpdateProductData {
   unitContentLabel?: string | null;
   /** Si viene, reemplaza los valores de atributos; [] los borra; ausente no los toca. */
   attributes?: ProductAttributeInput[];
+  /** Si viene, reemplaza los tags (el service los normaliza); [] los borra. */
+  tags?: string[];
 }

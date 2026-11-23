@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_TAGS, MAX_TAG_LENGTH } from '../../shared/utils/tags.js';
 
 /**
  * Los requests usan snake_case (convención del proyecto) pero el service y
@@ -110,6 +111,12 @@ const attributesField = z
   .max(100)
   .optional();
 
+/** Tags (sinónimos de búsqueda); se normalizan en el service. Límites alineados con tags.ts. */
+export const tagsField = z
+  .array(z.string().max(MAX_TAG_LENGTH, `Cada tag admite hasta ${MAX_TAG_LENGTH} caracteres`))
+  .max(MAX_TAGS, `Máximo ${MAX_TAGS} tags`)
+  .optional();
+
 /**
  * Schema para crear producto
  */
@@ -159,6 +166,7 @@ export const createProductSchema = z
     tempImageOrder: z.array(z.string()).optional(),
 
     attributes: attributesField,
+    tags: tagsField,
 
     ...unitFields
   })
@@ -189,6 +197,7 @@ export const updateProductSchema = z
     isFeatured: z.boolean().optional(),
     isActive: z.boolean().optional(),
     attributes: attributesField,
+    tags: tagsField,
     ...unitFields
   })
   .refine((data) => Object.keys(data).length > 0, {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { tagsField } from '../products/product.validator.js';
 
 /**
  * Schema para crear categoría
@@ -18,7 +19,9 @@ export const createCategorySchema = z.object({
 
   parentId: z.string().uuid('Parent ID debe ser UUID válido').optional(),
 
-  displayOrder: z.number().int().min(0).optional().default(0)
+  displayOrder: z.number().int().min(0).optional().default(0),
+
+  tags: tagsField
 });
 
 /**
@@ -37,7 +40,8 @@ export const updateCategorySchema = z
     imageUrl: z.string().url().max(500).optional(),
     parentId: z.string().uuid().optional(),
     displayOrder: z.number().int().min(0).optional(),
-    isActive: z.boolean().optional()
+    isActive: z.boolean().optional(),
+    tags: tagsField
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'Debe proporcionar al menos un campo para actualizar'

@@ -350,6 +350,9 @@ export async function createTestProduct(
     unit?: { label?: string | null; contentQuantity?: number | null; contentLabel?: string | null };
     /** Valores de atributos; `key` se resuelve contra attribute_definitions (seed 059 o de test). */
     attributes?: Array<{ key: string; value: string | number }>;
+    /** Tags del producto y de su categoría (se guardan tal cual; pasar ya normalizados). */
+    tags?: string[];
+    categoryTags?: string[];
   } = {}
 ): Promise<TestCatalogProduct> {
   const suffix = uniqueSuffix();
@@ -358,15 +361,15 @@ export async function createTestProduct(
   const slug = `vitest-${suffix}`;
 
   const category = await query<{ id: string }>(
-    'INSERT INTO categories (name, slug, is_active) VALUES ($1, $2, true) RETURNING id',
-    [slug, slug]
+    'INSERT INTO categories (name, slug, is_active, tags) VALUES ($1, $2, true, $3) RETURNING id',
+    [slug, slug, opts.categoryTags ?? []]
   );
   const categoryId = category.rows[0].id;
 
   const product = await query<{ id: string; sku: string }>(
     `INSERT INTO products (sku, name, slug, category_id, cost_price, stock, reserved_stock, is_active,
-                           unit_label, unit_content_quantity, unit_content_label)
-     VALUES ($1, $2, $3, $4, $5, $6, 0, true, $7, $8, $9)
+                           unit_label, unit_content_quantity, unit_content_label, tags)
+     VALUES ($1, $2, $3, $4, $5, $6, 0, true, $7, $8, $9, $10)
      RETURNING id, sku`,
     [
       `VITEST-${suffix.toUpperCase()}`,
@@ -377,7 +380,8 @@ export async function createTestProduct(
       opts.stock ?? 100,
       opts.unit?.label ?? null,
       opts.unit?.contentQuantity ?? null,
-      opts.unit?.contentLabel ?? null
+      opts.unit?.contentLabel ?? null,
+      opts.tags ?? []
     ]
   );
   const { id, sku } = product.rows[0];

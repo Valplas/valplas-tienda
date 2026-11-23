@@ -460,9 +460,9 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
       cost_price, stock,
       weight, width, length, height, origin,
       is_featured, is_active,
-      unit_label, unit_content_quantity, unit_content_label
+      unit_label, unit_content_quantity, unit_content_label, tags
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
     RETURNING *`,
     [
       data.sku,
@@ -482,7 +482,8 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
       true,
       emptyToNull(data.unitLabel) ?? null,
       data.unitContentQuantity ?? null,
-      emptyToNull(data.unitContentLabel) ?? null
+      emptyToNull(data.unitContentLabel) ?? null,
+      data.tags ?? []
     ]
   );
 
@@ -603,6 +604,12 @@ export async function updateProduct(
     paramIndex++;
   }
 
+  if (data.tags !== undefined) {
+    updates.push(`tags = $${paramIndex}`);
+    params.push(data.tags);
+    paramIndex++;
+  }
+
   if (updates.length === 0) return null;
 
   params.push(id);
@@ -661,6 +668,7 @@ function transformProductRow(row: Record<string, unknown>): ProductWithDetails {
     unitContentLabel: row.unit_content_label ?? null,
     isFeatured: row.is_featured,
     isActive: row.is_active,
+    tags: (row.tags as string[] | null) ?? [],
     images: (row.images as ProductWithDetails['images']) || [],
     priceTiers: (row.price_tiers as ProductWithDetails['priceTiers']) || [],
     createdAt: row.created_at as string,
