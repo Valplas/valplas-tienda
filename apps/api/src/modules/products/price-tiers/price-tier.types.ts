@@ -4,6 +4,7 @@ export interface ProductPriceTier {
   priceListId: string;
   priceListName: string;
   minQuantity: number;
+  label: string | null;
   unitPrice: number;
   isActive: boolean;
   createdAt: Date;
@@ -13,6 +14,8 @@ export interface ProductPriceTier {
 export interface ProductPriceTierInput {
   priceListId: string;
   minQuantity: number;
+  /** Nombre de la presentación (ej. "Bulto"). Opcional. */
+  label?: string | null;
 }
 
 export interface BulkAssignFilter {

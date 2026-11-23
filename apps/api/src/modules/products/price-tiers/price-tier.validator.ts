@@ -1,11 +1,20 @@
 import { z } from 'zod';
 
+// '' (input en blanco) se guarda como null
+const tierLabelSchema = z
+  .string()
+  .max(40, 'label no puede exceder 40 caracteres')
+  .nullable()
+  .optional()
+  .transform((v) => (v === '' ? null : v));
+
 const tierInputSchema = z.object({
   priceListId: z.string().uuid('priceListId debe ser un UUID válido'),
   minQuantity: z
     .number({ error: 'minQuantity debe ser un número' })
     .int('minQuantity debe ser un entero')
-    .min(1, 'minQuantity debe ser mayor o igual a 1')
+    .min(1, 'minQuantity debe ser mayor o igual a 1'),
+  label: tierLabelSchema
 });
 
 const filterSchema = z

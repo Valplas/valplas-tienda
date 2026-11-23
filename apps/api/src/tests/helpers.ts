@@ -347,6 +347,7 @@ export async function createTestProduct(
     name?: string;
     costPrice?: number;
     tiers?: Array<{ minQuantity: number; label?: string | null }>;
+    unit?: { label?: string | null; contentQuantity?: number | null; contentLabel?: string | null };
   } = {}
 ): Promise<TestCatalogProduct> {
   const suffix = uniqueSuffix();
@@ -361,8 +362,9 @@ export async function createTestProduct(
   const categoryId = category.rows[0].id;
 
   const product = await query<{ id: string; sku: string }>(
-    `INSERT INTO products (sku, name, slug, category_id, cost_price, stock, reserved_stock, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, 0, true)
+    `INSERT INTO products (sku, name, slug, category_id, cost_price, stock, reserved_stock, is_active,
+                           unit_label, unit_content_quantity, unit_content_label)
+     VALUES ($1, $2, $3, $4, $5, $6, 0, true, $7, $8, $9)
      RETURNING id, sku`,
     [
       `VITEST-${suffix.toUpperCase()}`,
@@ -370,7 +372,10 @@ export async function createTestProduct(
       slug,
       categoryId,
       opts.costPrice ?? 1000,
-      opts.stock ?? 100
+      opts.stock ?? 100,
+      opts.unit?.label ?? null,
+      opts.unit?.contentQuantity ?? null,
+      opts.unit?.contentLabel ?? null
     ]
   );
   const { id, sku } = product.rows[0];
@@ -391,9 +396,9 @@ export async function createTestProduct(
     for (const [index, tier] of tiers.entries()) {
       const priceListId = lists.rows[index].id;
       const inserted = await query<{ id: string }>(
-        `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, is_active)
-         VALUES ($1, $2, $3, true) RETURNING id`,
-        [id, priceListId, tier.minQuantity]
+        `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, label, is_active)
+         VALUES ($1, $2, $3, $4, true) RETURNING id`,
+        [id, priceListId, tier.minQuantity, tier.label ?? null]
       );
       tierIds.push(inserted.rows[0].id);
       priceListIds.push(priceListId);

@@ -41,6 +41,9 @@ export interface ProductWithDetails extends Omit<Product, 'categoryId' | 'brandI
   brandId: string | null;
   brandName: string | null;
   availableStock: number;
+  unitLabel: string | null;
+  unitContentQuantity: number | null;
+  unitContentLabel: string | null;
   images: Array<{
     id: string;
     url: string;
@@ -54,6 +57,7 @@ export interface ProductWithDetails extends Omit<Product, 'categoryId' | 'brandI
     priceListId: string;
     priceListName: string;
     minQuantity: number;
+    label: string | null;
     unitPrice: number;
   }>;
 }
@@ -91,6 +95,9 @@ export interface CreateProductData {
   height?: number;
   origin?: string;
   isFeatured?: boolean;
+  unitLabel?: string | null;
+  unitContentQuantity?: number | null;
+  unitContentLabel?: string | null;
   /** Id de sesión de staging de imágenes — ver módulo images/ */
   tempId?: string;
   /** Orden de archivos elegido en el form de creación — ver images/product-image.service.ts */
@@ -115,4 +122,7 @@ export interface UpdateProductData {
   origin?: string;
   isFeatured?: boolean;
   isActive?: boolean;
+  unitLabel?: string | null;
+  unitContentQuantity?: number | null;
+  unitContentLabel?: string | null;
 }

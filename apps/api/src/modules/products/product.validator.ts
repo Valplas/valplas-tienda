@@ -66,50 +66,87 @@ export const productFiltersSchema = z.preprocess(
 
 export type ProductFiltersQuery = z.output<typeof productFiltersSchema>;
 
+/** '' (string vacío, ej. input en blanco ya trimeado) se guarda como null. */
+const emptyToNull = (v: string | null | undefined) => (v === '' ? null : v);
+
+const nullableLabel = (max: number) =>
+  z.string().max(max).nullable().optional().transform(emptyToNull);
+
+const unitFields = {
+  unitLabel: nullableLabel(30),
+  unitContentQuantity: z
+    .number()
+    .positive('Cantidad de contenido debe ser mayor a 0')
+    .nullable()
+    .optional(),
+  unitContentLabel: nullableLabel(40)
+};
+
+/** El contenido de la unidad va completo (cantidad + nombre) o vacío. */
+const unitContentComplete = (data: {
+  unitContentQuantity?: number | null;
+  unitContentLabel?: string | null;
+}) =>
+  (data.unitContentQuantity === undefined) === (data.unitContentLabel === undefined) &&
+  (data.unitContentQuantity == null) === (data.unitContentLabel == null);
+
+const unitContentMessage = {
+  message:
+    'unitContentQuantity y unitContentLabel deben enviarse juntos (ambos con valor o ambos vacíos)',
+  path: ['unitContentQuantity']
+};
+
 /**
  * Schema para crear producto
  */
-export const createProductSchema = z.object({
-  sku: z
-    .string()
-    .min(1, 'SKU es requerido')
-    .max(50, 'SKU no puede exceder 50 caracteres')
-    .regex(/^[A-Z0-9-]+$/, 'SKU solo puede contener mayúsculas, números y guiones'),
+export const createProductSchema = z
+  .object({
+    sku: z
+      .string()
+      .min(1, 'SKU es requerido')
+      .max(50, 'SKU no puede exceder 50 caracteres')
+      .regex(/^[A-Z0-9-]+$/, 'SKU solo puede contener mayúsculas, números y guiones'),
 
-  name: z.string().min(1, 'Nombre es requerido').max(255, 'Nombre no puede exceder 255 caracteres'),
+    name: z
+      .string()
+      .min(1, 'Nombre es requerido')
+      .max(255, 'Nombre no puede exceder 255 caracteres'),
 
-  slug: z
-    .string()
-    .min(1, 'Slug es requerido')
-    .max(255, 'Slug no puede exceder 255 caracteres')
-    .regex(/^[a-z0-9-]+$/, 'Slug solo puede contener minúsculas, números y guiones'),
+    slug: z
+      .string()
+      .min(1, 'Slug es requerido')
+      .max(255, 'Slug no puede exceder 255 caracteres')
+      .regex(/^[a-z0-9-]+$/, 'Slug solo puede contener minúsculas, números y guiones'),
 
-  description: z.string().max(5000, 'Descripción no puede exceder 5000 caracteres').optional(),
+    description: z.string().max(5000, 'Descripción no puede exceder 5000 caracteres').optional(),
 
-  categoryId: z.string().uuid('Category ID debe ser UUID válido'),
+    categoryId: z.string().uuid('Category ID debe ser UUID válido'),
 
-  brandId: z.string().uuid('Brand ID debe ser UUID válido').optional(),
+    brandId: z.string().uuid('Brand ID debe ser UUID válido').optional(),
 
-  costPrice: z.number().min(0, 'Precio de costo debe ser mayor o igual a 0'),
+    costPrice: z.number().min(0, 'Precio de costo debe ser mayor o igual a 0'),
 
-  stock: z.number().int().min(0, 'Stock debe ser mayor o igual a 0').optional().default(0),
+    stock: z.number().int().min(0, 'Stock debe ser mayor o igual a 0').optional().default(0),
 
-  weight: z.number().min(0).optional(),
-  width: z.number().min(0).optional(),
-  length: z.number().min(0).optional(),
-  height: z.number().min(0).optional(),
-  origin: z.string().max(100).optional(),
+    weight: z.number().min(0).optional(),
+    width: z.number().min(0).optional(),
+    length: z.number().min(0).optional(),
+    height: z.number().min(0).optional(),
+    origin: z.string().max(100).optional(),
 
-  isFeatured: z.boolean().optional().default(false),
+    isFeatured: z.boolean().optional().default(false),
 
-  // Id de la sesión de staging de imágenes (ver módulo images/) — si se manda,
-  // las imágenes subidas a temp/{tempId}/ se mueven al producto recién creado.
-  tempId: z.string().uuid('tempId debe ser un UUID válido').optional(),
+    // Id de la sesión de staging de imágenes (ver módulo images/) — si se manda,
+    // las imágenes subidas a temp/{tempId}/ se mueven al producto recién creado.
+    tempId: z.string().uuid('tempId debe ser un UUID válido').optional(),
 
-  // Orden (nombres de archivo) elegido por el usuario en el form ANTES de que
-  // el producto exista — Storage.list() no garantiza orden estable.
-  tempImageOrder: z.array(z.string()).optional()
-});
+    // Orden (nombres de archivo) elegido por el usuario en el form ANTES de que
+    // el producto exista — Storage.list() no garantiza orden estable.
+    tempImageOrder: z.array(z.string()).optional(),
+
+    ...unitFields
+  })
+  .refine(unitContentComplete, unitContentMessage);
 
 /**
  * Schema para actualizar producto
@@ -134,11 +171,13 @@ export const updateProductSchema = z
     height: z.number().min(0).optional(),
     origin: z.string().max(100).optional(),
     isFeatured: z.boolean().optional(),
-    isActive: z.boolean().optional()
+    isActive: z.boolean().optional(),
+    ...unitFields
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'Debe proporcionar al menos un campo para actualizar'
-  });
+  })
+  .refine(unitContentComplete, unitContentMessage);
 
 /**
  * Tipos inferidos

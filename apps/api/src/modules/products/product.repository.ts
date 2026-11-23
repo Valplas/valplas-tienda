@@ -24,6 +24,7 @@ const PRICE_TIERS_SQL = `COALESCE(
             'priceListId', ppt.price_list_id,
             'priceListName', pl.name,
             'minQuantity', ppt.min_quantity,
+            'label', ppt.label,
             'unitPrice', TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100
           ) ORDER BY pl.name ASC
         )
@@ -453,9 +454,10 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
       sku, name, slug, description, category_id, brand_id,
       cost_price, stock,
       weight, width, length, height, origin,
-      is_featured, is_active
+      is_featured, is_active,
+      unit_label, unit_content_quantity, unit_content_label
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *`,
     [
       data.sku,
@@ -472,7 +474,10 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
       data.height ?? null,
       data.origin || null,
       data.isFeatured || false,
-      true
+      true,
+      data.unitLabel ?? null,
+      data.unitContentQuantity ?? null,
+      data.unitContentLabel ?? null
     ]
   );
 
@@ -571,6 +576,24 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
     paramIndex++;
   }
 
+  if (data.unitLabel !== undefined) {
+    updates.push(`unit_label = $${paramIndex}`);
+    params.push(data.unitLabel);
+    paramIndex++;
+  }
+
+  if (data.unitContentQuantity !== undefined) {
+    updates.push(`unit_content_quantity = $${paramIndex}`);
+    params.push(data.unitContentQuantity);
+    paramIndex++;
+  }
+
+  if (data.unitContentLabel !== undefined) {
+    updates.push(`unit_content_label = $${paramIndex}`);
+    params.push(data.unitContentLabel);
+    paramIndex++;
+  }
+
   if (updates.length === 0) return null;
 
   params.push(id);
@@ -623,6 +646,10 @@ function transformProductRow(row: Record<string, unknown>): ProductWithDetails {
     length: row.length ?? null,
     height: row.height ?? null,
     origin: row.origin ?? null,
+    unitLabel: row.unit_label ?? null,
+    unitContentQuantity:
+      row.unit_content_quantity == null ? null : Number(row.unit_content_quantity),
+    unitContentLabel: row.unit_content_label ?? null,
     isFeatured: row.is_featured,
     isActive: row.is_active,
     images: (row.images as ProductWithDetails['images']) || [],

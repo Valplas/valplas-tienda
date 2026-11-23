@@ -33,7 +33,12 @@ export function toPublicProduct(product: ProductWithDetails): PublicProduct {
   const { costPrice, priceTiers, ...rest } = product;
   const publicTiers = [...priceTiers]
     .sort((a, b) => a.minQuantity - b.minQuantity)
-    .map(({ priceListId, minQuantity, unitPrice }) => ({ priceListId, minQuantity, unitPrice }));
+    .map(({ priceListId, minQuantity, label, unitPrice }) => ({
+      priceListId,
+      minQuantity,
+      label,
+      unitPrice
+    }));
 
   return { ...rest, priceTiers: publicTiers, price: publicTiers[0]?.unitPrice ?? costPrice };
 }
