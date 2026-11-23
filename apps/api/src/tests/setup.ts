@@ -36,5 +36,10 @@ afterEach(async () => {
   // Banners antes que categorías (link_category_id es SET NULL, pero así no
   // quedan banners de test apuntando a nada)
   await query("DELETE FROM banners WHERE title LIKE 'vitest-%'");
+  // Productos de test (createTestProduct) antes que categorías; los tiers caen por CASCADE.
+  // order_items.product_id es RESTRICT, pero sus filas de test ya se borraron arriba.
+  await query("DELETE FROM products WHERE sku LIKE 'VITEST-%'");
+  // Definiciones de atributos de test: después de productos (valores RESTRICT), antes de categorías
+  await query("DELETE FROM attribute_definitions WHERE key LIKE 'vitest\\_%'");
   await query("DELETE FROM categories WHERE slug LIKE 'vitest-%'");
 });

@@ -19,17 +19,31 @@ import { LoadingButton } from '@/components/ui/loading-button';
 import { Button } from '@/components/ui/button';
 import { ImageUpload } from '@/components/admin/image-upload';
 import { PriceTiersSection } from '@/components/admin/price-tiers-section';
+import {
+  ProductAttributesSection,
+  type AttributesState
+} from '@/components/admin/product-attributes-section';
+import { TagsInput } from '@/components/admin/tags-input';
+import { toast } from 'sonner';
+import type { ProductAttributeInput } from '@/services';
 import { cn } from '@/lib/utils';
 import { getCategories, getBrands } from '@/services';
 
 const toNumber = (v: string) => (v === '' ? undefined : Number(v));
 const toRequiredNumber = (v: string) => (v === '' ? NaN : Number(v));
 
+/** Datos extra que el form maneja fuera de react-hook-form. */
+export interface ProductFormExtras {
+  tempId?: string;
+  tempImageOrder?: string[];
+  /** undefined = no tocar (los atributos no terminaron de cargar). */
+  attributes?: ProductAttributeInput[];
+  tags: string[];
+}
+
 export interface ProductFormProps {
   product?: Product;
-  onSubmit: (
-    data: ProductFormData & { tempId?: string; tempImageOrder?: string[] }
-  ) => Promise<void>;
+  onSubmit: (data: ProductFormData & ProductFormExtras) => Promise<void>;
   onCancel?: () => void;
 }
 
@@ -43,6 +57,12 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [brands, setBrands] = React.useState<Brand[]>([]);
   const [isLoadingData, setIsLoadingData] = React.useState(true);
+  const [tags, setTags] = React.useState<string[]>(product?.tags ?? []);
+  const [attrState, setAttrState] = React.useState<AttributesState>({
+    ready: false,
+    inputs: [],
+    invalidLabels: []
+  });
 
   const {
     register,
@@ -61,7 +81,9 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           stock: product.stock,
           categoryId: product.categoryId,
           brandId: product.brandId,
-          unit: product.unit,
+          unitLabel: product.unitLabel ?? undefined,
+          unitContentQuantity: product.unitContentQuantity ?? undefined,
+          unitContentLabel: product.unitContentLabel ?? undefined,
           weight: product.weight ?? undefined,
           width: product.width ?? undefined,
           length: product.length ?? undefined,
@@ -101,18 +123,27 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   }, []);
 
   const handleFormSubmit = async (data: ProductFormData) => {
+    if (attrState.invalidLabels.length > 0) {
+      toast.error('Hay características numéricas inválidas', {
+        description: attrState.invalidLabels.join(', ')
+      });
+      return;
+    }
+    const attributes = attrState.ready ? attrState.inputs : undefined;
     setIsSubmitting(true);
     try {
       if (product) {
         // Edit-flow: las imágenes ya se persistieron directo contra el
         // producto real (ver ImageUpload) — no hay nada que mandar acá.
-        await onSubmit(data);
+        await onSubmit({ ...data, attributes, tags });
       } else {
         // Create-flow: las imágenes están en staging bajo tempId; el orden
         // local (drag/estrella) se manda explícito porque Storage.list() no
         // lo garantiza.
         await onSubmit({
           ...data,
+          attributes,
+          tags,
           tempId,
           tempImageOrder: images.map((img) => img.id.split('/').pop() as string)
         });
@@ -294,12 +325,62 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               </p>
             )}
           </div>
+        </div>
+      </div>
 
+      {/* Características */}
+      <ProductAttributesSection
+        categoryId={categoryId}
+        initialAttributes={product?.attributes}
+        onChange={setAttrState}
+      />
+
+      {/* Tags */}
+      <div className="space-y-2">
+        <div>
+          <h2 className="text-lg font-semibold">Tags de búsqueda</h2>
+          <p className="text-sm text-muted-foreground">
+            Sinónimos y palabras con las que los clientes pueden buscar este producto.
+          </p>
+        </div>
+        <TagsInput
+          aria-label="Tags de búsqueda"
+          value={tags}
+          onChange={setTags}
+          disabled={isSubmitting}
+        />
+      </div>
+
+      {/* Unidad de venta */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Unidad de venta</h2>
+          <p className="text-sm text-muted-foreground">
+            Cómo se vende la unidad y qué trae adentro. Ej.: paquete de 100 bolsas. Si lo dejás
+            vacío se muestra &quot;Unidad&quot;.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <FormField
-            label="Unidad"
-            placeholder="ej: unidad, pack x 10"
-            error={errors.unit?.message}
-            {...register('unit')}
+            label="Nombre"
+            placeholder="ej: paquete, caja"
+            error={errors.unitLabel?.message}
+            {...register('unitLabel')}
+          />
+          <FormField
+            label="Cantidad de contenido"
+            type="number"
+            min={1}
+            step="any"
+            placeholder="ej: 100"
+            error={errors.unitContentQuantity?.message}
+            {...register('unitContentQuantity', { setValueAs: toNumber })}
+          />
+          <FormField
+            label="Contenido"
+            placeholder="ej: bolsas"
+            error={errors.unitContentLabel?.message}
+            {...register('unitContentLabel')}
           />
         </div>
       </div>

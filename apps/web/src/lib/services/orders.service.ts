@@ -72,6 +72,7 @@ export interface Order {
     quantity: number;
     unitPrice: number;
     subtotal: number;
+    presentationLabelSnapshot?: string | null;
   }>;
   user?: OrderUser;
   trackingNumber?: string | null;

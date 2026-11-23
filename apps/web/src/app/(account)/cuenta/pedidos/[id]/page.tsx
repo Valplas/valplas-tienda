@@ -123,6 +123,11 @@ export default function OrderDetailPage() {
                       <TableCell>
                         <div>
                           <p className="font-medium">{item.productName}</p>
+                          {item.presentationLabelSnapshot && (
+                            <p className="text-sm text-muted-foreground">
+                              {item.presentationLabelSnapshot}
+                            </p>
+                          )}
                           <p className="text-sm text-muted-foreground">SKU: {item.productSku}</p>
                         </div>
                       </TableCell>

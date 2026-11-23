@@ -71,6 +71,7 @@ next-env.d.ts
 
 # Worktrees
 .worktrees/
+.superpowers/
 
 # Temporary files
 tmp/

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import { env } from '../../env.js';
+import { describeLineTier } from '../catalog/presentation.js';
 import * as cartRepository from './cart.repository.js';
 import type { TierInfo } from './cart.repository.js';
 import type {
@@ -180,6 +181,20 @@ export async function getCartWithDetails(cart: Cart): Promise<CartSummary> {
 
     const itemSubtotal = Math.trunc(pricePerBundle * quantity * 100) / 100;
 
+    const presentation = describeLineTier(
+      {
+        label: product.unitLabel,
+        contentQuantity: product.unitContentQuantity,
+        contentLabel: product.unitContentLabel
+      },
+      {
+        priceListId: item.priceListId ?? '',
+        minQuantity,
+        unitPrice,
+        label: tier?.label ?? null
+      }
+    );
+
     itemsWithProduct.push({
       productId: product.id,
       quantity,
@@ -193,7 +208,9 @@ export async function getCartWithDetails(cart: Cart): Promise<CartSummary> {
       minQuantity,
       unitPrice,
       pricePerBundle,
-      subtotal: itemSubtotal
+      subtotal: itemSubtotal,
+      presentationLabel: presentation.label,
+      presentationContains: presentation.contains
     });
 
     subtotal += itemSubtotal;

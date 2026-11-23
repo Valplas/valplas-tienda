@@ -14,7 +14,11 @@ export function computeLineSubtotal(bundlePrice: number, bundles: number): numbe
   return Math.trunc(bundlePrice * bundles * 100) / 100;
 }
 
-/** Etiqueta de una presentación para el cliente. Nunca usar el nombre de la lista (expone margen). */
+/**
+ * Etiqueta por defecto de una presentación. Solo fallback: la API manda el nombre real
+ * (`label` / `presentationLabel`); esto cubre datos viejos (ej. carrito local sin el campo).
+ * Nunca usar el nombre de la lista (expone margen).
+ */
 export function presentationLabel(bundleSize: number): string {
   return bundleSize > 1 ? `Bulto x${bundleSize}` : 'Unidad';
 }

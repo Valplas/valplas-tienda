@@ -336,7 +336,7 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
         `SELECT
         oi.id, oi.order_id, oi.product_id, oi.product_image_url,
         oi.quantity, oi.bundle_size_snapshot, oi.real_quantity,
-        oi.unit_price, oi.subtotal, oi.price_list_id,
+        oi.unit_price, oi.subtotal, oi.price_list_id, oi.presentation_label_snapshot,
         oi.created_at, oi.updated_at,
         p.name as product_name,
         p.sku as product_sku,
@@ -510,9 +510,9 @@ export async function createOrder(
         `INSERT INTO order_items (
           order_id, product_id, product_name, product_sku,
           quantity, real_quantity, bundle_size_snapshot,
-          unit_price, subtotal, price_list_id
+          unit_price, subtotal, price_list_id, presentation_label_snapshot
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           order.id,
           it.product_id,
@@ -523,7 +523,8 @@ export async function createOrder(
           it.bundle_size_snapshot,
           it.unit_price,
           it.subtotal,
-          it.price_list_id ?? null
+          it.price_list_id ?? null,
+          it.presentation_label_snapshot ?? null
         ]
       );
     }
@@ -554,6 +555,7 @@ interface EnrichedAdminOrderItem {
   price_list_id: string;
   /** Costo por bulto (cost_price × bundle_size_snapshot): revenue = (unit_price - cost) × quantity */
   cost_price_snapshot: number;
+  presentation_label_snapshot?: string | null;
 }
 
 /** Subtotal de una línea: precio por bulto × bultos, redondeado a centavos (sin ruido de float). */
@@ -615,8 +617,8 @@ export async function createAdminOrder(
       const itemSubtotal = adminItemSubtotal(item);
       await client.query(
         `INSERT INTO order_items
-           (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+           (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot, presentation_label_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           order.id,
           item.product_id,
@@ -628,7 +630,8 @@ export async function createAdminOrder(
           item.unit_price,
           itemSubtotal,
           item.price_list_id ?? null,
-          item.cost_price_snapshot ?? null
+          item.cost_price_snapshot ?? null,
+          item.presentation_label_snapshot ?? null
         ]
       );
     }
@@ -972,8 +975,8 @@ export async function updateAdminOrder(
       const itemSubtotal = adminItemSubtotal(item);
       await client.query(
         `INSERT INTO order_items
-           (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+           (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot, presentation_label_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           orderId,
           item.product_id,
@@ -985,7 +988,8 @@ export async function updateAdminOrder(
           item.unit_price,
           itemSubtotal,
           item.price_list_id ?? null,
-          item.cost_price_snapshot ?? null
+          item.cost_price_snapshot ?? null,
+          item.presentation_label_snapshot ?? null
         ]
       );
     }

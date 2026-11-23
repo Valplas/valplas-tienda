@@ -8,6 +8,8 @@ import { computeBundlePrice, type PricedOrderLine } from '../orders/order-pricin
 import { STATUS_LABELS } from '../orders/order.types.js';
 import type { Order, OrderWithDetails } from '../orders/order.types.js';
 import type { PublicProduct } from '../catalog/catalog.repository.js';
+import { productSummary, type PublicUnit } from '../catalog/presentation.js';
+import type { ProductAttributeView } from '../attributes/attribute.types.js';
 import type { CategoryWithChildren } from '../categories/category.types.js';
 import type { User } from '../users/user.types.js';
 import type { UserAddressWithDelivery } from '../addresses/address.types.js';
@@ -36,6 +38,10 @@ export interface BotPresentation {
   unit_price: number;
   bundle_price: number;
   available_bundles: number;
+  label: string;
+  contains: string | null;
+  savings_percent: number;
+  description: string;
 }
 
 export interface BotProduct {
@@ -47,9 +53,19 @@ export interface BotProduct {
   available_stock: number;
   category: { id: string; name: string } | null;
   brand: { id: string; name: string } | null;
-  /** Sin presentaciones el producto no se puede pedir por el bot (no tiene lista asignada). */
+  /** available_stock > 0. */
+  in_stock: boolean;
+  /** Se puede pedir por el bot: tiene presentaciones (lista asignada) y stock disponible. */
   purchasable: boolean;
+  /** Unidad de venta y contenido; null si el producto no los define. */
+  unit: PublicUnit | null;
+  /** Texto listo para leer con todas las presentaciones; null si no tiene. */
+  summary: string | null;
   presentations: BotPresentation[];
+  /** Atributos con valor (medidas, color, talle…) por display_order; vacío si no tiene. */
+  attributes: ProductAttributeView[];
+  /** Sinónimos de búsqueda: tags del producto + los de su categoría y ancestros. */
+  tags: string[];
 }
 
 export function toBotProduct(product: PublicProduct): BotProduct {
@@ -58,8 +74,25 @@ export function toBotProduct(product: PublicProduct): BotProduct {
     bundle_size: tier.min_quantity,
     unit_price: tier.unit_price,
     bundle_price: computeBundlePrice(tier.unit_price, tier.min_quantity),
-    available_bundles: Math.max(0, Math.floor(product.available_stock / tier.min_quantity))
+    available_bundles: Math.max(0, Math.floor(product.available_stock / tier.min_quantity)),
+    label: tier.label,
+    contains: tier.contains,
+    savings_percent: tier.savings_percent,
+    description: tier.description
   }));
+  const summary = productSummary(
+    product.name,
+    product.tiers.map((tier) => ({
+      priceListId: tier.price_list_id,
+      bundleSize: tier.min_quantity,
+      unitPrice: tier.unit_price,
+      bundlePrice: tier.bundle_price,
+      label: tier.label,
+      contains: tier.contains,
+      savingsPercent: tier.savings_percent,
+      description: tier.description
+    }))
+  );
 
   return {
     id: product.id,
@@ -70,8 +103,13 @@ export function toBotProduct(product: PublicProduct): BotProduct {
     available_stock: product.available_stock,
     category: product.category,
     brand: product.brand,
-    purchasable: presentations.length > 0,
-    presentations
+    in_stock: product.available_stock > 0,
+    purchasable: presentations.length > 0 && product.available_stock > 0,
+    unit: product.unit,
+    summary,
+    presentations,
+    attributes: product.attributes,
+    tags: product.tags ?? []
   };
 }
 
@@ -110,7 +148,11 @@ export function toBotAddress(address: UserAddressWithDelivery) {
   };
 }
 
-export function toBotQuoteLine(line: PricedOrderLine) {
+/** Línea cotizada; `presentation` (nombre y texto de la presentación) puede faltar. */
+export function toBotQuoteLine(
+  line: PricedOrderLine,
+  presentation?: { label: string; description: string }
+) {
   return {
     product_id: line.product_id,
     product_name: line.product_name,
@@ -121,9 +163,13 @@ export function toBotQuoteLine(line: PricedOrderLine) {
     units: line.real_quantity,
     bundle_price: line.unit_price,
     subtotal: line.subtotal,
-    available_stock: line.available_stock
+    available_stock: line.available_stock,
+    label: presentation?.label ?? null,
+    description: presentation?.description ?? null
   };
 }
+
+export type BotQuoteLine = ReturnType<typeof toBotQuoteLine>;
 
 export function toBotShippingOption(option: ShippingQuote, subtotal: number) {
   return {
@@ -176,7 +222,8 @@ export function toBotOrder(order: OrderWithDetails) {
         quantity: item.quantity,
         bundle_size: bundleSize ?? 1,
         bundle_price: item.unit_price,
-        subtotal: item.subtotal
+        subtotal: item.subtotal,
+        presentation_label: item.presentation_label_snapshot ?? null
       };
     })
   };

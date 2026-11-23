@@ -100,7 +100,9 @@ export default function CategoriasPage() {
         isActive: data.isActive,
         displayOrder: data.displayOrder,
         description: data.description || null,
-        imageUrl: data.imageUrl || null
+        imageUrl: data.imageUrl || null,
+        // Los tags solo llegan si hay sesión admin; si faltan, no se pisan
+        ...(!selectedCategory || selectedCategory.tags !== undefined ? { tags: data.tags } : {})
       };
 
       if (selectedCategory) {

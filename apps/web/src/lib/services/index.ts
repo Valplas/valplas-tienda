@@ -21,3 +21,4 @@ export * from './price-tiers.service';
 export * from './product-images.service';
 export * from './banners.service';
 export * from './settings.service';
+export * from './attributes.service';

@@ -3,6 +3,20 @@ import { query } from '../../infrastructure/database/client.js';
 export interface TierInfo {
   minQuantity: number;
   unitPrice: number;
+  label: string | null;
+}
+
+export interface CartProduct {
+  id: string;
+  name: string;
+  slug: string;
+  sku: string;
+  price: number;
+  imageUrl: string | null;
+  availableStock: number;
+  unitLabel: string | null;
+  unitContentQuantity: number | null;
+  unitContentLabel: string | null;
 }
 
 /**
@@ -22,8 +36,9 @@ export async function getTiersForCartItems(
     price_list_id: string;
     min_quantity: number;
     unit_price: number;
+    label: string | null;
   }>(
-    `SELECT ppt.product_id, ppt.price_list_id, ppt.min_quantity,
+    `SELECT ppt.product_id, ppt.price_list_id, ppt.min_quantity, ppt.label,
       TRUNC(
         p.cost_price
         * (1 + pl.margin / 100) * 100
@@ -42,7 +57,8 @@ export async function getTiersForCartItems(
   for (const row of result.rows) {
     map.set(`${row.product_id}:${row.price_list_id}`, {
       minQuantity: row.min_quantity,
-      unitPrice: Number(row.unit_price)
+      unitPrice: Number(row.unit_price),
+      label: row.label
     });
   }
   return map;
@@ -130,17 +146,7 @@ export async function getProductForCart(productId: string): Promise<{
 /**
  * Obtener múltiples productos para el carrito
  */
-export async function getProductsForCart(productIds: string[]): Promise<
-  Array<{
-    id: string;
-    name: string;
-    slug: string;
-    sku: string;
-    price: number;
-    imageUrl: string | null;
-    availableStock: number;
-  }>
-> {
+export async function getProductsForCart(productIds: string[]): Promise<CartProduct[]> {
   if (productIds.length === 0) {
     return [];
   }
@@ -153,6 +159,9 @@ export async function getProductsForCart(productIds: string[]): Promise<
     price: number;
     image_url: string | null;
     available_stock: number;
+    unit_label: string | null;
+    unit_content_quantity: string | number | null;
+    unit_content_label: string | null;
   }>(
     `SELECT
       p.id,
@@ -172,7 +181,8 @@ export async function getProductsForCart(productIds: string[]): Promise<
         p.cost_price
       ) AS price,
       (p.stock - p.reserved_stock) as available_stock,
-      (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image_url
+      (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image_url,
+      p.unit_label, p.unit_content_quantity, p.unit_content_label
      FROM products p
      WHERE p.id = ANY($1) AND p.deleted_at IS NULL AND p.is_active = true`,
     [productIds]
@@ -185,6 +195,10 @@ export async function getProductsForCart(productIds: string[]): Promise<
     sku: row.sku,
     price: Number(row.price),
     imageUrl: row.image_url,
-    availableStock: row.available_stock
+    availableStock: row.available_stock,
+    unitLabel: row.unit_label,
+    unitContentQuantity:
+      row.unit_content_quantity !== null ? Number(row.unit_content_quantity) : null,
+    unitContentLabel: row.unit_content_label
   }));
 }

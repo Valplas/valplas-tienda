@@ -16,6 +16,11 @@ import type {
   UpdateProductData
 } from './product.types.js';
 
+/** '' (input en blanco) equivale a "sin valor": se guarda como null; undefined se conserva. */
+export function emptyToNull(value: string | null | undefined): string | null | undefined {
+  return value === '' ? null : value;
+}
+
 // Tiers activos del producto con precio de venta derivado (costo × margen de lista).
 // Lo usan listado y detalle para que el front calcule el precio efectivo.
 const PRICE_TIERS_SQL = `COALESCE(
@@ -24,6 +29,7 @@ const PRICE_TIERS_SQL = `COALESCE(
             'priceListId', ppt.price_list_id,
             'priceListName', pl.name,
             'minQuantity', ppt.min_quantity,
+            'label', ppt.label,
             'unitPrice', TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100
           ) ORDER BY pl.name ASC
         )
@@ -453,9 +459,10 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
       sku, name, slug, description, category_id, brand_id,
       cost_price, stock,
       weight, width, length, height, origin,
-      is_featured, is_active
+      is_featured, is_active,
+      unit_label, unit_content_quantity, unit_content_label, tags
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
     RETURNING *`,
     [
       data.sku,
@@ -472,7 +479,11 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
       data.height ?? null,
       data.origin || null,
       data.isFeatured || false,
-      true
+      true,
+      emptyToNull(data.unitLabel) ?? null,
+      data.unitContentQuantity ?? null,
+      emptyToNull(data.unitContentLabel) ?? null,
+      data.tags ?? []
     ]
   );
 
@@ -482,7 +493,11 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
 /**
  * Actualizar producto
  */
-export async function updateProduct(id: string, data: UpdateProductData): Promise<Product | null> {
+export async function updateProduct(
+  id: string,
+  data: UpdateProductData,
+  client?: PoolClient
+): Promise<Product | null> {
   const updates: string[] = [];
   const params: unknown[] = [];
   let paramIndex = 1;
@@ -571,17 +586,41 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
     paramIndex++;
   }
 
+  if (data.unitLabel !== undefined) {
+    updates.push(`unit_label = $${paramIndex}`);
+    params.push(emptyToNull(data.unitLabel));
+    paramIndex++;
+  }
+
+  if (data.unitContentQuantity !== undefined) {
+    updates.push(`unit_content_quantity = $${paramIndex}`);
+    params.push(data.unitContentQuantity);
+    paramIndex++;
+  }
+
+  if (data.unitContentLabel !== undefined) {
+    updates.push(`unit_content_label = $${paramIndex}`);
+    params.push(emptyToNull(data.unitContentLabel));
+    paramIndex++;
+  }
+
+  if (data.tags !== undefined) {
+    updates.push(`tags = $${paramIndex}`);
+    params.push(data.tags);
+    paramIndex++;
+  }
+
   if (updates.length === 0) return null;
 
   params.push(id);
 
-  const result = await query<Product>(
-    `UPDATE products
+  const sql = `UPDATE products
      SET ${updates.join(', ')}
      WHERE id = $${paramIndex} AND deleted_at IS NULL
-     RETURNING *`,
-    params
-  );
+     RETURNING *`;
+  const result = client
+    ? await client.query<Product>(sql, params)
+    : await query<Product>(sql, params);
 
   return result.rows[0] || null;
 }
@@ -623,8 +662,13 @@ function transformProductRow(row: Record<string, unknown>): ProductWithDetails {
     length: row.length ?? null,
     height: row.height ?? null,
     origin: row.origin ?? null,
+    unitLabel: row.unit_label ?? null,
+    unitContentQuantity:
+      row.unit_content_quantity == null ? null : Number(row.unit_content_quantity),
+    unitContentLabel: row.unit_content_label ?? null,
     isFeatured: row.is_featured,
     isActive: row.is_active,
+    tags: (row.tags as string[] | null) ?? [],
     images: (row.images as ProductWithDetails['images']) || [],
     priceTiers: (row.price_tiers as ProductWithDetails['priceTiers']) || [],
     createdAt: row.created_at as string,

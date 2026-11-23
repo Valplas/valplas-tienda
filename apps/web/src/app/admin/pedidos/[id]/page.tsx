@@ -296,7 +296,14 @@ export default function PedidoDetailPage({
                 return (
                   <TableRow key={index}>
                     <TableCell className="font-mono text-sm">{item.productSku}</TableCell>
-                    <TableCell>{item.productName}</TableCell>
+                    <TableCell>
+                      {item.productName}
+                      {item.presentationLabelSnapshot && (
+                        <p className="text-xs text-muted-foreground">
+                          {item.presentationLabelSnapshot}
+                        </p>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">{item.quantity}</TableCell>
                     <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
                     <TableCell className="text-right font-medium">

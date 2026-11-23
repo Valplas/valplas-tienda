@@ -8,6 +8,7 @@ import swaggerUi from 'swagger-ui-express';
 import { errorHandler } from './shared/middleware/error.middleware.js';
 import { apiRateLimiter } from './shared/middleware/rate-limit.middleware.js';
 import { camelCaseResponse } from './shared/middleware/camel-case.middleware.js';
+import { trimStrings, trimmedQueryParser } from './shared/middleware/trim-strings.middleware.js';
 import { csrfProtection } from './shared/middleware/csrf.middleware.js';
 import { env, validateEnv } from './env.js';
 import { swaggerSpec } from './config/swagger.js';
@@ -24,6 +25,9 @@ const PORT = env.PORT;
 // en lugar de la del cliente. Valor numérico (no `true`) para no confiar ciegamente en
 // X-Forwarded-For. Ver NC-01 (auditoría ISO 27001).
 app.set('trust proxy', 1);
+
+// Express 5 re-parsea req.query en cada acceso: el trim de la query va en el parser.
+app.set('query parser', trimmedQueryParser);
 
 // Middleware globales
 // helmet() ya aplica una CSP por defecto razonable (script-src 'self', object-src 'none',
@@ -71,6 +75,8 @@ app.use(
 app.use(morgan('dev'));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
+// Recorta strings del body (salvo passwords y webhooks) antes de csrf/rutas.
+app.use(trimStrings);
 app.use(cookieParser());
 // CSRF: la sesión va en cookies SameSite=None (front y API en sitios distintos),
 // así que todo POST/PUT/PATCH/DELETE exige además el header x-csrf-token
@@ -106,6 +112,7 @@ import authRoutes from './modules/auth/auth.routes.js';
 import productRoutes from './modules/products/product.routes.js';
 import categoryRoutes from './modules/categories/category.routes.js';
 import brandRoutes from './modules/brands/brand.routes.js';
+import attributeRoutes from './modules/attributes/attribute.routes.js';
 import priceListRoutes from './modules/price-lists/price-list.routes.js';
 import cartRoutes from './modules/cart/cart.routes.js';
 import shippingRoutes from './modules/shipping/shipping.routes.js';
@@ -139,6 +146,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/brands', brandRoutes);
+app.use('/api/attributes', attributeRoutes);
 app.use('/api/price-lists', priceListRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/shipping', shippingRoutes);

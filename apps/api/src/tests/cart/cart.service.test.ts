@@ -27,8 +27,8 @@ const PRODUCT_ID = 'prod-1';
 
 // Presentaciones del producto: unidad (lista minorista) y bulto x10 (lista mayorista)
 const TIERS: Record<string, TierInfo> = {
-  [`${PRODUCT_ID}:pl-unit`]: { minQuantity: 1, unitPrice: 100 },
-  [`${PRODUCT_ID}:pl-10`]: { minQuantity: 10, unitPrice: 80 }
+  [`${PRODUCT_ID}:pl-unit`]: { minQuantity: 1, unitPrice: 100, label: null },
+  [`${PRODUCT_ID}:pl-10`]: { minQuantity: 10, unitPrice: 80, label: 'Bulto' }
 };
 
 function mockStock(availableStock: number) {
@@ -39,7 +39,10 @@ function mockStock(availableStock: number) {
     sku: 'BOL-1',
     price: 100,
     imageUrl: null,
-    availableStock
+    availableStock,
+    unitLabel: 'caja',
+    unitContentQuantity: 100,
+    unitContentLabel: 'unidades'
   };
   vi.mocked(cartRepository.getProductForCart).mockResolvedValue(product);
   vi.mocked(cartRepository.getProductsForCart).mockResolvedValue([product]);
@@ -239,5 +242,36 @@ describe('getCartWithDetails', () => {
       subtotal: 1600
     });
     expect(summary.subtotal).toBe(1700);
+  });
+
+  it('cada línea suma presentationLabel y presentationContains', async () => {
+    mockStock(100);
+    const cart: Cart = {
+      items: [
+        { productId: PRODUCT_ID, quantity: 1, priceListId: 'pl-unit' },
+        { productId: PRODUCT_ID, quantity: 2, priceListId: 'pl-10' }
+      ]
+    };
+
+    const summary = await getCartWithDetails(cart);
+
+    expect(summary.items[0]).toMatchObject({
+      presentationLabel: 'Caja',
+      presentationContains: '100 unidades'
+    });
+    expect(summary.items[1]).toMatchObject({
+      presentationLabel: 'Bulto',
+      presentationContains: '10 cajas (1.000 unidades)'
+    });
+  });
+
+  it('sin tier usa la presentación base', async () => {
+    mockStock(100);
+    const summary = await getCartWithDetails({ items: [{ productId: PRODUCT_ID, quantity: 1 }] });
+
+    expect(summary.items[0]).toMatchObject({
+      presentationLabel: 'Caja',
+      presentationContains: '100 unidades'
+    });
   });
 });

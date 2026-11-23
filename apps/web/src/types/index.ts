@@ -92,6 +92,8 @@ export interface Category {
   imageUrl: string | null;
   isActive: boolean;
   displayOrder: number;
+  /** Solo viene para admin/owner autenticado. */
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -121,6 +123,44 @@ export interface ProductImage {
   height: number | null;
 }
 
+export type AttributeValueType = 'number' | 'text' | 'option';
+
+/** Valor de atributo en el detalle admin (editable). */
+export interface ProductAttributeAdmin {
+  attributeId: string;
+  key: string;
+  label: string;
+  valueType: AttributeValueType;
+  unit: string | null;
+  value: number | string;
+}
+
+/** Valor de atributo en el detalle público (solo lectura). */
+export interface ProductAttributePublic {
+  key: string;
+  label: string;
+  value: number | string;
+  unit: string | null;
+}
+
+export interface AttributeDefinition {
+  id: string;
+  key: string;
+  label: string;
+  valueType: AttributeValueType;
+  unit: string | null;
+  options: string[] | null;
+  aliases: string[];
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttributeDefinitionWithCategories extends AttributeDefinition {
+  categories: Array<{ id: string; name: string }>;
+}
+
 export interface Product {
   id: string;
   sku: string;
@@ -135,7 +175,11 @@ export interface Product {
   stock: number;
   reservedStock: number;
   availableStock: number; // stock - reservedStock
-  unit: string; // "unidad", "pack x 10", "caja x 50"
+  // Unidad de venta (admin: campos planos del API)
+  unitLabel?: string | null; // "paquete", "caja"
+  unitContentQuantity?: number | null; // 100
+  unitContentLabel?: string | null; // "bolsas"
+  unit?: ProductUnit | null; // público (detalle): unidad ya armada por el API
   weight?: number | null; // kg
   width?: number | null; // cm
   length?: number | null; // cm
@@ -152,6 +196,10 @@ export interface Product {
   category?: Category;
   brand?: Brand;
   tiers?: PriceTier[]; // populated on product detail page
+  /** Admin: con attributeId (editable). Público: ProductAttributePublic. */
+  attributes?: Array<ProductAttributeAdmin | ProductAttributePublic>;
+  /** Solo en el detalle admin. */
+  tags?: string[];
 }
 
 export interface ProductFilters {
@@ -174,6 +222,8 @@ export interface CartItem {
   priceListId?: string; // lista de precios del tier elegido (para la orden)
   minQuantity?: number; // unidades por bulto (1 si no hay tier)
   unitPrice?: number; // precio por unidad de la lista del tier
+  presentationLabel?: string; // nombre de la presentación (API)
+  presentationContains?: string | null; // ej. "10 cajas (1.000 unidades)"
   product?: Product; // Populated for display
 }
 
@@ -230,6 +280,7 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  presentationLabelSnapshot?: string | null;
 }
 
 export interface Order {
@@ -300,11 +351,25 @@ export interface PriceList {
 // CATALOG — Public product types with price tiers
 // ============================================================================
 
+/** Unidad de venta tal como la expone el API público. */
+export interface ProductUnit {
+  label: string;
+  contains: { quantity: number; of: string | null } | null;
+}
+
 export interface PriceTier {
   minQuantity: number;
   unitPrice: number;
   priceListId?: string;
   priceListName?: string;
+  /** Nombre de la presentación (admin: puede ser null → se usa el fallback). */
+  label?: string | null;
+  /** Contenido legible, ej. "10 paquetes (1.000 bolsas)". Solo público. */
+  contains?: string | null;
+  description?: string;
+  bundlePrice?: number;
+  /** % de ahorro vs. comprar por unidad. Solo público. */
+  savingsPercent?: number;
 }
 
 export interface ProductPublic {
@@ -320,6 +385,7 @@ export interface ProductPublic {
   category: { id: string; name: string } | null;
   brand: { id: string; name: string } | null;
   tiers: PriceTier[]; // ordenados por minQuantity ASC
+  unit?: ProductUnit | null;
 }
 
 export interface CatalogFilters {
@@ -386,3 +452,56 @@ export interface StoreSettings {
 export * from './toast.types';
 export * from './filter.types';
 export * from './cart.types';
+
+export type StoreDeliveryDay =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export type StorePaymentMethod = 'mercadopago' | 'transfer' | 'cash_on_delivery' | 'cash_pickup';
+
+export interface StoreTransferDetails {
+  alias: string | null;
+  cbu: string | null;
+  holder: string | null;
+  bank: string | null;
+}
+
+export interface StoreInfo {
+  businessHours: string | null;
+  deliveryDays: StoreDeliveryDay[] | null;
+  deliveryZones: string[] | null;
+  minimumOrder: number | null;
+  freeShippingFrom: number | null;
+  paymentMethods: StorePaymentMethod[] | null;
+  transferDetails: StoreTransferDetails | null;
+  pickupAddress: string | null;
+  priceListUrl: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  additionalInfo: string | null;
+  updatedAt: string | null;
+}
+
+/** Body del PUT /settings/store-info (snake_case, el backend lo espera así). */
+export interface StoreInfoPayload {
+  business_hours: string | null;
+  delivery_days: StoreDeliveryDay[] | null;
+  delivery_zones: string[] | null;
+  minimum_order: number | null;
+  free_shipping_from: number | null;
+  payment_methods: StorePaymentMethod[] | null;
+  transfer_alias: string | null;
+  transfer_cbu: string | null;
+  transfer_holder: string | null;
+  transfer_bank: string | null;
+  pickup_address: string | null;
+  price_list_url: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  additional_info: string | null;
+}

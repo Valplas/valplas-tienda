@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import { createAddressSchema } from '../addresses/address.validators.js';
+import { MAX_PLAN_UNITS } from '../orders/plan-units.js';
 
 const CATALOG_SORTS = [
   'featured',
@@ -28,6 +29,11 @@ export const catalogProductsQuerySchema = z.object({
   category_id: z.string().uuid().optional(),
   brand_id: z.string().uuid().optional(),
   sort: z.enum(CATALOG_SORTS).optional(),
+  // z.coerce.boolean() convertiría 'false' en true
+  include_out_of_stock: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
   page,
   limit
 });
@@ -50,13 +56,35 @@ export const createCustomerAddressSchema = createAddressSchema.extend({
   alias: z.string().min(2).max(50).optional().default('WhatsApp')
 });
 
-export const botOrderItemSchema = z.object({
+// Formato histórico: presentación elegida (tier de la lista) y bultos.
+// Las claves desconocidas se descartan (como siempre), p. ej. campos de un /quote reenviados.
+const botPresentationItemSchema = z.object({
   product_id: z.string().uuid(),
-  // Presentación elegida (tier de la lista). Obligatoria: sin ella el pedido se vendería a costo.
+  // Obligatoria: sin ella el pedido se vendería a costo
   price_list_id: z.string().uuid(),
   // Bultos de la presentación, no unidades sueltas
   quantity: z.number().int().min(1).max(10000)
 });
+
+// Formato por unidades: el servidor arma la combinación exacta más barata de presentaciones.
+const botUnitsItemSchema = z.object({
+  product_id: z.string().uuid(),
+  units: z.number().int().min(1).max(MAX_PLAN_UNITS)
+});
+
+// Único conflicto real entre formatos: `units` junto con price_list_id o quantity. Se revisa
+// sobre el ítem crudo, antes de que cada esquema descarte las claves que no conoce.
+export const botOrderItemSchema = z
+  .record(z.string(), z.unknown())
+  .superRefine((item, ctx) => {
+    if ('units' in item && ('price_list_id' in item || 'quantity' in item)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'units no se puede combinar con price_list_id ni quantity en el mismo ítem'
+      });
+    }
+  })
+  .pipe(z.union([botPresentationItemSchema, botUnitsItemSchema]));
 
 const items = z.array(botOrderItemSchema).min(1).max(50);
 

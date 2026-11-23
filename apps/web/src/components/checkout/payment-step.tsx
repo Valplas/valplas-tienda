@@ -126,9 +126,15 @@ export function PaymentStep({
                   <div className="flex-1">
                     <div className="font-medium">{product.name}</div>
                     <div className="text-muted-foreground">
-                      {item.quantity} × {presentationLabel(item.minQuantity ?? 1)} ·{' '}
+                      {item.quantity} ×{' '}
+                      {item.presentationLabel || presentationLabel(item.minQuantity ?? 1)} ·{' '}
                       {formatPrice(product.finalPrice)}
                     </div>
+                    {item.presentationContains && (
+                      <div className="text-xs text-muted-foreground">
+                        {item.presentationContains}
+                      </div>
+                    )}
                   </div>
                   <div className="font-medium">
                     {formatPrice(product.finalPrice * item.quantity)}

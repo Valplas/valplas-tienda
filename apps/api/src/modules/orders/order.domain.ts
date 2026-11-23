@@ -14,6 +14,7 @@ import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
 import { findProductsByIds } from '../products/product.repository.js';
 import { getTiersForCartItems } from '../cart/cart.repository.js';
+import { describeLineTier, presentationSnapshot } from '../catalog/presentation.js';
 import { findPriceListsByIds } from '../price-lists/price-list.repository.js';
 import type { PoolClient } from 'pg';
 import { transaction } from '../../infrastructure/database/client.js';
@@ -206,7 +207,9 @@ export async function createOrder(
   if (problems.length > 0) {
     throw pricingProblemToError(problems[0]);
   }
-  const itemsWithPrices = lines.map(({ available_stock: _availableStock, ...line }) => line);
+  const itemsWithPrices = lines.map(
+    ({ available_stock: _availableStock, item_index: _itemIndex, ...line }) => line
+  );
 
   // Get shipping cost — mismas zonas/tarifas que la cotización pública
   const shippingCost = await getCarrierShippingCost(
@@ -409,11 +412,28 @@ async function resolveAdminItemPricing(
       throw new AppError('PRICE_LIST_NOT_FOUND', 'Lista de precios no encontrada', 404);
     }
 
-    const bundleSize = tierMap.get(`${item.product_id}:${item.price_list_id}`)?.minQuantity ?? 1;
+    const tier = tierMap.get(`${item.product_id}:${item.price_list_id}`);
+    const bundleSize = tier?.minQuantity ?? 1;
     const costPrice = Number(product.costPrice);
     const unitPrice = Math.trunc(costPrice * (1 + Number(priceList.margin) / 100) * 100) / 100;
 
-    return { product, bundleSize, unitPrice, costPrice };
+    const presentationLabelSnapshot = presentationSnapshot(
+      describeLineTier(
+        {
+          label: product.unitLabel,
+          contentQuantity: product.unitContentQuantity,
+          contentLabel: product.unitContentLabel
+        },
+        {
+          priceListId: item.price_list_id,
+          minQuantity: bundleSize,
+          unitPrice,
+          label: tier?.label ?? null
+        }
+      )
+    );
+
+    return { product, bundleSize, unitPrice, costPrice, presentationLabelSnapshot };
   });
 }
 
@@ -459,7 +479,13 @@ export async function createAdminOrder(
   const pricing = await resolveAdminItemPricing(data.items);
 
   for (const [index, item] of data.items.entries()) {
-    const { product, bundleSize: bundleSizeSnapshot, unitPrice, costPrice } = pricing[index];
+    const {
+      product,
+      bundleSize: bundleSizeSnapshot,
+      unitPrice,
+      costPrice,
+      presentationLabelSnapshot
+    } = pricing[index];
 
     const availableStock = product.stock - product.reservedStock;
     const realQuantity = item.quantity * bundleSizeSnapshot;
@@ -487,7 +513,8 @@ export async function createAdminOrder(
       real_quantity: realQuantity,
       unit_price: pricePerBundle,
       price_list_id: item.price_list_id,
-      cost_price_snapshot: costPerBundle
+      cost_price_snapshot: costPerBundle,
+      presentation_label_snapshot: presentationLabelSnapshot
     });
   }
 
@@ -669,7 +696,13 @@ export async function updateAdminOrder(
   // Precios, bultos y producto de TODOS los ítems en 3 queries (antes: 4 por ítem)
   const pricing = await resolveAdminItemPricing(activeItems);
   for (const [index, item] of activeItems.entries()) {
-    const { product, bundleSize: bundleSizeSnapshot, unitPrice, costPrice } = pricing[index];
+    const {
+      product,
+      bundleSize: bundleSizeSnapshot,
+      unitPrice,
+      costPrice,
+      presentationLabelSnapshot
+    } = pricing[index];
     const realQuantity = item.quantity * bundleSizeSnapshot;
     // Precio y costo POR BULTO, igual que en createAdminOrder y en el checkout web
     enrichedItems.push({
@@ -681,7 +714,8 @@ export async function updateAdminOrder(
       real_quantity: realQuantity,
       unit_price: Math.round(unitPrice * bundleSizeSnapshot * 100) / 100,
       price_list_id: item.price_list_id,
-      cost_price_snapshot: Math.round(costPrice * bundleSizeSnapshot * 100) / 100
+      cost_price_snapshot: Math.round(costPrice * bundleSizeSnapshot * 100) / 100,
+      presentation_label_snapshot: presentationLabelSnapshot
     });
   }
 

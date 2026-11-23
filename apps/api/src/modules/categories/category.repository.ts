@@ -16,6 +16,7 @@ function transformCategoryRow(row: Record<string, unknown>): Category {
     imageUrl: (row.image_url as string | null) ?? null,
     isActive: row.is_active as boolean,
     displayOrder: row.display_order as number,
+    tags: (row.tags as string[] | null) ?? [],
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string
   };
@@ -122,8 +123,8 @@ export async function getProductCount(id: string): Promise<number> {
  */
 export async function createCategory(data: CreateCategoryData): Promise<Category> {
   const result = await query(
-    `INSERT INTO categories (name, slug, description, image_url, parent_id, display_order, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO categories (name, slug, description, image_url, parent_id, display_order, is_active, tags)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       data.name,
@@ -132,7 +133,8 @@ export async function createCategory(data: CreateCategoryData): Promise<Category
       data.imageUrl || null,
       data.parentId || null,
       data.displayOrder || 0,
-      true
+      true,
+      data.tags ?? []
     ]
   );
 
@@ -189,6 +191,12 @@ export async function updateCategory(
   if (data.isActive !== undefined) {
     updates.push(`is_active = $${paramIndex}`);
     params.push(data.isActive);
+    paramIndex++;
+  }
+
+  if (data.tags !== undefined) {
+    updates.push(`tags = $${paramIndex}`);
+    params.push(data.tags);
     paramIndex++;
   }
 

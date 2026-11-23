@@ -7,6 +7,7 @@
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import { findProductsByIds } from '../products/product.repository.js';
 import { getTiersForCartItems } from '../cart/cart.repository.js';
+import { describeLineTier, presentationSnapshot } from '../catalog/presentation.js';
 import type { CreateOrderItemInput } from './order.types.js';
 
 /**
@@ -33,6 +34,10 @@ export interface PricedOrderLine {
   price_list_id?: string;
   /** Unidades disponibles (stock - reserved_stock) al momento de cotizar */
   available_stock: number;
+  /** Texto de la presentación al comprar (ej: "Bulto · 10 paquetes"); no cambia si se renombra el tier */
+  presentation_label_snapshot: string | null;
+  /** Posición en el array de ítems recibido (las líneas con problema se omiten) */
+  item_index: number;
 }
 
 export type OrderPricingProblem =
@@ -50,6 +55,22 @@ export type OrderPricingProblem =
       product_name: string;
       available: number;
       requested: number;
+    }
+  | {
+      /** Modo units: las líneas cobradas no coinciden con el plan (un tier cambió) */
+      code: 'UNITS_PLAN_MISMATCH';
+      product_id: string;
+      product_name: string;
+      requested: number;
+    }
+  | {
+      /** Modo units (bot): no hay combinación exacta de presentaciones para esas unidades */
+      code: 'UNITS_NOT_ACHIEVABLE';
+      product_id: string;
+      product_name: string;
+      requested: number;
+      nearest_below: number | null;
+      nearest_above: number | null;
     };
 
 export interface OrderPricingResult {
@@ -97,7 +118,7 @@ export async function priceOrderItems(
   // varias presentaciones (una línea por tier) y entre todas comparten el stock.
   const requestedUnitsByProduct = new Map<string, number>();
 
-  for (const item of items) {
+  for (const [itemIndex, item] of items.entries()) {
     const product = productMap.get(item.product_id);
 
     if (!product) {
@@ -162,7 +183,23 @@ export async function priceOrderItems(
       unit_price: pricePerBundle,
       subtotal: itemSubtotal,
       price_list_id: item.price_list_id,
-      available_stock: availableStock
+      available_stock: availableStock,
+      presentation_label_snapshot: presentationSnapshot(
+        describeLineTier(
+          {
+            label: product.unitLabel ?? null,
+            contentQuantity: product.unitContentQuantity ?? null,
+            contentLabel: product.unitContentLabel ?? null
+          },
+          {
+            priceListId: item.price_list_id ?? '',
+            minQuantity: bundleSize,
+            unitPrice,
+            label: tier?.label ?? null
+          }
+        )
+      ),
+      item_index: itemIndex
     });
   }
 
@@ -192,6 +229,25 @@ export function pricingProblemToError(problem: OrderPricingProblem): AppError {
         'INSUFFICIENT_STOCK',
         `Stock insuficiente para ${problem.product_name}. Disponible: ${problem.available}, solicitado: ${problem.requested}`,
         409
+      );
+    case 'UNITS_PLAN_MISMATCH':
+      return new AppError(
+        'UNITS_PLAN_MISMATCH',
+        'Las presentaciones del producto cambiaron, volvé a cotizar',
+        409,
+        { product_id: problem.product_id }
+      );
+    case 'UNITS_NOT_ACHIEVABLE':
+      return new AppError(
+        'UNITS_NOT_ACHIEVABLE',
+        `No se puede armar exactamente ${problem.requested} unidades de ${problem.product_name} con sus presentaciones`,
+        422,
+        {
+          product_id: problem.product_id,
+          requested: problem.requested,
+          nearest_below: problem.nearest_below,
+          nearest_above: problem.nearest_above
+        }
       );
   }
 }

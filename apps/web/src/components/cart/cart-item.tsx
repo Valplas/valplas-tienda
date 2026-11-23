@@ -83,9 +83,13 @@ export function CartItem({ item }: CartItemProps) {
         </Link>
 
         <p className="text-sm text-muted-foreground mt-1">
-          {presentationLabel(bundleSize)}
+          {item.presentationLabel || presentationLabel(bundleSize)}
           {bundleSize > 1 && ` · ${item.quantity} ${item.quantity === 1 ? 'unidad' : 'unidades'}`}
         </p>
+
+        {item.presentationContains && (
+          <p className="text-xs text-muted-foreground">{item.presentationContains}</p>
+        )}
 
         <div className="flex items-center gap-2 mt-2">
           <span className="text-sm font-semibold">
