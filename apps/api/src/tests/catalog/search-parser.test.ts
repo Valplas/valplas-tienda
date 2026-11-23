@@ -73,7 +73,14 @@ describe('parseSearch', () => {
   it('bare 4-digit goes to candidates, not words', () => {
     const r = parseSearch('bolsa 4050', aliases);
     expect(r.fourDigitCandidates).toEqual([4050]);
+    expect(r.fourDigitRaw).toEqual(['4050']);
     expect(r.words).toEqual(['bolsa']);
+  });
+
+  it('keeps the raw digits of a 4-digit number (leading zeros survive)', () => {
+    const r = parseSearch('0042', aliases);
+    expect(r.fourDigitCandidates).toEqual([42]);
+    expect(r.fourDigitRaw).toEqual(['0042']);
   });
 
   it('keeps bare non-4-digit numbers as words', () => {
@@ -88,7 +95,13 @@ describe('parseSearch', () => {
   });
 
   it('empty or only stopwords gives everything empty', () => {
-    const empty = { words: [], measures: [], quantities: [], fourDigitCandidates: [] };
+    const empty = {
+      words: [],
+      measures: [],
+      quantities: [],
+      fourDigitCandidates: [],
+      fourDigitRaw: []
+    };
     expect(parseSearch('', aliases)).toEqual(empty);
     expect(parseSearch('   ', aliases)).toEqual(empty);
     expect(parseSearch('hola, quiero por favor gracias', { terms: new Map() }).words).toEqual([]);

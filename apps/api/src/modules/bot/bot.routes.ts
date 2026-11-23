@@ -94,13 +94,13 @@ router.get('/store/info', botController.getStoreInfo);
  *     parameters:
  *       - in: query
  *         name: search
- *         description: "Texto tal cual lo escribió el cliente (máx. 100). Descarta stopwords (hola, quiero, precio…); cada palabra (singular o plural, sin acentos) debe estar en nombre, SKU, marca, categoría, tags del producto o de su categoría/ancestros o valores de texto de atributos. Medidas (40x50, 40 x 50, 40*50) en el nombre o en ancho/alto; número + unidad (20 mic, 5 litros) en el atributo o en el nombre. Si nada coincide con todo: un número de 4 dígitos se reintenta como medida (4050 → 40x50) y después se relaja a cualquier palabra (searchMode relaxed)."
+ *         description: "Texto tal cual lo escribió el cliente (máx. 100). Descarta stopwords (hola, quiero, precio…); cada palabra (singular o plural, sin acentos) debe estar en nombre, SKU, marca, categoría, tags del producto o de su categoría/ancestros o valores de texto de atributos. Medidas (40x50, 40 x 50, 40*50) en el nombre o en ancho/alto; número + unidad (20 mic, 5 litros) en el atributo o en el nombre; un número de 4 dígitos tal cual (con ceros a la izquierda, 0042) suelto en el nombre o dentro del SKU. Si nada coincide con todo: el número de 4 dígitos se reintenta como medida (4050 → 40x50) y después se relaja a cualquier palabra significativa, 3+ letras (searchMode relaxed)."
  *         schema: { type: string, maxLength: 100 }
  *       - { in: query, name: category_id, schema: { type: string, format: uuid } }
  *       - { in: query, name: brand_id, schema: { type: string, format: uuid } }
  *       - in: query
  *         name: sort
- *         description: "Con search y sin sort (o featured): por relevancia (nombre > tags > atributo/categoría/marca; en relaxed primero los que coinciden con más palabras). Un sort explícito se respeta."
+ *         description: "Con search y sin sort (o featured): por relevancia (nombre > tags > atributo/categoría/marca; en relaxed primero los que coinciden con más términos, contando palabras, medidas y números). Un sort explícito se respeta."
  *         schema: { type: string, enum: [featured, price_asc, price_desc, name_asc, name_desc, newest] }
  *       - in: query
  *         name: include_out_of_stock
@@ -110,7 +110,7 @@ router.get('/store/info', botController.getStoreInfo);
  *       - { in: query, name: limit, schema: { type: integer, default: 10, maximum: 50 } }
  *     responses:
  *       200:
- *         description: "Lista paginada { data, pagination, searchMode }. Cada producto trae inStock (availableStock > 0), purchasable (tiene presentaciones Y stock disponible; cambió de significado: antes solo consideraba presentaciones) y presentations (priceListId, bundleSize, bundlePrice, availableBundles). searchMode (fuera de pagination): exact (coinciden todos los términos), relaxed (ningún producto coincidía con todos los términos; alcanza con una palabra: decir 'no encontré exactamente eso, pero tengo…') o null (sin search, o solo stopwords/signos: lista todo)."
+ *         description: "Lista paginada { data, pagination, searchMode }. Cada producto trae inStock (availableStock > 0), purchasable (tiene presentaciones Y stock disponible; cambió de significado: antes solo consideraba presentaciones) y presentations (priceListId, bundleSize, bundlePrice, availableBundles). searchMode (fuera de pagination): exact (coinciden todos los términos; también cuando no se encontró nada), relaxed (ningún producto coincidía con todos los términos y el relajado trajo resultados; alcanza con una palabra: decir 'no encontré exactamente eso, pero tengo…') o null (sin search, o solo stopwords/signos: lista todo)."
  *         content:
  *           application/json:
  *             schema:

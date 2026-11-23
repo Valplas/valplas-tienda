@@ -132,8 +132,9 @@ export interface PublicProductsPage {
   products: PublicProduct[];
   total: number;
   /**
-   * Cómo se resolvió `search`: 'exact' (todos los términos), 'relaxed' (ningún producto tenía
-   * todos: alcanza con una palabra) o null (sin búsqueda, o solo stopwords/signos).
+   * Cómo se resolvió `search`: 'exact' (todos los términos, o nada encontrado), 'relaxed'
+   * (ningún producto tenía todos y el relajado SÍ trajo resultados: alcanza con una palabra) o
+   * null (sin búsqueda, o solo stopwords/signos).
    */
   search_mode: SearchMode | null;
 }
@@ -219,19 +220,18 @@ export async function findPublicProducts(
     return { products: await findPublicProductsByIds(ids, options), total, search_mode: null };
   }
 
-  let found: { ids: string[]; total: number } = { ids: [], total: 0 };
-  let mode: SearchMode = attempts[0].mode;
+  // 'relaxed' solo si el relajado encontró algo; sin resultados en ningún intento → 'exact'
   for (const attempt of attempts) {
-    found = await findPageIds(pageQuery, attempt);
-    mode = attempt.mode;
-    if (found.total > 0) break;
+    const found = await findPageIds(pageQuery, attempt);
+    if (found.total > 0) {
+      return {
+        products: await findPublicProductsByIds(found.ids, options),
+        total: found.total,
+        search_mode: attempt.mode
+      };
+    }
   }
-
-  return {
-    products: await findPublicProductsByIds(found.ids, options),
-    total: found.total,
-    search_mode: mode
-  };
+  return { products: [], total: 0, search_mode: 'exact' };
 }
 
 /**

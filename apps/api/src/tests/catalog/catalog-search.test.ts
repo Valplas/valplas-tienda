@@ -13,6 +13,7 @@ import { query } from '../../infrastructure/database/client.js';
 import { findPublicProducts } from '../../modules/catalog/catalog.repository.js';
 import {
   buildSearchSql,
+  digitsRegex,
   escapeLike,
   MAX_SEARCH_TERMS,
   measureRegex,
@@ -48,6 +49,11 @@ describe('catalog-search: builder puro', () => {
     expect(numberRegex(1e21)).toBeNull();
   });
 
+  it('digitsRegex conserva los dígitos tal cual y rechaza lo que no sea dígitos', () => {
+    expect(digitsRegex('0042')).toBe(String.raw`(?<![0-9])(?<![0-9][.,])0042(?![.,]?[0-9])`);
+    expect(digitsRegex('12a4')).toBeNull();
+  });
+
   it('measureRegex acepta cualquier separador entre los dos números', () => {
     expect(measureRegex(40, 50)).toBe(
       String.raw`(?<![0-9])(?<![0-9][.,])40\s*[x×*/]\s*50(?![.,]?[0-9])`
@@ -66,7 +72,7 @@ describe('catalog-search: builder puro', () => {
         mode: 'exact',
         tokens: [
           { kind: 'word', word: 'camiseta' },
-          { kind: 'number', value: 4050, attributeKey: null }
+          { kind: 'digits', digits: '4050' }
         ]
       },
       {
@@ -80,16 +86,40 @@ describe('catalog-search: builder puro', () => {
         mode: 'relaxed',
         tokens: [
           { kind: 'word', word: 'camiseta' },
-          { kind: 'number', value: 4050, attributeKey: null },
+          { kind: 'digits', digits: '4050' },
           { kind: 'measure', a: 40, b: 50 }
         ]
       }
     ]);
   });
 
+  it('un número de 4 dígitos conserva los ceros a la izquierda ("0042")', () => {
+    const [exact, asMeasure] = planSearchAttempts(parseSearch('0042', NO_ALIASES));
+    expect(exact.tokens).toEqual([{ kind: 'digits', digits: '0042' }]);
+    expect(asMeasure.tokens).toEqual([{ kind: 'measure', a: 0, b: 42 }]);
+  });
+
   it('sin palabras significativas (>= 3 letras) no hay modo relajado', () => {
     const attempts = planSearchAttempts(parseSearch('x no 40x50', NO_ALIASES));
     expect(attempts.map((a) => a.mode)).toEqual(['exact']);
+  });
+
+  it('una sola palabra y nada más: el relajado sería igual al exacto y se omite', () => {
+    expect(planSearchAttempts(parseSearch('camiseta', NO_ALIASES)).map((a) => a.mode)).toEqual([
+      'exact'
+    ]);
+    // Con otro término (aunque no filtre en el relajado) el relajado sí es más amplio
+    expect(planSearchAttempts(parseSearch('camiseta zz', NO_ALIASES)).map((a) => a.mode)).toEqual([
+      'exact',
+      'relaxed'
+    ]);
+  });
+
+  it('buildSearchSql: el número de 4 dígitos busca en el nombre y en el SKU (escapado)', () => {
+    const sql = buildSearchSql({ mode: 'exact', tokens: [{ kind: 'digits', digits: '0042' }] }, 1);
+    expect(sql.params).toEqual([digitsRegex('0042'), '%0042%']);
+    expect(sql.where).toContain('p.sku ILIKE $2');
+    expect(sql.score).toContain('THEN 3');
   });
 
   it('palabras repetidas o en plural/singular cuentan una sola vez', () => {
@@ -283,6 +313,43 @@ describe('findPublicProducts: búsqueda', () => {
     expect(idsOf(result)[0]).toBe(product.id);
   });
 
+  it('sin resultados en ningún intento: search_mode exact (relaxed solo si trajo algo)', async () => {
+    const result = await findPublicProducts({ search: `${lettersSuffix()} ${lettersSuffix()}` });
+    expect(result).toMatchObject({ products: [], total: 0, search_mode: 'exact' });
+  });
+
+  describe('SKU con números de 4 dígitos', () => {
+    /** Producto de test cuyo SKU termina en `digits` (sigue empezando en VITEST- para el cleanup). */
+    async function createWithSku(digits: string, name = `Balde ${lettersSuffix()}`) {
+      const product = await createTestProduct({ name });
+      const sku = `VITEST-${lettersSuffix().toUpperCase()}-${digits}`;
+      await query('UPDATE products SET sku = $1 WHERE id = $2', [sku, product.id]);
+      return { ...product, sku };
+    }
+
+    it('"0042" encuentra el SKU …-0042 (ceros a la izquierda) y no el …-4200', async () => {
+      const withZeros = await createWithSku('0042');
+      const without = await createWithSku('4200');
+      const result = await findPublicProducts({ search: '0042', limit: 100 });
+      expect(onlyIds(result, [withZeros.id, without.id])).toEqual([withZeros.id]);
+      expect(result.search_mode).toBe('exact');
+    });
+
+    it('"<palabra> 1234" con 1234 en el SKU: modo exacto y lo encuentra', async () => {
+      const token = lettersSuffix();
+      const product = await createWithSku('1234', `Balde ${token}`);
+
+      const result = await findPublicProducts({ search: `${token} 1234` });
+      expect(idsOf(result)).toEqual([product.id]);
+      expect(result.search_mode).toBe('exact');
+
+      // El SKU completo tal cual se escribe ("VITEST-XXXX-1234") también es exacto
+      const bySku = await findPublicProducts({ search: product.sku });
+      expect(idsOf(bySku)).toEqual([product.id]);
+      expect(bySku.search_mode).toBe('exact');
+    });
+  });
+
   describe('relevancia', () => {
     async function createPair() {
       const token = lettersSuffix();
@@ -310,9 +377,20 @@ describe('findPublicProducts: búsqueda', () => {
     });
 
     it('con sort explícito (price_asc) se respeta el precio', async () => {
-      const { token, byName, byTag } = await createPair();
+      // El más barato es el último por nombre Y por relevancia (solo coincide por tag): si el
+      // orden cayera en relevancia o en nombre, saldría segundo
+      const token = lettersSuffix();
+      const expensive = await createTestProduct({ name: `Abrojo Balde ${token}`, costPrice: 5000 });
+      const cheap = await createTestProduct({
+        name: `Zeta ${lettersSuffix()}`,
+        tags: [token],
+        costPrice: 100
+      });
       const result = await findPublicProducts({ search: token, sort: 'price_asc' });
-      expect(idsOf(result)).toEqual([byTag.id, byName.id]);
+      expect(idsOf(result)).toEqual([cheap.id, expensive.id]);
+      // Control: sin sort explícito el mismo par sale en el otro orden
+      const byRelevance = await findPublicProducts({ search: token });
+      expect(idsOf(byRelevance)).toEqual([expensive.id, cheap.id]);
     });
 
     it('la paginación respeta la relevancia y el total', async () => {

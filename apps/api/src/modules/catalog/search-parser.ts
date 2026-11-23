@@ -14,6 +14,8 @@ export interface ParsedSearch {
   measures: Array<{ a: number; b: number }>;
   quantities: Array<{ value: number; attributeKey: string | null; rawUnit: string }>;
   fourDigitCandidates: number[];
+  /** Same numbers as typed, parallel to fourDigitCandidates (keeps leading zeros: "0042"). */
+  fourDigitRaw: string[];
 }
 
 export const SEARCH_STOPWORDS: ReadonlySet<string> = new Set([
@@ -99,7 +101,13 @@ export function normalizeSearchText(text: string): string {
 const toNumber = (s: string): number => Number(s.replace(',', '.'));
 
 export function parseSearch(text: string, aliases: AttributeAliasIndex): ParsedSearch {
-  const result: ParsedSearch = { words: [], measures: [], quantities: [], fourDigitCandidates: [] };
+  const result: ParsedSearch = {
+    words: [],
+    measures: [],
+    quantities: [],
+    fourDigitCandidates: [],
+    fourDigitRaw: []
+  };
   let normalized = normalizeSearchText(text.slice(0, MAX_INPUT_LENGTH));
   if (!normalized) return result;
 
@@ -137,6 +145,7 @@ export function parseSearch(text: string, aliases: AttributeAliasIndex): ParsedS
       }
       if (/^\d{4}$/.test(token)) {
         result.fourDigitCandidates.push(Number(token));
+        result.fourDigitRaw.push(token);
         continue;
       }
     }

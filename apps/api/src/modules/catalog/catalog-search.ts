@@ -16,7 +16,9 @@ export type SearchToken =
   | { kind: 'word'; word: string }
   | { kind: 'measure'; a: number; b: number }
   /** Número en el nombre o, con `attributeKey`, valor numérico de ese atributo. */
-  | { kind: 'number'; value: number; attributeKey: string | null };
+  | { kind: 'number'; value: number; attributeKey: string | null }
+  /** Número de 4 dígitos tal cual se escribió ("0042"): suelto en el nombre o dentro del SKU. */
+  | { kind: 'digits'; digits: string };
 
 export interface SearchAttempt {
   mode: SearchMode;
@@ -26,7 +28,10 @@ export interface SearchAttempt {
 export interface SearchSql {
   /** Exacto: AND de todos los tokens. Relajado: OR de las palabras significativas. */
   where: string;
-  /** Relevancia: por palabra 3 (nombre/SKU) + 2 (tags) + 1 (atributo/categoría/marca); +3 por medida. */
+  /**
+   * Relevancia: por palabra 3 (nombre/SKU) + 2 (tags) + 1 (atributo/categoría/marca); +3 por
+   * medida y +3 por número de 4 dígitos (nombre/SKU).
+   */
   score: string;
   /** Cantidad de tokens que coinciden (primer criterio del modo relajado). */
   matched: string;
@@ -99,6 +104,11 @@ export function numberRegex(value: number): string | null {
   return pattern === null ? null : `${NUMBER_START}${pattern}${NUMBER_END}`;
 }
 
+/** Regex de una tira de dígitos tal cual ("0042") suelta dentro del nombre. null si no son dígitos. */
+export function digitsRegex(digits: string): string | null {
+  return /^\d+$/.test(digits) ? `${NUMBER_START}${digits}${NUMBER_END}` : null;
+}
+
 /** Regex de la medida `a x b` dentro del nombre, con cualquier separador (x × * /). */
 export function measureRegex(a: number, b: number): string | null {
   const first = numberPattern(a);
@@ -122,17 +132,18 @@ function uniqueWords(words: string[]): string[] {
 }
 
 /**
- * Intentos en orden; el llamador usa el primero con total > 0 (o el último si ninguno trae):
- * 1. exacto (un número de 4 dígitos se busca tal cual en el nombre);
+ * Intentos en orden; el llamador usa el primero con total > 0:
+ * 1. exacto (un número de 4 dígitos se busca tal cual, suelto en el nombre o dentro del SKU);
  * 2. si hubo números de 4 dígitos, exacto leyéndolos como medida ("4050" → 40x50);
- * 3. si hay alguna palabra significativa, relajado.
+ * 3. si hay alguna palabra significativa, relajado — salvo que filtre lo mismo que el exacto
+ *    (una sola palabra y nada más): repetirlo no puede traer resultados nuevos.
  * El fallback "4050" va antes que el relajado: si no, "4050 camiseta" caería siempre en el
  * relajado (que encuentra cualquier camiseta) y nunca llegaría a leerse como 40x50.
  * Sin términos útiles (solo stopwords o signos) devuelve [] = sin búsqueda.
  */
 export function planSearchAttempts(parsed: ParsedSearch): SearchAttempt[] {
   const words = uniqueWords(parsed.words);
-  const fourDigits = parsed.fourDigitCandidates.slice(0, MAX_SEARCH_TERMS);
+  const fourDigits = parsed.fourDigitRaw.slice(0, MAX_SEARCH_TERMS);
   const base: SearchToken[] = [
     ...words.map((word): SearchToken => ({ kind: 'word', word })),
     ...parsed.measures
@@ -142,24 +153,27 @@ export function planSearchAttempts(parsed: ParsedSearch): SearchAttempt[] {
       .slice(0, MAX_SEARCH_TERMS)
       .map(({ value, attributeKey }): SearchToken => ({ kind: 'number', value, attributeKey }))
   ];
-  const fourDigitAsNumber = fourDigits.map(
-    (value): SearchToken => ({ kind: 'number', value, attributeKey: null })
-  );
-  const fourDigitAsMeasure = fourDigits.map(
-    (n): SearchToken => ({ kind: 'measure', a: Math.floor(n / 100), b: n % 100 })
-  );
+  const fourDigitAsDigits = fourDigits.map((digits): SearchToken => ({ kind: 'digits', digits }));
+  const fourDigitAsMeasure = fourDigits.map((digits): SearchToken => {
+    const n = Number(digits);
+    return { kind: 'measure', a: Math.floor(n / 100), b: n % 100 };
+  });
 
-  if (base.length === 0 && fourDigitAsNumber.length === 0) return [];
+  const exactTokens = [...base, ...fourDigitAsDigits];
+  if (exactTokens.length === 0) return [];
 
-  const attempts: SearchAttempt[] = [{ mode: 'exact', tokens: [...base, ...fourDigitAsNumber] }];
+  const attempts: SearchAttempt[] = [{ mode: 'exact', tokens: exactTokens }];
   if (fourDigitAsMeasure.length > 0) {
     attempts.push({ mode: 'exact', tokens: [...base, ...fourDigitAsMeasure] });
   }
-  if (words.some(isSignificantWord)) {
+  const significant = words.filter(isSignificantWord);
+  // Con una única palabra como único término el relajado (OR de esa palabra) = el exacto
+  const sameAsExact = exactTokens.length === 1 && significant.length === 1;
+  if (significant.length > 0 && !sameAsExact) {
     // Las medidas y números no filtran en el relajado, pero suman al ordenar
     attempts.push({
       mode: 'relaxed',
-      tokens: [...base, ...fourDigitAsNumber, ...fourDigitAsMeasure]
+      tokens: [...base, ...fourDigitAsDigits, ...fourDigitAsMeasure]
     });
   }
   return attempts;
@@ -245,6 +259,16 @@ function compileNumber(
   };
 }
 
+/** 4 dígitos tal cual: suelto en el nombre o en cualquier parte del SKU ("PL-0042"); pesa como el nombre. */
+function compileDigits(digits: string, param: ParamAllocator): CompiledToken {
+  const regex = digitsRegex(digits);
+  if (regex === null) return NO_MATCH;
+  const inName = `p.name ~ ${param(regex)}`;
+  const inSku = `p.sku ILIKE ${param(`%${escapeLike(digits)}%`)} ESCAPE '\\'`;
+  const match = `(${inName} OR ${inSku})`;
+  return { match, score: `(CASE WHEN ${match} THEN 3 ELSE 0 END)` };
+}
+
 function compileToken(token: SearchToken, param: ParamAllocator): CompiledToken {
   switch (token.kind) {
     case 'word':
@@ -253,6 +277,8 @@ function compileToken(token: SearchToken, param: ParamAllocator): CompiledToken 
       return compileMeasure(token.a, token.b, param);
     case 'number':
       return compileNumber(token.value, token.attributeKey, param);
+    case 'digits':
+      return compileDigits(token.digits, param);
   }
 }
 
