@@ -47,7 +47,9 @@ export interface BotProduct {
   available_stock: number;
   category: { id: string; name: string } | null;
   brand: { id: string; name: string } | null;
-  /** Sin presentaciones el producto no se puede pedir por el bot (no tiene lista asignada). */
+  /** available_stock > 0. */
+  in_stock: boolean;
+  /** Se puede pedir por el bot: tiene presentaciones (lista asignada) y stock disponible. */
   purchasable: boolean;
   presentations: BotPresentation[];
 }
@@ -70,7 +72,8 @@ export function toBotProduct(product: PublicProduct): BotProduct {
     available_stock: product.available_stock,
     category: product.category,
     brand: product.brand,
-    purchasable: presentations.length > 0,
+    in_stock: product.available_stock > 0,
+    purchasable: presentations.length > 0 && product.available_stock > 0,
     presentations
   };
 }

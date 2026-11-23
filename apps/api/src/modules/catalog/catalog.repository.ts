@@ -36,6 +36,8 @@ export interface CatalogFilters {
   min_price?: number;
   max_price?: number;
   sort?: CatalogSort;
+  /** Incluye productos activos con stock disponible 0 (por defecto solo los que tienen stock). */
+  include_out_of_stock?: boolean;
   page?: number;
   limit?: number;
 }
@@ -102,15 +104,15 @@ export async function findPublicProducts(
     min_price,
     max_price,
     sort,
+    include_out_of_stock,
     page = 1,
     limit = 20
   } = filters;
   const offset = (page - 1) * limit;
-  const conditions: string[] = [
-    'p.deleted_at IS NULL',
-    'p.is_active = true',
-    '(p.stock - p.reserved_stock) > 0'
-  ];
+  const conditions: string[] = ['p.deleted_at IS NULL', 'p.is_active = true'];
+  if (!include_out_of_stock) {
+    conditions.push('(p.stock - p.reserved_stock) > 0');
+  }
   const filterParams: unknown[] = [];
   let paramIndex = 1;
 

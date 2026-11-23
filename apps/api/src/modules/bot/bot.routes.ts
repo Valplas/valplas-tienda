@@ -66,11 +66,15 @@ router.get('/catalog/categories', botController.listCategories);
  *       - in: query
  *         name: sort
  *         schema: { type: string, enum: [featured, price_asc, price_desc, name_asc, name_desc, newest] }
+ *       - in: query
+ *         name: include_out_of_stock
+ *         description: "true incluye productos activos sin stock disponible (inStock false, purchasable false). Por defecto solo los que tienen stock."
+ *         schema: { type: string, enum: ['true', 'false'], default: 'false' }
  *       - { in: query, name: page, schema: { type: integer, default: 1 } }
  *       - { in: query, name: limit, schema: { type: integer, default: 10, maximum: 50 } }
  *     responses:
  *       200:
- *         description: Lista paginada. Cada producto trae presentations (priceListId, bundleSize, bundlePrice, availableBundles).
+ *         description: "Lista paginada. Cada producto trae inStock (availableStock > 0), purchasable (tiene presentaciones Y stock disponible; cambió de significado: antes solo consideraba presentaciones) y presentations (priceListId, bundleSize, bundlePrice, availableBundles)."
  */
 router.get(
   '/catalog/products',
@@ -90,7 +94,7 @@ router.get(
  *       - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
  *     responses:
  *       200:
- *         description: "{ product }"
+ *         description: "{ product } con inStock (availableStock > 0) y purchasable (tiene presentaciones Y stock disponible; antes solo consideraba presentaciones)."
  *       404:
  *         description: PRODUCT_NOT_FOUND (no existe, inactivo o borrado)
  */

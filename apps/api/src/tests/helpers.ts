@@ -324,3 +324,81 @@ export async function deleteTestTiers(tierIds: string[]): Promise<void> {
   if (tierIds.length === 0) return;
   await query('DELETE FROM product_price_tiers WHERE id = ANY($1)', [tierIds]);
 }
+
+export interface TestCatalogProduct {
+  id: string;
+  sku: string;
+  name: string;
+  slug: string;
+  categoryId: string;
+  tierIds: string[];
+  priceListIds: string[];
+}
+
+/**
+ * Producto de catálogo de test: categoría `vitest-<suffix>`, SKU `VITEST-<SUFFIX>` y una
+ * presentación (tier) por cada entrada de `tiers`, cada una en una lista de precios activa
+ * distinta. El cleanup de setup.ts lo borra por SKU (los tiers caen por CASCADE).
+ * `label` se ignora hasta que exista la columna.
+ */
+export async function createTestProduct(
+  opts: {
+    stock?: number;
+    name?: string;
+    costPrice?: number;
+    tiers?: Array<{ minQuantity: number; label?: string | null }>;
+  } = {}
+): Promise<TestCatalogProduct> {
+  const suffix = uniqueSuffix();
+  const tiers = opts.tiers ?? [{ minQuantity: 1 }];
+  const name = opts.name ?? `vitest-product-${suffix}`;
+  const slug = `vitest-${suffix}`;
+
+  const category = await query<{ id: string }>(
+    'INSERT INTO categories (name, slug, is_active) VALUES ($1, $2, true) RETURNING id',
+    [slug, slug]
+  );
+  const categoryId = category.rows[0].id;
+
+  const product = await query<{ id: string; sku: string }>(
+    `INSERT INTO products (sku, name, slug, category_id, cost_price, stock, reserved_stock, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, 0, true)
+     RETURNING id, sku`,
+    [
+      `VITEST-${suffix.toUpperCase()}`,
+      name,
+      slug,
+      categoryId,
+      opts.costPrice ?? 1000,
+      opts.stock ?? 100
+    ]
+  );
+  const { id, sku } = product.rows[0];
+
+  const tierIds: string[] = [];
+  const priceListIds: string[] = [];
+  if (tiers.length > 0) {
+    const lists = await query<{ id: string }>(
+      `SELECT id FROM price_lists
+       WHERE is_active = true AND deleted_at IS NULL
+       ORDER BY created_at
+       LIMIT $1`,
+      [tiers.length]
+    );
+    if (lists.rows.length < tiers.length) {
+      throw new Error(`Se necesitan ${tiers.length} listas de precios activas en la DB de test`);
+    }
+    for (const [index, tier] of tiers.entries()) {
+      const priceListId = lists.rows[index].id;
+      const inserted = await query<{ id: string }>(
+        `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, is_active)
+         VALUES ($1, $2, $3, true) RETURNING id`,
+        [id, priceListId, tier.minQuantity]
+      );
+      tierIds.push(inserted.rows[0].id);
+      priceListIds.push(priceListId);
+    }
+  }
+
+  return { id, sku, name, slug, categoryId, tierIds, priceListIds };
+}

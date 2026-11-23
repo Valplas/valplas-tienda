@@ -28,6 +28,11 @@ export const catalogProductsQuerySchema = z.object({
   category_id: z.string().uuid().optional(),
   brand_id: z.string().uuid().optional(),
   sort: z.enum(CATALOG_SORTS).optional(),
+  // z.coerce.boolean() convertiría 'false' en true
+  include_out_of_stock: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
   page,
   limit
 });
