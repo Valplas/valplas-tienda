@@ -9,6 +9,7 @@ import { STATUS_LABELS } from '../orders/order.types.js';
 import type { Order, OrderWithDetails } from '../orders/order.types.js';
 import type { PublicProduct } from '../catalog/catalog.repository.js';
 import { productSummary, type PublicUnit } from '../catalog/presentation.js';
+import type { ProductAttributeView } from '../attributes/attribute.types.js';
 import type { CategoryWithChildren } from '../categories/category.types.js';
 import type { User } from '../users/user.types.js';
 import type { UserAddressWithDelivery } from '../addresses/address.types.js';
@@ -61,6 +62,8 @@ export interface BotProduct {
   /** Texto listo para leer con todas las presentaciones; null si no tiene. */
   summary: string | null;
   presentations: BotPresentation[];
+  /** Atributos con valor (medidas, color, talle…) por display_order; vacío si no tiene. */
+  attributes: ProductAttributeView[];
 }
 
 export function toBotProduct(product: PublicProduct): BotProduct {
@@ -102,7 +105,8 @@ export function toBotProduct(product: PublicProduct): BotProduct {
     purchasable: presentations.length > 0 && product.available_stock > 0,
     unit: product.unit,
     summary,
-    presentations
+    presentations,
+    attributes: product.attributes
   };
 }
 

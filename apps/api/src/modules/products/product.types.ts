@@ -1,5 +1,10 @@
 import type { Product } from '@valplas/shared/types';
 import type { PublicUnit } from '../catalog/presentation.js';
+import type {
+  AdminProductAttribute,
+  ProductAttributeInput,
+  ProductAttributeView
+} from '../attributes/attribute.types.js';
 
 /**
  * Filtros para búsqueda de productos
@@ -54,6 +59,8 @@ export interface ProductWithDetails extends Omit<Product, 'categoryId' | 'brandI
     width: number | null;
     height: number | null;
   }>;
+  /** Valores de atributos (solo el detalle admin los carga). */
+  attributes?: AdminProductAttribute[];
   priceTiers: Array<{
     priceListId: string;
     priceListName: string;
@@ -82,7 +89,8 @@ export interface PublicPriceTier {
  * efectivo ya calculado (tier de menor cantidad mínima, o costo sin lista)
  * y las presentaciones ordenadas por cantidad mínima ascendente
  */
-export type PublicProduct = Omit<ProductWithDetails, 'costPrice' | 'priceTiers'> & {
+export type PublicProduct = Omit<ProductWithDetails, 'costPrice' | 'priceTiers' | 'attributes'> & {
+  attributes: ProductAttributeView[];
   price: number;
   unit: PublicUnit | null;
   priceTiers: PublicPriceTier[];
@@ -113,6 +121,8 @@ export interface CreateProductData {
   tempId?: string;
   /** Orden de archivos elegido en el form de creación — ver images/product-image.service.ts */
   tempImageOrder?: string[];
+  /** Si viene, reemplaza los valores de atributos del producto. */
+  attributes?: ProductAttributeInput[];
 }
 
 /**
@@ -136,4 +146,6 @@ export interface UpdateProductData {
   unitLabel?: string | null;
   unitContentQuantity?: number | null;
   unitContentLabel?: string | null;
+  /** Si viene, reemplaza los valores de atributos; [] los borra; ausente no los toca. */
+  attributes?: ProductAttributeInput[];
 }

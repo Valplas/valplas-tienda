@@ -97,6 +97,20 @@ const unitContentMessage = {
 };
 
 /**
+ * Valores de atributos del producto. Solo valida la forma: `validate` no reasigna req.body, así
+ * que el parseo del valor contra su definición (tipo, opciones) lo hace el service.
+ */
+const attributesField = z
+  .array(
+    z.object({
+      attributeId: z.string().uuid('attributeId debe ser un UUID válido'),
+      value: z.union([z.string(), z.number()])
+    })
+  )
+  .max(100)
+  .optional();
+
+/**
  * Schema para crear producto
  */
 export const createProductSchema = z
@@ -144,6 +158,8 @@ export const createProductSchema = z
     // el producto exista — Storage.list() no garantiza orden estable.
     tempImageOrder: z.array(z.string()).optional(),
 
+    attributes: attributesField,
+
     ...unitFields
   })
   .refine(unitContentComplete, unitContentMessage);
@@ -172,6 +188,7 @@ export const updateProductSchema = z
     origin: z.string().max(100).optional(),
     isFeatured: z.boolean().optional(),
     isActive: z.boolean().optional(),
+    attributes: attributesField,
     ...unitFields
   })
   .refine((data) => Object.keys(data).length > 0, {

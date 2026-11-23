@@ -12,6 +12,10 @@ vi.mock('../../modules/products/product.repository.js', () => ({
   findProductBySlug: vi.fn()
 }));
 
+vi.mock('../../modules/attributes/attribute.repository.js', () => ({
+  findValuesByProductIds: vi.fn().mockResolvedValue(new Map())
+}));
+
 import { toPublicProduct } from '../../modules/products/product.service.js';
 import { getProductBySlug } from '../../modules/products/product.controller.js';
 import * as productRepository from '../../modules/products/product.repository.js';

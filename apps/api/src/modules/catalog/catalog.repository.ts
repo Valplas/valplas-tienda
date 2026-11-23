@@ -1,4 +1,6 @@
 import { query } from '../../infrastructure/database/client.js';
+import { findValuesByProductIds } from '../attributes/attribute.repository.js';
+import type { ProductAttributeView } from '../attributes/attribute.types.js';
 import {
   describePresentations,
   toPublicUnit,
@@ -32,6 +34,8 @@ export interface PublicProduct {
   brand: { id: string; name: string } | null;
   unit: PublicUnit | null;
   tiers: PriceTier[];
+  /** Atributos activos con valor, por display_order; vacío si no tiene. */
+  attributes: ProductAttributeView[];
 }
 
 export type CatalogSort =
@@ -258,13 +262,13 @@ export async function getActiveTiersByProductIds(
 /**
  * Detalle público (precio, stock disponible, categoría, marca, imagen y tiers) de los ids
  * pedidos, en el mismo orden. Omite productos borrados o inactivos; NO filtra por stock (el
- * llamador decide). 2 queries en total, sin N+1. Lo usan el listado del catálogo y el bot.
+ * llamador decide). 3 queries en total (detalle, tiers, atributos), sin N+1. Lo usan el listado del catálogo y el bot.
  */
 export async function findPublicProductsByIds(productIds: string[]): Promise<PublicProduct[]> {
   if (productIds.length === 0) return [];
 
-  // Detalle y tiers solo dependen de los ids: se piden en paralelo
-  const [detailResult, tiersByProduct] = await Promise.all([
+  // Detalle, tiers y atributos solo dependen de los ids: se piden en paralelo (3 queries)
+  const [detailResult, tiersByProduct, attributesByProduct] = await Promise.all([
     query<CatalogRow>(
       `SELECT
         p.id,
@@ -295,7 +299,8 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
       WHERE p.id = ANY($1) AND p.deleted_at IS NULL AND p.is_active = true`,
       [productIds]
     ),
-    getActiveTiersByProductIds(productIds)
+    getActiveTiersByProductIds(productIds),
+    findValuesByProductIds(productIds)
   ]);
 
   // El detalle viene sin orden: se restituye el de la página de ids
@@ -336,7 +341,8 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
       brand: row.brand_id && row.brand_name ? { id: row.brand_id, name: row.brand_name } : null,
       image_url: row.image_url,
       unit: toPublicUnit(salesUnit),
-      tiers
+      tiers,
+      attributes: attributesByProduct.get(row.id) ?? []
     });
   }
 

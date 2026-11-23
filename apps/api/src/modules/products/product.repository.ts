@@ -492,7 +492,11 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
 /**
  * Actualizar producto
  */
-export async function updateProduct(id: string, data: UpdateProductData): Promise<Product | null> {
+export async function updateProduct(
+  id: string,
+  data: UpdateProductData,
+  client?: PoolClient
+): Promise<Product | null> {
   const updates: string[] = [];
   const params: unknown[] = [];
   let paramIndex = 1;
@@ -603,13 +607,13 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
 
   params.push(id);
 
-  const result = await query<Product>(
-    `UPDATE products
+  const sql = `UPDATE products
      SET ${updates.join(', ')}
      WHERE id = $${paramIndex} AND deleted_at IS NULL
-     RETURNING *`,
-    params
-  );
+     RETURNING *`;
+  const result = client
+    ? await client.query<Product>(sql, params)
+    : await query<Product>(sql, params);
 
   return result.rows[0] || null;
 }

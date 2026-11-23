@@ -1,8 +1,13 @@
+import type { PoolClient } from 'pg';
 import { query, transaction } from '../../infrastructure/database/client.js';
 import type {
+  AdminProductAttribute,
   AttributeDefinition,
+  AttributeValueType,
   AttributeDefinitionWithCategories,
   CreateAttributeData,
+  ProductAttributeView,
+  ResolvedProductAttributeValue,
   UpdateAttributeData
 } from './attribute.types.js';
 
@@ -164,4 +169,115 @@ export async function findForCategory(categoryId: string): Promise<AttributeDefi
 export async function categoryExists(id: string): Promise<boolean> {
   const r = await query('SELECT 1 FROM categories WHERE id = $1 AND deleted_at IS NULL', [id]);
   return r.rows.length > 0;
+}
+
+interface ValueRow {
+  product_id: string;
+  attribute_id: string;
+  key: string;
+  label: string;
+  value_type: AttributeValueType;
+  unit: string | null;
+  value_number: string | null;
+  value_text: string | null;
+}
+
+/**
+ * Valores de varios productos con su definición ACTIVA, en UNA query, ordenados por
+ * display_order y label de la definición.
+ */
+async function findValueRows(productIds: string[]): Promise<ValueRow[]> {
+  if (productIds.length === 0) return [];
+  const r = await query<ValueRow>(
+    `SELECT pav.product_id, d.id AS attribute_id, d.key, d.label, d.value_type, d.unit,
+            pav.value_number, pav.value_text
+     FROM product_attribute_values pav
+     JOIN attribute_definitions d ON d.id = pav.attribute_id AND d.is_active = true
+     WHERE pav.product_id = ANY($1)
+     ORDER BY pav.product_id, d.display_order, d.label, d.id`,
+    [productIds]
+  );
+  return r.rows;
+}
+
+function toValue(row: ValueRow): number | string {
+  return row.value_type === 'number' ? Number(row.value_number) : (row.value_text ?? '');
+}
+
+/** Atributos públicos por producto (productos sin valores no aparecen en el mapa). */
+export async function findValuesByProductIds(
+  ids: string[]
+): Promise<Map<string, ProductAttributeView[]>> {
+  const result = new Map<string, ProductAttributeView[]>();
+  for (const row of await findValueRows(ids)) {
+    const list = result.get(row.product_id) ?? [];
+    list.push({ key: row.key, label: row.label, value: toValue(row), unit: row.unit });
+    result.set(row.product_id, list);
+  }
+  return result;
+}
+
+/** Igual que findValuesByProductIds pero con attributeId y valueType (para editar en el admin). */
+export async function findAdminValuesByProductId(
+  productId: string
+): Promise<AdminProductAttribute[]> {
+  return (await findValueRows([productId])).map((row) => ({
+    attributeId: row.attribute_id,
+    key: row.key,
+    label: row.label,
+    valueType: row.value_type,
+    unit: row.unit,
+    value: toValue(row)
+  }));
+}
+
+/** Definiciones (activas o no) de los ids recibidos. */
+export async function findByIds(ids: string[]): Promise<AttributeDefinition[]> {
+  if (ids.length === 0) return [];
+  const r = await query<AttributeDefinition>(
+    `SELECT ${COLUMNS} FROM attribute_definitions d WHERE d.id = ANY($1)`,
+    [ids]
+  );
+  return r.rows;
+}
+
+/**
+ * Reemplaza los valores del producto dentro de la transacción del llamador. Solo se pisan los
+ * de definiciones activas (las inactivas no se ven ni se editan y conservan su valor).
+ */
+export async function replaceProductValues(
+  client: PoolClient,
+  productId: string,
+  values: ResolvedProductAttributeValue[]
+): Promise<void> {
+  await client.query(
+    `DELETE FROM product_attribute_values
+     WHERE product_id = $1
+       AND attribute_id IN (SELECT id FROM attribute_definitions WHERE is_active = true)`,
+    [productId]
+  );
+  if (values.length === 0) return;
+  await client.query(
+    `INSERT INTO product_attribute_values (product_id, attribute_id, value_number, value_text)
+     SELECT $1, x.attribute_id, x.value_number, x.value_text
+     FROM unnest($2::uuid[], $3::numeric[], $4::text[]) AS x(attribute_id, value_number, value_text)`,
+    [
+      productId,
+      values.map((v) => v.attributeId),
+      values.map((v) => v.valueNumber),
+      values.map((v) => v.valueText)
+    ]
+  );
+}
+
+/** Valores de texto de `values` que algún producto tiene cargados para el atributo. */
+export async function findValuesInUse(attributeId: string, values: string[]): Promise<string[]> {
+  if (values.length === 0) return [];
+  const r = await query<{ value_text: string }>(
+    `SELECT DISTINCT value_text FROM product_attribute_values
+     WHERE attribute_id = $1 AND value_text = ANY($2)
+     ORDER BY value_text`,
+    [attributeId, values]
+  );
+  return r.rows.map((row) => row.value_text);
 }

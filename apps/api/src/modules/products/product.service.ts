@@ -2,6 +2,9 @@ import { AppError } from '../../shared/middleware/error.middleware.js';
 import { transaction } from '../../infrastructure/database/client.js';
 import { describePresentations, toPublicUnit } from '../catalog/presentation.js';
 import * as productRepository from './product.repository.js';
+import * as attributeRepository from '../attributes/attribute.repository.js';
+import * as attributeService from '../attributes/attribute.service.js';
+import type { ProductAttributeView } from '../attributes/attribute.types.js';
 import * as productImageService from './images/product-image.service.js';
 import type {
   ProductFilters,
@@ -30,8 +33,12 @@ export function resolveIsActiveFilter(
  * si el producto no tiene lista asignada. Los tiers vienen ordenados por
  * nombre de lista, por eso se busca el mínimo explícitamente.
  */
-export function toPublicProduct(product: ProductWithDetails): PublicProduct {
-  const { costPrice, priceTiers, ...rest } = product;
+export function toPublicProduct(
+  product: ProductWithDetails,
+  attributes: ProductAttributeView[] = []
+): PublicProduct {
+  // `attributes` del detalle admin trae ids internos: se reemplaza por la vista pública
+  const { costPrice, priceTiers, attributes: _adminAttributes, ...rest } = product;
   const salesUnit = {
     label: product.unitLabel ?? null,
     contentQuantity:
@@ -61,6 +68,7 @@ export function toPublicProduct(product: ProductWithDetails): PublicProduct {
   return {
     ...rest,
     unit: toPublicUnit(salesUnit),
+    attributes,
     priceTiers: publicTiers,
     price: publicTiers[0]?.unitPrice ?? costPrice
   };
@@ -112,7 +120,7 @@ export async function getProductById(id: string): Promise<ProductWithDetails> {
     throw new AppError('PRODUCT_NOT_FOUND', 'Producto no encontrado', 404);
   }
 
-  return product;
+  return { ...product, attributes: await attributeRepository.findAdminValuesByProductId(id) };
 }
 
 /**
@@ -125,7 +133,8 @@ export async function getProductBySlug(slug: string): Promise<PublicProduct> {
     throw new AppError('PRODUCT_NOT_FOUND', 'Producto no encontrado', 404);
   }
 
-  return toPublicProduct(product);
+  const attributes = await attributeRepository.findValuesByProductIds([product.id]);
+  return toPublicProduct(product, attributes.get(product.id) ?? []);
 }
 
 /**
@@ -144,6 +153,10 @@ export async function createProduct(data: CreateProductData): Promise<ProductWit
     throw new AppError('SLUG_ALREADY_EXISTS', 'El slug ya existe', 400);
   }
 
+  const attributeValues = data.attributes
+    ? await attributeService.resolveProductValues(data.attributes)
+    : null;
+
   // Crear producto y, si viene tempId, finalizar las imágenes en staging
   // (mover de temp/{tempId}/ a products/{id}/ + insertar filas) en la misma
   // transacción — ver product-image.service.ts#finalizeStagedImages.
@@ -156,6 +169,9 @@ export async function createProduct(data: CreateProductData): Promise<ProductWit
         created.id,
         data.tempImageOrder
       );
+    }
+    if (attributeValues) {
+      await attributeRepository.replaceProductValues(client, created.id, attributeValues);
     }
     return created;
   });
@@ -182,12 +198,27 @@ export async function updateProduct(
     }
   }
 
-  // Actualizar producto
-  const updated = await productRepository.updateProduct(id, data);
+  const { attributes, ...fields } = data;
+  const attributeValues = attributes
+    ? await attributeService.resolveProductValues(attributes)
+    : null;
+  const hasFields = Object.values(fields).some((value) => value !== undefined);
 
-  if (!updated) {
-    throw new AppError('PRODUCT_UPDATE_FAILED', 'No se pudo actualizar el producto', 500);
-  }
+  // Producto y valores de atributos en la misma transacción
+  await transaction(async (client) => {
+    if (hasFields) {
+      const updated = await productRepository.updateProduct(id, fields, client);
+      if (!updated) {
+        throw new AppError('PRODUCT_UPDATE_FAILED', 'No se pudo actualizar el producto', 500);
+      }
+    } else {
+      // Solo cambian los atributos: igual cuenta como modificación del producto
+      await client.query('UPDATE products SET updated_at = NOW() WHERE id = $1', [id]);
+    }
+    if (attributeValues) {
+      await attributeRepository.replaceProductValues(client, id, attributeValues);
+    }
+  });
 
   // Retornar producto actualizado con detalles
   return getProductById(id);

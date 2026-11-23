@@ -348,6 +348,8 @@ export async function createTestProduct(
     costPrice?: number;
     tiers?: Array<{ minQuantity: number; label?: string | null }>;
     unit?: { label?: string | null; contentQuantity?: number | null; contentLabel?: string | null };
+    /** Valores de atributos; `key` se resuelve contra attribute_definitions (seed 059 o de test). */
+    attributes?: Array<{ key: string; value: string | number }>;
   } = {}
 ): Promise<TestCatalogProduct> {
   const suffix = uniqueSuffix();
@@ -402,6 +404,18 @@ export async function createTestProduct(
       );
       tierIds.push(inserted.rows[0].id);
       priceListIds.push(priceListId);
+    }
+  }
+
+  for (const attr of opts.attributes ?? []) {
+    const isNumber = typeof attr.value === 'number';
+    const inserted = await query(
+      `INSERT INTO product_attribute_values (product_id, attribute_id, value_number, value_text)
+       SELECT $1, d.id, $3, $4 FROM attribute_definitions d WHERE d.key = $2`,
+      [id, attr.key, isNumber ? attr.value : null, isNumber ? null : String(attr.value)]
+    );
+    if (inserted.rowCount !== 1) {
+      throw new Error(`Atributo inexistente en la DB de test: ${attr.key}`);
     }
   }
 
