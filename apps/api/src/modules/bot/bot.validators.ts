@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import { createAddressSchema } from '../addresses/address.validators.js';
+import { MAX_PLAN_UNITS } from '../orders/plan-units.js';
 
 const CATALOG_SORTS = [
   'featured',
@@ -55,13 +56,27 @@ export const createCustomerAddressSchema = createAddressSchema.extend({
   alias: z.string().min(2).max(50).optional().default('WhatsApp')
 });
 
-export const botOrderItemSchema = z.object({
-  product_id: z.string().uuid(),
-  // Presentación elegida (tier de la lista). Obligatoria: sin ella el pedido se vendería a costo.
-  price_list_id: z.string().uuid(),
-  // Bultos de la presentación, no unidades sueltas
-  quantity: z.number().int().min(1).max(10000)
-});
+// Formato histórico: presentación elegida (tier de la lista) y bultos.
+const botPresentationItemSchema = z
+  .object({
+    product_id: z.string().uuid(),
+    // Obligatoria: sin ella el pedido se vendería a costo
+    price_list_id: z.string().uuid(),
+    // Bultos de la presentación, no unidades sueltas
+    quantity: z.number().int().min(1).max(10000)
+  })
+  .strict();
+
+// Formato por unidades: el servidor arma la combinación exacta más barata de presentaciones.
+const botUnitsItemSchema = z
+  .object({
+    product_id: z.string().uuid(),
+    units: z.number().int().min(1).max(MAX_PLAN_UNITS)
+  })
+  .strict();
+
+// strict() en ambas: un ítem con units y price_list_id a la vez no valida con ninguna.
+export const botOrderItemSchema = z.union([botPresentationItemSchema, botUnitsItemSchema]);
 
 const items = z.array(botOrderItemSchema).min(1).max(50);
 

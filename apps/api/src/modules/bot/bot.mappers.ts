@@ -141,7 +141,11 @@ export function toBotAddress(address: UserAddressWithDelivery) {
   };
 }
 
-export function toBotQuoteLine(line: PricedOrderLine) {
+/** Línea cotizada; `presentation` (nombre y texto de la presentación) puede faltar. */
+export function toBotQuoteLine(
+  line: PricedOrderLine,
+  presentation?: { label: string; description: string }
+) {
   return {
     product_id: line.product_id,
     product_name: line.product_name,
@@ -152,9 +156,13 @@ export function toBotQuoteLine(line: PricedOrderLine) {
     units: line.real_quantity,
     bundle_price: line.unit_price,
     subtotal: line.subtotal,
-    available_stock: line.available_stock
+    available_stock: line.available_stock,
+    label: presentation?.label ?? null,
+    description: presentation?.description ?? null
   };
 }
+
+export type BotQuoteLine = ReturnType<typeof toBotQuoteLine>;
 
 export function toBotShippingOption(option: ShippingQuote, subtotal: number) {
   return {

@@ -20,7 +20,8 @@ import * as addressRepository from '../addresses/address.repository.js';
 import * as addressDomain from '../addresses/address.domain.js';
 import * as orderRepository from '../orders/order.repository.js';
 import * as orderDomain from '../orders/order.domain.js';
-import { priceOrderItems } from '../orders/order-pricing.js';
+import { priceOrderItems, pricingProblemToError } from '../orders/order-pricing.js';
+import { expandBotItems } from './bot-units.js';
 import { createPaymentLinkForOrder } from '../orders/order-payment.js';
 import { getShippingQuote } from '../shipping/shipping.domain.js';
 import type { Order, OrderWithDetails } from '../orders/order.types.js';
@@ -33,6 +34,7 @@ import {
   toBotOrderSummary,
   toBotProduct,
   toBotQuoteLine,
+  type BotQuoteLine,
   toBotShippingOption
 } from './bot.mappers.js';
 import type {
@@ -205,6 +207,28 @@ export async function getCustomerOrders(customerId: string, pagination: Paginati
 // ============= COTIZACIÓN =============
 
 /**
+ * Líneas cotizadas con nombre y texto de la presentación, indexadas por posición en los ítems
+ * enviados a pricing. Una sola consulta batch de productos (sin N+1).
+ */
+async function buildQuoteLines(
+  lines: Awaited<ReturnType<typeof priceOrderItems>>['lines']
+): Promise<Map<number, BotQuoteLine>> {
+  const productIds = [...new Set(lines.map((line) => line.product_id))];
+  const products = await catalogRepository.findPublicProductsByIds(productIds);
+  const tierByKey = new Map(
+    products.flatMap((product) =>
+      product.tiers.map((tier) => [`${product.id}:${tier.price_list_id}`, tier] as const)
+    )
+  );
+  return new Map(
+    lines.map((line) => [
+      line.item_index,
+      toBotQuoteLine(line, tierByKey.get(`${line.product_id}:${line.price_list_id}`))
+    ])
+  );
+}
+
+/**
  * Precio, stock y opciones de envío de un carrito, sin crear nada. Usa las mismas funciones
  * que el checkout, así el total cotizado es el que se cobra (salvo cambios de precio/stock
  * entre la cotización y la orden).
@@ -221,7 +245,11 @@ export async function quote(input: QuoteInput) {
     postcode = address.postcode;
   }
 
-  const { lines, subtotal, problems } = await priceOrderItems(input.items, { requireTier: true });
+  const expanded = await expandBotItems(input.items);
+  const pricing = await priceOrderItems(expanded.pricingItems, { requireTier: true });
+  const { lines, subtotal } = pricing;
+  const problems = [...expanded.problems, ...pricing.problems];
+  const quoteLines = await buildQuoteLines(lines);
 
   let shipping = null;
   if (postcode) {
@@ -245,8 +273,24 @@ export async function quote(input: QuoteInput) {
     }
   }
 
+  // Una entrada por ítem recibido. Los ítems `units` repetidos de un producto se planifican
+  // juntos: el desglose completo va al primero y los demás apuntan a él con merged_into.
+  const requested = expanded.requestedGroups.map((group) => {
+    const breakdown = group.lineIndexes
+      .map((pricingIndex) => quoteLines.get(pricingIndex))
+      .filter((line): line is BotQuoteLine => line !== undefined);
+    return {
+      product_id: group.product_id,
+      units: group.units,
+      subtotal: Math.round(breakdown.reduce((sum, line) => sum + line.subtotal, 0) * 100) / 100,
+      breakdown,
+      ...(group.merged_into !== undefined ? { merged_into: group.merged_into } : {})
+    };
+  });
+
   return {
-    items: lines.map(toBotQuoteLine),
+    items: [...quoteLines.values()],
+    requested,
     problems,
     subtotal,
     orderable: problems.length === 0 && lines.length > 0,
@@ -325,6 +369,12 @@ export async function createOrder(input: CreateBotOrderInput) {
 
   await requireCustomer(input.customer_id);
 
+  // Misma expansión que /quote: lo cobrado es lo cotizado
+  const expanded = await expandBotItems(input.items);
+  if (expanded.problems.length > 0) {
+    throw pricingProblemToError(expanded.problems[0]);
+  }
+
   let created: OrderWithDetails;
   try {
     const result = await orderDomain.createOrder(
@@ -334,7 +384,7 @@ export async function createOrder(input: CreateBotOrderInput) {
         shipping_carrier_id: input.shipping_carrier_id,
         payment_method: 'mercadopago',
         notes: input.notes,
-        items: input.items
+        items: expanded.pricingItems
       },
       {
         channel: BOT_CHANNEL,

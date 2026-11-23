@@ -291,14 +291,27 @@ router.get(
  *                 type: array
  *                 items:
  *                   type: object
- *                   required: [product_id, price_list_id, quantity]
+ *                   description: |
+ *                     Dos formatos (no mezclables en un mismo ítem; con units + price_list_id
+ *                     responde 400 VALIDATION_ERROR). Por presentación: { product_id,
+ *                     price_list_id, quantity } (bultos). Por unidades: { product_id, units }; el
+ *                     servidor elige la combinación exacta más barata de presentaciones. Varios
+ *                     ítems units del mismo producto se planifican juntos (suma).
  *                   properties:
  *                     product_id: { type: string, format: uuid }
  *                     price_list_id: { type: string, format: uuid }
  *                     quantity: { type: integer, minimum: 1, description: Bultos de la presentación }
+ *                     units: { type: integer, minimum: 1, maximum: 100000, description: Unidades sueltas pedidas (modo units) }
  *     responses:
  *       200:
- *         description: "{ items, problems, subtotal, orderable, shipping: { postcode, options, error } | null }"
+ *         description: |
+ *           { items, requested, problems, subtotal, orderable, shipping: { postcode, options, error } | null }.
+ *           items = líneas cotizadas planas (cada una con label y description de la presentación).
+ *           requested = una entrada por ítem recibido, en orden: { productId, units, subtotal,
+ *           breakdown: [líneas] }. Si dos ítems units comparten producto, el primero lleva el
+ *           breakdown y el subtotal completos; los siguientes vienen con breakdown [], subtotal 0
+ *           y mergedInto = índice del primero. problems puede incluir UNITS_NOT_ACHIEVABLE
+ *           { productId, productName, requested, nearestBelow, nearestAbove }.
  */
 router.post('/quote', validateBody(quoteSchema), botController.quote);
 
@@ -327,11 +340,12 @@ router.post('/quote', validateBody(quoteSchema), botController.quote);
  *                 type: array
  *                 items:
  *                   type: object
- *                   required: [product_id, price_list_id, quantity]
+ *                   description: "Mismos formatos que /quote: { product_id, price_list_id, quantity } o { product_id, units }"
  *                   properties:
  *                     product_id: { type: string, format: uuid }
  *                     price_list_id: { type: string, format: uuid }
  *                     quantity: { type: integer, minimum: 1 }
+ *                     units: { type: integer, minimum: 1, maximum: 100000 }
  *     responses:
  *       201:
  *         description: '{ order, paymentUrl, created: true }. paymentUrl null = Mercado Pago falló: reintentar con /payment-link'
@@ -341,6 +355,8 @@ router.post('/quote', validateBody(quoteSchema), botController.quote);
  *         description: INVALID_SHIPPING_ADDRESS | INVALID_CARRIER | PRODUCT_NOT_FOUND | PRODUCT_UNAVAILABLE | PRICE_TIER_NOT_FOUND | POSTCODE_NOT_COVERED
  *       409:
  *         description: INSUFFICIENT_STOCK | IDEMPOTENCY_KEY_CONFLICT
+ *       422:
+ *         description: "UNITS_NOT_ACHIEVABLE (modo units): details { productId, requested, nearestBelow, nearestAbove }"
  */
 router.post('/orders', validateBody(createBotOrderSchema), botController.createOrder);
 

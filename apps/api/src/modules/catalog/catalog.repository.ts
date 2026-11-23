@@ -1,5 +1,10 @@
 import { query } from '../../infrastructure/database/client.js';
-import { describePresentations, toPublicUnit, type PublicUnit } from './presentation.js';
+import {
+  describePresentations,
+  toPublicUnit,
+  type PublicUnit,
+  type TierForDisplay
+} from './presentation.js';
 
 /** Presentación pública de un producto (sin nombre de lista: expone el margen). */
 export interface PriceTier {
@@ -203,6 +208,54 @@ export async function findPublicProducts(
 }
 
 /**
+ * Tiers activos (presentaciones) de varios productos en UNA query, ordenados por min_quantity.
+ * Precio unitario = costo × (1 + margen de la lista), truncado a centavos. Sin nombre de lista
+ * ni margen. Productos sin tiers no aparecen en el mapa.
+ */
+export async function getActiveTiersByProductIds(
+  productIds: string[]
+): Promise<Map<string, TierForDisplay[]>> {
+  const result = new Map<string, TierForDisplay[]>();
+  if (productIds.length === 0) return result;
+
+  const { rows } = await query<{
+    product_id: string;
+    min_quantity: number;
+    unit_price: number;
+    price_list_id: string;
+    label: string | null;
+  }>(
+    `SELECT
+      ppt.product_id,
+      ppt.min_quantity,
+      ppt.price_list_id,
+      ppt.label,
+      TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100 AS unit_price
+    FROM product_price_tiers ppt
+    JOIN products p ON p.id = ppt.product_id
+    JOIN price_lists pl ON pl.id = ppt.price_list_id
+    WHERE ppt.product_id = ANY($1)
+      AND ppt.is_active = true
+      AND pl.is_active = true
+      AND pl.deleted_at IS NULL
+    ORDER BY ppt.product_id, ppt.min_quantity ASC`,
+    [productIds]
+  );
+
+  for (const row of rows) {
+    const list = result.get(row.product_id) ?? [];
+    list.push({
+      priceListId: row.price_list_id,
+      minQuantity: row.min_quantity,
+      unitPrice: Number(row.unit_price),
+      label: row.label
+    });
+    result.set(row.product_id, list);
+  }
+  return result;
+}
+
+/**
  * Detalle público (precio, stock disponible, categoría, marca, imagen y tiers) de los ids
  * pedidos, en el mismo orden. Omite productos borrados o inactivos; NO filtra por stock (el
  * llamador decide). 2 queries en total, sin N+1. Lo usan el listado del catálogo y el bot.
@@ -211,7 +264,7 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
   if (productIds.length === 0) return [];
 
   // Detalle y tiers solo dependen de los ids: se piden en paralelo
-  const [detailResult, tiersResult] = await Promise.all([
+  const [detailResult, tiersByProduct] = await Promise.all([
     query<CatalogRow>(
       `SELECT
         p.id,
@@ -242,46 +295,8 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
       WHERE p.id = ANY($1) AND p.deleted_at IS NULL AND p.is_active = true`,
       [productIds]
     ),
-    query<{
-      product_id: string;
-      min_quantity: number;
-      unit_price: number;
-      price_list_id: string;
-      label: string | null;
-    }>(
-      `SELECT
-        ppt.product_id,
-        ppt.min_quantity,
-        ppt.price_list_id,
-        ppt.label,
-        TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100 AS unit_price
-      FROM product_price_tiers ppt
-      JOIN products p ON p.id = ppt.product_id
-      JOIN price_lists pl ON pl.id = ppt.price_list_id
-      WHERE ppt.product_id = ANY($1)
-        AND ppt.is_active = true
-        AND pl.is_active = true
-        AND pl.deleted_at IS NULL
-      ORDER BY ppt.product_id, ppt.min_quantity ASC`,
-      [productIds]
-    )
+    getActiveTiersByProductIds(productIds)
   ]);
-
-  const rawTiersByProduct = new Map<
-    string,
-    Array<{ priceListId: string; minQuantity: number; unitPrice: number; label: string | null }>
-  >();
-  for (const row of tiersResult.rows) {
-    if (!rawTiersByProduct.has(row.product_id)) {
-      rawTiersByProduct.set(row.product_id, []);
-    }
-    rawTiersByProduct.get(row.product_id)!.push({
-      priceListId: row.price_list_id,
-      minQuantity: row.min_quantity,
-      unitPrice: Number(row.unit_price),
-      label: row.label
-    });
-  }
 
   // El detalle viene sin orden: se restituye el de la página de ids
   const detailById = new Map(detailResult.rows.map((row) => [row.id, row]));
@@ -297,7 +312,7 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
     };
     const tiers: PriceTier[] = describePresentations(
       salesUnit,
-      rawTiersByProduct.get(row.id) ?? []
+      tiersByProduct.get(row.id) ?? []
     ).map((view) => ({
       price_list_id: view.priceListId,
       min_quantity: view.bundleSize,

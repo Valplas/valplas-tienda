@@ -206,7 +206,9 @@ export async function createOrder(
   if (problems.length > 0) {
     throw pricingProblemToError(problems[0]);
   }
-  const itemsWithPrices = lines.map(({ available_stock: _availableStock, ...line }) => line);
+  const itemsWithPrices = lines.map(
+    ({ available_stock: _availableStock, item_index: _itemIndex, ...line }) => line
+  );
 
   // Get shipping cost — mismas zonas/tarifas que la cotización pública
   const shippingCost = await getCarrierShippingCost(
