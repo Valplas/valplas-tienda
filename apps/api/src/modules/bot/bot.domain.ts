@@ -13,6 +13,7 @@ import {
   type PreferenceBackUrls
 } from '../../infrastructure/external/mercadopago.js';
 import * as catalogRepository from '../catalog/catalog.repository.js';
+import * as catalogStateRepository from '../catalog/catalog-state.repository.js';
 import * as categoryService from '../categories/category.service.js';
 import * as userRepository from '../users/user.repository.js';
 import * as addressRepository from '../addresses/address.repository.js';
@@ -47,6 +48,16 @@ import type {
 const BOT_CHANNEL = 'whatsapp' as const;
 
 // ============= CATÁLOGO =============
+
+/** Versión del catálogo: el bot re-descarga solo cuando catalogVersion cambia. */
+export async function getCatalogStatus() {
+  const status = await catalogStateRepository.getCatalogStatus();
+  return {
+    catalogVersion: status.version,
+    catalogUpdatedAt: status.updated_at,
+    storeInfoUpdatedAt: status.store_info_updated_at
+  };
+}
 
 export async function listCategories() {
   const tree = await categoryService.listCategories();

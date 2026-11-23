@@ -37,6 +37,22 @@ router.use(requireBotApiKey);
 
 /**
  * @swagger
+ * /api/bot/catalog/status:
+ *   get:
+ *     summary: Versión global del catálogo (para que el bot sepa cuándo re-descargarlo)
+ *     tags: [Bot]
+ *     security:
+ *       - botApiKey: []
+ *     responses:
+ *       200:
+ *         description: "{ catalogVersion (número, sube con cada cambio de catálogo), catalogUpdatedAt, storeInfoUpdatedAt }"
+ *       401:
+ *         description: INVALID_API_KEY
+ */
+router.get('/catalog/status', botController.getCatalogStatus);
+
+/**
+ * @swagger
  * /api/bot/catalog/categories:
  *   get:
  *     summary: Árbol de categorías activas
