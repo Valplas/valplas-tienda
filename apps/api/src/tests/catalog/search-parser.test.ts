@@ -91,14 +91,40 @@ describe('parseSearch', () => {
     const empty = { words: [], measures: [], quantities: [], fourDigitCandidates: [] };
     expect(parseSearch('', aliases)).toEqual(empty);
     expect(parseSearch('   ', aliases)).toEqual(empty);
-    expect(parseSearch('hola, quiero por favor gracias', { terms: new Map() }).words).toEqual([
-      'favor'
-    ]);
+    expect(parseSearch('hola, quiero por favor gracias', { terms: new Map() }).words).toEqual([]);
     expect(parseSearch('Hola! buenas tardes, gracias', aliases)).toEqual({
       ...empty,
-      words: ['tardes']
+      words: []
     });
     expect(parseSearch('hola quiero gracias', aliases)).toEqual(empty);
+  });
+});
+
+describe('parseSearch fix round 1', () => {
+  it('drops a unit following a measure', () => {
+    const r = parseSearch('bolsa 40x50 cm', aliases);
+    expect(r.words).toEqual(['bolsa']);
+    expect(r.measures).toEqual([{ a: 40, b: 50 }]);
+    expect(r.quantities).toEqual([]);
+  });
+
+  it('removes greeting residue', () => {
+    expect(parseSearch('buenas tardes, por favor bolsas', aliases).words).toEqual(['bolsas']);
+    expect(parseSearch('buenos dias, buenas noches bolsas', aliases).words).toEqual(['bolsas']);
+  });
+
+  it('chained measure keeps first two dims and no x10 word', () => {
+    const r = parseSearch('caja 40x50x10', aliases);
+    expect(r.measures).toEqual([{ a: 40, b: 50 }]);
+    expect(r.words).toEqual(['caja']);
+  });
+
+  it('caps long input quickly', () => {
+    const start = Date.now();
+    const r = parseSearch('bolsa 40x50 '.repeat(500), aliases);
+    expect(Date.now() - start).toBeLessThan(1000);
+    expect(r.measures.length).toBeLessThanOrEqual(41);
+    expect(r.words.every((w) => 'bolsa'.startsWith(w) || /^\d+$/.test(w))).toBe(true);
   });
 });
 
@@ -121,6 +147,7 @@ describe('normalizeSearchText', () => {
 describe('singularize', () => {
   it.each([
     ['bolsas', 'bolsa'],
+    ['baldes', 'balde'],
     ['rollos', 'rollo'],
     ['camisetas', 'camiseta'],
     ['cajas', 'caja'],

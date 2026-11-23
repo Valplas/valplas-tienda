@@ -1,6 +1,7 @@
 /**
  * Pure parser for free-text catalog searches (WhatsApp bot).
- * Output contains only [a-z0-9] words and numbers, so it can never carry SQL wildcards.
+ * Words contain only [a-z0-9] plus '.'/',' between digits (e.g. "1.5"), so they can never
+ * carry SQL wildcards (%, _) or quotes.
  */
 
 export interface AttributeAliasIndex {
@@ -59,13 +60,20 @@ export const SEARCH_STOPWORDS: ReadonlySet<string> = new Set([
   'buenas',
   'buen',
   'dia',
-  'tarde'
+  'tarde',
+  'tardes',
+  'buenos',
+  'dias',
+  'noches',
+  'favor'
 ]);
 
 /** Units that are quantities but map to no attribute. */
 const UNITS_WITHOUT_ATTRIBUTE: ReadonlySet<string> = new Set(['pulgadas', 'pulgada', 'pulg']);
 
-const MEASURE_RE = /(\d+(?:[.,]\d+)?)\s*[x×*/]\s*(\d+(?:[.,]\d+)?)/g;
+const MEASURE_RE =
+  /(\d+(?:[.,]\d+)?)\s*[x×*/]\s*(\d+(?:[.,]\d+)?)(?:\s*[x×*/]\s*\d+(?:[.,]\d+)?)*(?:\s*(?:cm|mm|mts|mt|m)(?![a-z0-9]))?/g;
+const MAX_INPUT_LENGTH = 500;
 const NUMBER_RE = /^\d+(?:[.,]\d+)?$/;
 const NUMBER_UNIT_RE = /^(\d+(?:[.,]\d+)?)([a-z]+)$/;
 
@@ -92,7 +100,7 @@ const toNumber = (s: string): number => Number(s.replace(',', '.'));
 
 export function parseSearch(text: string, aliases: AttributeAliasIndex): ParsedSearch {
   const result: ParsedSearch = { words: [], measures: [], quantities: [], fourDigitCandidates: [] };
-  let normalized = normalizeSearchText(text);
+  let normalized = normalizeSearchText(text.slice(0, MAX_INPUT_LENGTH));
   if (!normalized) return result;
 
   normalized = normalized.replace(MEASURE_RE, (_m, a: string, b: string) => {
@@ -145,7 +153,7 @@ export function singularize(word: string): string {
   if (word.length <= 3 || /\d/.test(word)) return word;
   if (/(ss|is|us)$/.test(word) || !word.endsWith('s')) return word;
   if (word.endsWith('ones')) return word.slice(0, -2);
-  if (/[lrd]es$/.test(word)) return word.slice(0, -2);
+  if (/[lr]es$/.test(word)) return word.slice(0, -2);
   if (VOWELS.includes(word[word.length - 2])) return word.slice(0, -1);
   return word;
 }
