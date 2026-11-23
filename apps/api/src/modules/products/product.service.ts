@@ -1,5 +1,6 @@
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import { transaction } from '../../infrastructure/database/client.js';
+import { describePresentations, toPublicUnit } from '../catalog/presentation.js';
 import * as productRepository from './product.repository.js';
 import * as productImageService from './images/product-image.service.js';
 import type {
@@ -31,16 +32,38 @@ export function resolveIsActiveFilter(
  */
 export function toPublicProduct(product: ProductWithDetails): PublicProduct {
   const { costPrice, priceTiers, ...rest } = product;
-  const publicTiers = [...priceTiers]
-    .sort((a, b) => a.minQuantity - b.minQuantity)
-    .map(({ priceListId, minQuantity, label, unitPrice }) => ({
+  const salesUnit = {
+    label: product.unitLabel ?? null,
+    contentQuantity:
+      product.unitContentQuantity != null ? Number(product.unitContentQuantity) : null,
+    contentLabel: product.unitContentLabel ?? null
+  };
+  // describePresentations ordena por minQuantity y NO incluye el nombre de la lista (margen)
+  const publicTiers = describePresentations(
+    salesUnit,
+    priceTiers.map(({ priceListId, minQuantity, unitPrice, label }) => ({
       priceListId,
       minQuantity,
-      label,
-      unitPrice
-    }));
+      unitPrice,
+      label: label ?? null
+    }))
+  ).map((view) => ({
+    priceListId: view.priceListId,
+    minQuantity: view.bundleSize,
+    unitPrice: view.unitPrice,
+    bundlePrice: view.bundlePrice,
+    label: view.label,
+    contains: view.contains,
+    savingsPercent: view.savingsPercent,
+    description: view.description
+  }));
 
-  return { ...rest, priceTiers: publicTiers, price: publicTiers[0]?.unitPrice ?? costPrice };
+  return {
+    ...rest,
+    unit: toPublicUnit(salesUnit),
+    priceTiers: publicTiers,
+    price: publicTiers[0]?.unitPrice ?? costPrice
+  };
 }
 
 /**

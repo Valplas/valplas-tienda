@@ -1,4 +1,5 @@
 import type { Product } from '@valplas/shared/types';
+import type { PublicUnit } from '../catalog/presentation.js';
 
 /**
  * Filtros para búsqueda de productos
@@ -65,7 +66,16 @@ export interface ProductWithDetails extends Omit<Product, 'categoryId' | 'brandI
 /**
  * Presentación pública: sin nombre de lista (el nombre expone el margen, ej. "Lista 30%")
  */
-export type PublicPriceTier = Omit<ProductWithDetails['priceTiers'][number], 'priceListName'>;
+export interface PublicPriceTier {
+  priceListId: string;
+  minQuantity: number;
+  unitPrice: number;
+  bundlePrice: number;
+  label: string;
+  contains: string | null;
+  savingsPercent: number;
+  description: string;
+}
 
 /**
  * Producto para endpoints públicos: sin costo, con el precio de venta
@@ -74,6 +84,7 @@ export type PublicPriceTier = Omit<ProductWithDetails['priceTiers'][number], 'pr
  */
 export type PublicProduct = Omit<ProductWithDetails, 'costPrice' | 'priceTiers'> & {
   price: number;
+  unit: PublicUnit | null;
   priceTiers: PublicPriceTier[];
 };
 

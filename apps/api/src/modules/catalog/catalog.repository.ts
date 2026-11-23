@@ -1,9 +1,16 @@
 import { query } from '../../infrastructure/database/client.js';
+import { describePresentations, toPublicUnit, type PublicUnit } from './presentation.js';
 
+/** Presentación pública de un producto (sin nombre de lista: expone el margen). */
 export interface PriceTier {
   min_quantity: number;
   unit_price: number;
   price_list_id: string;
+  bundle_price: number;
+  label: string;
+  contains: string | null;
+  savings_percent: number;
+  description: string;
 }
 
 export interface PublicProduct {
@@ -18,6 +25,7 @@ export interface PublicProduct {
   brand_id: string | null;
   category: { id: string; name: string } | null;
   brand: { id: string; name: string } | null;
+  unit: PublicUnit | null;
   tiers: PriceTier[];
 }
 
@@ -84,6 +92,9 @@ interface CatalogRow {
   category_name: string | null;
   brand_name: string | null;
   image_url: string | null;
+  unit_label: string | null;
+  unit_content_quantity: string | number | null;
+  unit_content_label: string | null;
 }
 
 /**
@@ -213,7 +224,10 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
         p.brand_id,
         c.name AS category_name,
         b.name AS brand_name,
-        img.url AS image_url
+        img.url AS image_url,
+        p.unit_label,
+        p.unit_content_quantity,
+        p.unit_content_label
       FROM products p
       ${PRICE_LATERAL}
       LEFT JOIN categories c ON c.id = p.category_id
@@ -233,11 +247,13 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
       min_quantity: number;
       unit_price: number;
       price_list_id: string;
+      label: string | null;
     }>(
       `SELECT
         ppt.product_id,
         ppt.min_quantity,
         ppt.price_list_id,
+        ppt.label,
         TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100 AS unit_price
       FROM product_price_tiers ppt
       JOIN products p ON p.id = ppt.product_id
@@ -251,15 +267,19 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
     )
   ]);
 
-  const tiersByProduct = new Map<string, PriceTier[]>();
+  const rawTiersByProduct = new Map<
+    string,
+    Array<{ priceListId: string; minQuantity: number; unitPrice: number; label: string | null }>
+  >();
   for (const row of tiersResult.rows) {
-    if (!tiersByProduct.has(row.product_id)) {
-      tiersByProduct.set(row.product_id, []);
+    if (!rawTiersByProduct.has(row.product_id)) {
+      rawTiersByProduct.set(row.product_id, []);
     }
-    tiersByProduct.get(row.product_id)!.push({
-      min_quantity: row.min_quantity,
-      unit_price: Number(row.unit_price),
-      price_list_id: row.price_list_id
+    rawTiersByProduct.get(row.product_id)!.push({
+      priceListId: row.price_list_id,
+      minQuantity: row.min_quantity,
+      unitPrice: Number(row.unit_price),
+      label: row.label
     });
   }
 
@@ -269,6 +289,25 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
   for (const id of productIds) {
     const row = detailById.get(id);
     if (!row) continue;
+    const salesUnit = {
+      label: row.unit_label,
+      contentQuantity:
+        row.unit_content_quantity !== null ? Number(row.unit_content_quantity) : null,
+      contentLabel: row.unit_content_label
+    };
+    const tiers: PriceTier[] = describePresentations(
+      salesUnit,
+      rawTiersByProduct.get(row.id) ?? []
+    ).map((view) => ({
+      price_list_id: view.priceListId,
+      min_quantity: view.bundleSize,
+      unit_price: view.unitPrice,
+      bundle_price: view.bundlePrice,
+      label: view.label,
+      contains: view.contains,
+      savings_percent: view.savingsPercent,
+      description: view.description
+    }));
     products.push({
       id: row.id,
       sku: row.sku,
@@ -281,7 +320,8 @@ export async function findPublicProductsByIds(productIds: string[]): Promise<Pub
       category: row.category_name ? { id: row.category_id, name: row.category_name } : null,
       brand: row.brand_id && row.brand_name ? { id: row.brand_id, name: row.brand_name } : null,
       image_url: row.image_url,
-      tiers: tiersByProduct.get(row.id) ?? []
+      unit: toPublicUnit(salesUnit),
+      tiers
     });
   }
 

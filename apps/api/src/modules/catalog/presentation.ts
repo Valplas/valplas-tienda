@@ -136,3 +136,22 @@ export function presentationSnapshot(view: PresentationView): string {
   const text = view.contains !== null ? `${view.label} · ${view.contains}` : view.label;
   return text.slice(0, SNAPSHOT_MAX);
 }
+
+/** Unidad de venta tal como la ven bot y web: null si el producto no define unidad ni contenido. */
+export interface PublicUnit {
+  label: string;
+  contains: { quantity: number; of: string | null } | null;
+}
+
+export function toPublicUnit(unit: SalesUnit): PublicUnit | null {
+  if (unit.label === null && unit.contentQuantity === null && unit.contentLabel === null) {
+    return null;
+  }
+  return {
+    label: unit.label ?? 'unidad',
+    contains:
+      unit.contentQuantity !== null
+        ? { quantity: unit.contentQuantity, of: unit.contentLabel }
+        : null
+  };
+}

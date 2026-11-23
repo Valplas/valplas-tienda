@@ -8,6 +8,7 @@ import { computeBundlePrice, type PricedOrderLine } from '../orders/order-pricin
 import { STATUS_LABELS } from '../orders/order.types.js';
 import type { Order, OrderWithDetails } from '../orders/order.types.js';
 import type { PublicProduct } from '../catalog/catalog.repository.js';
+import { productSummary, type PublicUnit } from '../catalog/presentation.js';
 import type { CategoryWithChildren } from '../categories/category.types.js';
 import type { User } from '../users/user.types.js';
 import type { UserAddressWithDelivery } from '../addresses/address.types.js';
@@ -36,6 +37,10 @@ export interface BotPresentation {
   unit_price: number;
   bundle_price: number;
   available_bundles: number;
+  label: string;
+  contains: string | null;
+  savings_percent: number;
+  description: string;
 }
 
 export interface BotProduct {
@@ -51,6 +56,10 @@ export interface BotProduct {
   in_stock: boolean;
   /** Se puede pedir por el bot: tiene presentaciones (lista asignada) y stock disponible. */
   purchasable: boolean;
+  /** Unidad de venta y contenido; null si el producto no los define. */
+  unit: PublicUnit | null;
+  /** Texto listo para leer con todas las presentaciones; null si no tiene. */
+  summary: string | null;
   presentations: BotPresentation[];
 }
 
@@ -60,8 +69,25 @@ export function toBotProduct(product: PublicProduct): BotProduct {
     bundle_size: tier.min_quantity,
     unit_price: tier.unit_price,
     bundle_price: computeBundlePrice(tier.unit_price, tier.min_quantity),
-    available_bundles: Math.max(0, Math.floor(product.available_stock / tier.min_quantity))
+    available_bundles: Math.max(0, Math.floor(product.available_stock / tier.min_quantity)),
+    label: tier.label,
+    contains: tier.contains,
+    savings_percent: tier.savings_percent,
+    description: tier.description
   }));
+  const summary = productSummary(
+    product.name,
+    product.tiers.map((tier) => ({
+      priceListId: tier.price_list_id,
+      bundleSize: tier.min_quantity,
+      unitPrice: tier.unit_price,
+      bundlePrice: tier.bundle_price,
+      label: tier.label,
+      contains: tier.contains,
+      savingsPercent: tier.savings_percent,
+      description: tier.description
+    }))
+  );
 
   return {
     id: product.id,
@@ -74,6 +100,8 @@ export function toBotProduct(product: PublicProduct): BotProduct {
     brand: product.brand,
     in_stock: product.available_stock > 0,
     purchasable: presentations.length > 0 && product.available_stock > 0,
+    unit: product.unit,
+    summary,
     presentations
   };
 }

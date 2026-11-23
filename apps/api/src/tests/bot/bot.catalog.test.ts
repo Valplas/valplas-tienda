@@ -11,6 +11,7 @@ import { errorHandler } from '../../shared/middleware/error.middleware.js';
 import { camelCaseResponse } from '../../shared/middleware/camel-case.middleware.js';
 import { env } from '../../env.js';
 import { createTestProduct } from '../helpers.js';
+import { describePresentations, productSummary } from '../../modules/catalog/presentation.js';
 
 const API_KEY = 'k'.repeat(64);
 let server: Server;
@@ -103,5 +104,62 @@ describe('bot catalog: productos sin stock', () => {
     });
     expect(status).toBe(200);
     expect(body.data.problems[0].code).toBe('INSUFFICIENT_STOCK');
+  });
+});
+
+describe('bot catalog: presentaciones descriptas', () => {
+  const unit = { label: 'caja', contentQuantity: 100, contentLabel: 'unidades' };
+
+  async function createDescribed() {
+    return createTestProduct({
+      stock: 500,
+      unit,
+      tiers: [{ minQuantity: 1 }, { minQuantity: 10, label: 'Bulto' }]
+    });
+  }
+
+  function expectDescribed(product: { name: string }, data: any) {
+    expect(data.unit).toEqual({ label: 'caja', contains: { quantity: 100, of: 'unidades' } });
+    expect(data.presentations).toHaveLength(2);
+    const views = describePresentations(
+      unit,
+      data.presentations.map((p: any) => ({
+        priceListId: p.priceListId,
+        minQuantity: p.bundleSize,
+        unitPrice: p.unitPrice,
+        label: p.bundleSize === 10 ? 'Bulto' : null
+      }))
+    );
+    expect(data.presentations[0]).toMatchObject({ label: 'Caja', contains: '100 unidades' });
+    expect(data.presentations[1]).toMatchObject({
+      bundleSize: 10,
+      label: 'Bulto',
+      contains: '10 cajas (1.000 unidades)',
+      savingsPercent: views[1].savingsPercent,
+      description: views[1].description,
+      bundlePrice: views[1].bundlePrice,
+      availableBundles: 50
+    });
+    expect(data.presentations[1].description).toMatch(/^Bulto de 10 cajas \(1\.000 unidades\): \$/);
+    expect(data.summary).toBe(productSummary(product.name, views));
+  }
+
+  it('el listado devuelve unit, summary y presentaciones con descripción', async () => {
+    const product = await createDescribed();
+    const { body } = await call(`/catalog/products?search=${encodeURIComponent(product.name)}`);
+    expect(body.data).toHaveLength(1);
+    expectDescribed(product, body.data[0]);
+  });
+
+  it('el detalle devuelve unit, summary y presentaciones con descripción', async () => {
+    const product = await createDescribed();
+    const { body } = await call(`/catalog/products/${product.id}`);
+    expectDescribed(product, body.data.product);
+  });
+
+  it('producto sin unidad: unit null', async () => {
+    const product = await createTestProduct({ stock: 5 });
+    const { body } = await call(`/catalog/products/${product.id}`);
+    expect(body.data.product.unit).toBeNull();
   });
 });

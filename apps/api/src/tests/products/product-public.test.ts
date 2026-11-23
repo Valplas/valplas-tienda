@@ -70,11 +70,48 @@ describe('toPublicProduct', () => {
       })
     );
 
-    expect(result.priceTiers).toEqual([
-      { priceListId: 'pl-u', minQuantity: 1, unitPrice: 150 },
-      { priceListId: 'pl-30', minQuantity: 5, unitPrice: 130 },
-      { priceListId: 'pl-10', minQuantity: 50, unitPrice: 110 }
-    ]);
+    expect(result.priceTiers.map((t) => t.priceListId)).toEqual(['pl-u', 'pl-30', 'pl-10']);
+    expect(result.priceTiers.map((t) => t.minQuantity)).toEqual([1, 5, 50]);
+    expect(result.priceTiers.map((t) => t.unitPrice)).toEqual([150, 130, 110]);
+    for (const tier of result.priceTiers) {
+      expect(tier).not.toHaveProperty('priceListName');
+    }
+  });
+
+  it('priceTiers suma bundlePrice, label, contains, savingsPercent y description; unit como el bot', () => {
+    const result = toPublicProduct(
+      buildProduct({
+        unitLabel: 'caja',
+        unitContentQuantity: 100,
+        unitContentLabel: 'unidades',
+        priceTiers: [
+          {
+            priceListId: 'pl-10',
+            priceListName: 'L',
+            minQuantity: 10,
+            label: 'Bulto',
+            unitPrice: 120
+          },
+          { priceListId: 'pl-u', priceListName: 'U', minQuantity: 1, label: null, unitPrice: 150 }
+        ]
+      })
+    );
+
+    expect(result.unit).toEqual({ label: 'caja', contains: { quantity: 100, of: 'unidades' } });
+    expect(result.priceTiers[1]).toEqual({
+      priceListId: 'pl-10',
+      minQuantity: 10,
+      unitPrice: 120,
+      bundlePrice: 1200,
+      label: 'Bulto',
+      contains: '10 cajas (1.000 unidades)',
+      savingsPercent: 20,
+      description: 'Bulto de 10 cajas (1.000 unidades): $1.200 ($120 c/caja, 20% menos)'
+    });
+  });
+
+  it('sin unidad definida: unit null', () => {
+    expect(toPublicProduct(buildProduct()).unit).toBeNull();
   });
 
   it('price cae a costPrice cuando el producto no tiene lista asignada', () => {

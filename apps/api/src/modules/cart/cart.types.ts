@@ -15,6 +15,8 @@ export interface CartItemWithProduct extends CartItem {
   unitPrice: number; // price per individual unit
   pricePerBundle: number; // unitPrice × minQuantity
   subtotal: number; // pricePerBundle × quantity (bundles)
+  presentationLabel: string; // ej. "Bulto", "Unidad"
+  presentationContains: string | null; // ej. "10 cajas (1.000 unidades)"
 }
 
 export interface Cart {
