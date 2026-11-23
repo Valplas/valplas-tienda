@@ -138,42 +138,44 @@ Ejemplo de `GET /catalog/products/:id`:
 {
   "success": true,
   "data": {
-    "id": "3f6c…",
-    "sku": "BOL-6090-N",
-    "name": "Bolsa Residuo 60x90 Negra",
-    "slug": "bolsa-residuo-60x90-negra",
-    "imageUrl": "https://…/bolsa-residuo.webp",
-    "availableStock": 240,
-    "inStock": true,
-    "category": { "id": "…", "name": "Bolsas y Films" },
-    "brand": { "id": "…", "name": "Valplas" },
-    "purchasable": true,
-    "unit": { "label": "paquete", "contains": { "quantity": 100, "of": "bolsas" } },
-    "summary": "Bolsa Residuo 60x90 Negra viene en: Paquete de 100 bolsas: $5.872,50; Bulto de 10 paquetes (1.000 bolsas): $46.980 ($4.698 c/paquete, 20% menos)",
-    "presentations": [
-      {
-        "priceListId": "6b1f…",
-        "bundleSize": 1,
-        "unitPrice": 5872.5,
-        "bundlePrice": 5872.5,
-        "availableBundles": 240,
-        "label": "Paquete",
-        "contains": "100 bolsas",
-        "savingsPercent": 0,
-        "description": "Paquete de 100 bolsas: $5.872,50"
-      },
-      {
-        "priceListId": "a92c…",
-        "bundleSize": 10,
-        "unitPrice": 4698,
-        "bundlePrice": 46980,
-        "availableBundles": 24,
-        "label": "Bulto",
-        "contains": "10 paquetes (1.000 bolsas)",
-        "savingsPercent": 20,
-        "description": "Bulto de 10 paquetes (1.000 bolsas): $46.980 ($4.698 c/paquete, 20% menos)"
-      }
-    ]
+    "product": {
+      "id": "3f6c…",
+      "sku": "BOL-6090-N",
+      "name": "Bolsa Residuo 60x90 Negra",
+      "slug": "bolsa-residuo-60x90-negra",
+      "imageUrl": "https://…/bolsa-residuo.webp",
+      "availableStock": 240,
+      "inStock": true,
+      "category": { "id": "…", "name": "Bolsas y Films" },
+      "brand": { "id": "…", "name": "Valplas" },
+      "purchasable": true,
+      "unit": { "label": "paquete", "contains": { "quantity": 100, "of": "bolsas" } },
+      "summary": "Bolsa Residuo 60x90 Negra viene en: Paquete de 100 bolsas: $5.872,50; Bulto de 10 paquetes (1.000 bolsas): $46.980 ($4.698 c/paquete, 20% menos)",
+      "presentations": [
+        {
+          "priceListId": "6b1f…",
+          "bundleSize": 1,
+          "unitPrice": 5872.5,
+          "bundlePrice": 5872.5,
+          "availableBundles": 240,
+          "label": "Paquete",
+          "contains": "100 bolsas",
+          "savingsPercent": 0,
+          "description": "Paquete de 100 bolsas: $5.872,50"
+        },
+        {
+          "priceListId": "a92c…",
+          "bundleSize": 10,
+          "unitPrice": 4698,
+          "bundlePrice": 46980,
+          "availableBundles": 24,
+          "label": "Bulto",
+          "contains": "10 paquetes (1.000 bolsas)",
+          "savingsPercent": 20,
+          "description": "Bulto de 10 paquetes (1.000 bolsas): $46.980 ($4.698 c/paquete, 20% menos)"
+        }
+      ]
+    }
   }
 }
 ```
@@ -347,7 +349,7 @@ mostrá los productos. No lo presentes como coincidencia exacta.
 
 #### `GET /catalog/products/:id`
 
-El mismo objeto, con precio y stock actuales (ejemplo completo con dos presentaciones en §4). Devuelve `404 PRODUCT_NOT_FOUND` si el producto no existe,
+El mismo objeto, con precio y stock actuales, dentro de `data.product` (ejemplo completo con dos presentaciones en §4). Devuelve `404 PRODUCT_NOT_FOUND` si el producto no existe,
 está inactivo o fue borrado. Este endpoint sí devuelve productos sin stock (`availableStock: 0`).
 
 #### `GET /catalog/status`
