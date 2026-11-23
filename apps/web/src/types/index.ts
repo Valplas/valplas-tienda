@@ -408,3 +408,56 @@ export interface StoreSettings {
 export * from './toast.types';
 export * from './filter.types';
 export * from './cart.types';
+
+export type StoreDeliveryDay =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export type StorePaymentMethod = 'mercadopago' | 'transfer' | 'cash_on_delivery' | 'cash_pickup';
+
+export interface StoreTransferDetails {
+  alias: string | null;
+  cbu: string | null;
+  holder: string | null;
+  bank: string | null;
+}
+
+export interface StoreInfo {
+  businessHours: string | null;
+  deliveryDays: StoreDeliveryDay[] | null;
+  deliveryZones: string[] | null;
+  minimumOrder: number | null;
+  freeShippingFrom: number | null;
+  paymentMethods: StorePaymentMethod[] | null;
+  transferDetails: StoreTransferDetails | null;
+  pickupAddress: string | null;
+  priceListUrl: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  additionalInfo: string | null;
+  updatedAt: string | null;
+}
+
+/** Body del PUT /settings/store-info (snake_case, el backend lo espera así). */
+export interface StoreInfoPayload {
+  business_hours: string | null;
+  delivery_days: StoreDeliveryDay[] | null;
+  delivery_zones: string[] | null;
+  minimum_order: number | null;
+  free_shipping_from: number | null;
+  payment_methods: StorePaymentMethod[] | null;
+  transfer_alias: string | null;
+  transfer_cbu: string | null;
+  transfer_holder: string | null;
+  transfer_bank: string | null;
+  pickup_address: string | null;
+  price_list_url: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  additional_info: string | null;
+}
