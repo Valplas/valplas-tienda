@@ -17,6 +17,14 @@ const tierInputSchema = z.object({
   label: tierLabelSchema
 });
 
+// Dos presentaciones con la misma lista de precios hacen ambigua la búsqueda por (producto, lista)
+const tiersSchema = z
+  .array(tierInputSchema)
+  .min(1, 'Debe especificar al menos un tier')
+  .refine((tiers) => new Set(tiers.map((t) => t.priceListId)).size === tiers.length, {
+    message: 'No puede haber dos presentaciones con la misma lista de precios'
+  });
+
 const filterSchema = z
   .object({
     all: z.boolean().optional(),
@@ -28,16 +36,16 @@ const filterSchema = z
   });
 
 export const replaceProductTiersSchema = z.object({
-  tiers: z.array(tierInputSchema).min(1, 'Debe especificar al menos un tier')
+  tiers: tiersSchema
 });
 
 export const bulkPreviewSchema = z.object({
-  tiers: z.array(tierInputSchema).min(1, 'Debe especificar al menos un tier'),
+  tiers: tiersSchema,
   filter: filterSchema
 });
 
 export const bulkConfirmSchema = z.object({
-  tiers: z.array(tierInputSchema).min(1, 'Debe especificar al menos un tier'),
+  tiers: tiersSchema,
   filter: filterSchema,
   conflictResolution: z.enum(['skip', 'overwrite'])
 });

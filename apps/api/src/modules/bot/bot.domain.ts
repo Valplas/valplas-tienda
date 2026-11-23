@@ -21,7 +21,7 @@ import * as addressDomain from '../addresses/address.domain.js';
 import * as orderRepository from '../orders/order.repository.js';
 import * as orderDomain from '../orders/order.domain.js';
 import { priceOrderItems, pricingProblemToError } from '../orders/order-pricing.js';
-import { expandBotItems } from './bot-units.js';
+import { expandBotItems, findUnitsPlanMismatches } from './bot-units.js';
 import { createPaymentLinkForOrder } from '../orders/order-payment.js';
 import { getShippingQuote } from '../shipping/shipping.domain.js';
 import type { Order, OrderWithDetails } from '../orders/order.types.js';
@@ -248,7 +248,11 @@ export async function quote(input: QuoteInput) {
   const expanded = await expandBotItems(input.items);
   const pricing = await priceOrderItems(expanded.pricingItems, { requireTier: true });
   const { lines, subtotal } = pricing;
-  const problems = [...expanded.problems, ...pricing.problems];
+  const problems = [
+    ...expanded.problems,
+    ...pricing.problems,
+    ...findUnitsPlanMismatches(expanded.unitsPlans, pricing.lines)
+  ];
   const quoteLines = await buildQuoteLines(lines);
 
   let shipping = null;
@@ -275,13 +279,18 @@ export async function quote(input: QuoteInput) {
 
   // Una entrada por ítem recibido. Los ítems `units` repetidos de un producto se planifican
   // juntos: el desglose completo va al primero y los demás apuntan a él con merged_into.
+  const linesByIndex = new Map(lines.map((line) => [line.item_index, line]));
   const requested = expanded.requestedGroups.map((group) => {
     const breakdown = group.lineIndexes
       .map((pricingIndex) => quoteLines.get(pricingIndex))
       .filter((line): line is BotQuoteLine => line !== undefined);
+    const legacyUnits = group.lineIndexes.reduce(
+      (sum, pricingIndex) => sum + (linesByIndex.get(pricingIndex)?.real_quantity ?? 0),
+      0
+    );
     return {
       product_id: group.product_id,
-      units: group.units,
+      units: group.kind === 'legacy' ? legacyUnits : group.units,
       subtotal: Math.round(breakdown.reduce((sum, line) => sum + line.subtotal, 0) * 100) / 100,
       breakdown,
       ...(group.merged_into !== undefined ? { merged_into: group.merged_into } : {})
@@ -373,6 +382,12 @@ export async function createOrder(input: CreateBotOrderInput) {
   const expanded = await expandBotItems(input.items);
   if (expanded.problems.length > 0) {
     throw pricingProblemToError(expanded.problems[0]);
+  }
+  if (expanded.unitsPlans.length > 0) {
+    // Mismo chequeo que /quote antes de reservar stock y cobrar
+    const pricing = await priceOrderItems(expanded.pricingItems, { requireTier: true });
+    const [mismatch] = findUnitsPlanMismatches(expanded.unitsPlans, pricing.lines);
+    if (mismatch) throw pricingProblemToError(mismatch);
   }
 
   let created: OrderWithDetails;

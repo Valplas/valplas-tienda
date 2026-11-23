@@ -54,6 +54,13 @@ export type OrderPricingProblem =
       requested: number;
     }
   | {
+      /** Modo units: las líneas cobradas no coinciden con el plan (un tier cambió) */
+      code: 'UNITS_PLAN_MISMATCH';
+      product_id: string;
+      product_name: string;
+      requested: number;
+    }
+  | {
       /** Modo units (bot): no hay combinación exacta de presentaciones para esas unidades */
       code: 'UNITS_NOT_ACHIEVABLE';
       product_id: string;
@@ -204,6 +211,13 @@ export function pricingProblemToError(problem: OrderPricingProblem): AppError {
         'INSUFFICIENT_STOCK',
         `Stock insuficiente para ${problem.product_name}. Disponible: ${problem.available}, solicitado: ${problem.requested}`,
         409
+      );
+    case 'UNITS_PLAN_MISMATCH':
+      return new AppError(
+        'UNITS_PLAN_MISMATCH',
+        'Las presentaciones del producto cambiaron, volvé a cotizar',
+        409,
+        { product_id: problem.product_id }
       );
     case 'UNITS_NOT_ACHIEVABLE':
       return new AppError(

@@ -18,6 +18,13 @@ import * as botDomain from '../../modules/bot/bot.domain.js';
 import { errorHandler, AppError } from '../../shared/middleware/error.middleware.js';
 import { camelCaseResponse } from '../../shared/middleware/camel-case.middleware.js';
 import { env } from '../../env.js';
+import { findUnitsPlanMismatches } from '../../modules/bot/bot-units.js';
+import { pricingProblemToError } from '../../modules/orders/order-pricing.js';
+import {
+  bulkConfirmSchema,
+  bulkPreviewSchema,
+  replaceProductTiersSchema
+} from '../../modules/products/price-tiers/price-tier.validator.js';
 import { query } from '../../infrastructure/database/client.js';
 import { createOrderPreference } from '../../infrastructure/external/mercadopago.js';
 import {
@@ -294,5 +301,133 @@ describe('bot units: validación HTTP', () => {
     expect(status).toBe(200);
     expect(body.data.requested[0]).toMatchObject({ productId: product.id, units: 12 });
     expect(body.data.requested[0].breakdown).toHaveLength(2);
+  });
+});
+
+describe('bot units: listas repetidas entre presentaciones', () => {
+  /** createTestProduct usa listas distintas: el segundo tier de la lista A se inserta a mano. */
+  async function addTierOnSameList(productId: string, priceListId: string, minQuantity: number) {
+    await query(
+      `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, is_active)
+       VALUES ($1, $2, $3, true)`,
+      [productId, priceListId, minQuantity]
+    );
+  }
+
+  it('excluye del plan las presentaciones con lista repetida y nunca usa esa lista', async () => {
+    const product = await createTestProduct({
+      stock: 100,
+      tiers: [{ minQuantity: 1 }, { minQuantity: 5 }]
+    });
+    const [listA, listB] = product.priceListIds;
+    await addTierOnSameList(product.id, listA, 10);
+
+    const reachable = await botDomain.quote({ items: [{ product_id: product.id, units: 15 }] });
+    expect(reachable.problems).toEqual([]);
+    expect(reachable.items.every((l) => l.price_list_id === listB)).toBe(true);
+    expect(reachable.items.map((l) => [l.bundle_size, l.quantity])).toEqual([[5, 3]]);
+
+    const unreachable = await botDomain.quote({ items: [{ product_id: product.id, units: 12 }] });
+    expect(unreachable.problems[0]).toMatchObject({
+      code: 'UNITS_NOT_ACHIEVABLE',
+      nearest_below: 10,
+      nearest_above: 15
+    });
+  });
+
+  it('si todas las presentaciones son ambiguas → PRICE_TIER_NOT_FOUND', async () => {
+    const product = await createTestProduct({ stock: 100, tiers: [{ minQuantity: 1 }] });
+    await addTierOnSameList(product.id, product.priceListIds[0], 10);
+    const result = await botDomain.quote({ items: [{ product_id: product.id, units: 12 }] });
+    expect(result.problems[0]).toMatchObject({
+      code: 'PRICE_TIER_NOT_FOUND',
+      product_id: product.id
+    });
+  });
+});
+
+describe('findUnitsPlanMismatches', () => {
+  const plan = {
+    product_id: 'p1',
+    product_name: 'Producto',
+    units: 12,
+    lineIndexes: [0, 1],
+    bundleSizes: [10, 1]
+  };
+
+  it('sin diferencias no devuelve problemas', () => {
+    expect(
+      findUnitsPlanMismatches(
+        [plan],
+        [
+          { item_index: 0, bundle_size_snapshot: 10, real_quantity: 10 },
+          { item_index: 1, bundle_size_snapshot: 1, real_quantity: 2 }
+        ]
+      )
+    ).toEqual([]);
+  });
+
+  it('bulto distinto al planificado (tier remapeado) → UNITS_PLAN_MISMATCH', () => {
+    const [problem] = findUnitsPlanMismatches(
+      [plan],
+      [
+        { item_index: 0, bundle_size_snapshot: 10, real_quantity: 10 },
+        { item_index: 1, bundle_size_snapshot: 10, real_quantity: 20 }
+      ]
+    );
+    expect(problem).toMatchObject({ code: 'UNITS_PLAN_MISMATCH', product_id: 'p1', requested: 12 });
+  });
+
+  it('unidades que no suman lo pedido → UNITS_PLAN_MISMATCH', () => {
+    const problems = findUnitsPlanMismatches(
+      [plan],
+      [
+        { item_index: 0, bundle_size_snapshot: 10, real_quantity: 30 },
+        { item_index: 1, bundle_size_snapshot: 1, real_quantity: 2 }
+      ]
+    );
+    expect(problems).toHaveLength(1);
+  });
+
+  it('se mapea a AppError 409', () => {
+    const error = pricingProblemToError({
+      code: 'UNITS_PLAN_MISMATCH',
+      product_id: 'p1',
+      product_name: 'Producto',
+      requested: 12
+    });
+    expect(error).toMatchObject({ code: 'UNITS_PLAN_MISMATCH', statusCode: 409 });
+    expect(error.details).toEqual({ product_id: 'p1' });
+  });
+});
+
+describe('price-tier.validator: lista repetida', () => {
+  const list = '00000000-0000-4000-8000-0000000000aa';
+  const other = '00000000-0000-4000-8000-0000000000bb';
+  const dup = [
+    { priceListId: list, minQuantity: 1 },
+    { priceListId: list, minQuantity: 10 }
+  ];
+  const ok = [
+    { priceListId: list, minQuantity: 1 },
+    { priceListId: other, minQuantity: 10 }
+  ];
+  const filter = { all: true };
+
+  it('rechaza repetidos en replace, bulk preview y bulk confirm', () => {
+    const message = 'No puede haber dos presentaciones con la misma lista de precios';
+    for (const result of [
+      replaceProductTiersSchema.safeParse({ tiers: dup }),
+      bulkPreviewSchema.safeParse({ tiers: dup, filter }),
+      bulkConfirmSchema.safeParse({ tiers: dup, filter, conflictResolution: 'skip' })
+    ]) {
+      expect(result.success).toBe(false);
+      expect(JSON.stringify(result.error?.issues)).toContain(message);
+    }
+  });
+
+  it('acepta listas distintas', () => {
+    expect(replaceProductTiersSchema.safeParse({ tiers: ok }).success).toBe(true);
+    expect(bulkPreviewSchema.safeParse({ tiers: ok, filter }).success).toBe(true);
   });
 });
