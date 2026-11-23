@@ -34,6 +34,7 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
   const [quantity, setQuantity] = useState(1);
   const hasTiers = product.tiers && product.tiers.length > 0;
   const isOutOfStock = product.availableStock === 0;
+  const attributes = product.attributes ?? [];
   const maxQuantity = Math.min(product.availableStock, 999);
 
   return (
@@ -113,6 +114,24 @@ export function ProductDetail({ product, className }: ProductDetailProps) {
             <h2 className="mb-2 text-lg font-semibold">Descripción</h2>
             <p className="text-sm leading-relaxed text-muted-foreground">{product.description}</p>
           </div>
+
+          {attributes.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <h2 className="mb-2 text-lg font-semibold">Características</h2>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {attributes.map((attr) => (
+                    <li key={attr.key}>
+                      <span className="font-medium text-foreground">{attr.label}:</span>{' '}
+                      {attr.value}
+                      {attr.unit ? ` ${attr.unit}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
 
           <Separator />
 

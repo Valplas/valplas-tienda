@@ -92,6 +92,8 @@ export interface Category {
   imageUrl: string | null;
   isActive: boolean;
   displayOrder: number;
+  /** Solo viene para admin/owner autenticado. */
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -119,6 +121,44 @@ export interface ProductImage {
   isPrimary: boolean;
   width: number | null;
   height: number | null;
+}
+
+export type AttributeValueType = 'number' | 'text' | 'option';
+
+/** Valor de atributo en el detalle admin (editable). */
+export interface ProductAttributeAdmin {
+  attributeId: string;
+  key: string;
+  label: string;
+  valueType: AttributeValueType;
+  unit: string | null;
+  value: number | string;
+}
+
+/** Valor de atributo en el detalle público (solo lectura). */
+export interface ProductAttributePublic {
+  key: string;
+  label: string;
+  value: number | string;
+  unit: string | null;
+}
+
+export interface AttributeDefinition {
+  id: string;
+  key: string;
+  label: string;
+  valueType: AttributeValueType;
+  unit: string | null;
+  options: string[] | null;
+  aliases: string[];
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttributeDefinitionWithCategories extends AttributeDefinition {
+  categories: Array<{ id: string; name: string }>;
 }
 
 export interface Product {
@@ -156,6 +196,10 @@ export interface Product {
   category?: Category;
   brand?: Brand;
   tiers?: PriceTier[]; // populated on product detail page
+  /** Admin: con attributeId (editable). Público: ProductAttributePublic. */
+  attributes?: Array<ProductAttributeAdmin | ProductAttributePublic>;
+  /** Solo en el detalle admin. */
+  tags?: string[];
 }
 
 export interface ProductFilters {

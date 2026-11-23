@@ -13,6 +13,8 @@ import { get } from '@/lib/api';
 import { normalizeProduct, updateProduct, type Product } from '@/lib/services/products.service';
 import { parsePriceInput } from '@/lib/formatters';
 import type { ProductFormData } from '@/lib/validations/product';
+import type { ProductFormExtras } from '@/components/admin/product-form';
+import { apiErrorDescription } from '@/lib/api-error';
 
 interface EditProductPageProps {
   params: Promise<{
@@ -75,7 +77,7 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
     loadProduct();
   }, [id, router]);
 
-  const handleSubmit = async (data: ProductFormData) => {
+  const handleSubmit = async (data: ProductFormData & ProductFormExtras) => {
     try {
       await updateProduct(id, {
         name: data.name,
@@ -94,15 +96,15 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
         unitContentQuantity: data.unitContentQuantity ?? null,
         unitContentLabel: data.unitContentLabel?.trim() || null,
         isFeatured: data.isFeatured,
-        isActive: data.isActive
+        isActive: data.isActive,
+        attributes: data.attributes,
+        tags: data.tags
       });
       toast.success('Producto actualizado correctamente');
       router.push('/admin/productos');
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Error al actualizar producto. Intentá de nuevo.';
       console.error('Error updating product:', error);
-      toast.error(message);
+      toast.error('Error al actualizar producto', { description: apiErrorDescription(error) });
     }
   };
 

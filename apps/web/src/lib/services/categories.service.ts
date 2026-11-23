@@ -40,6 +40,7 @@ export async function createCategory(data: {
   displayOrder?: number;
   description?: string | null;
   imageUrl?: string | null;
+  tags?: string[];
 }) {
   const res = await post<{ category: Category }>('/categories', data);
   if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear categoría');
@@ -56,6 +57,7 @@ export async function updateCategory(
     displayOrder: number;
     description: string | null;
     imageUrl: string | null;
+    tags: string[];
   }>
 ) {
   const res = await put<{ category: Category }>(`/categories/${id}`, data);

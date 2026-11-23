@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { TagsInput } from '@/components/admin/tags-input';
 import { generateSlug } from '@/lib/utils';
 import { getDescendantIds } from '@/lib/utils/tree';
 import { useEffect } from 'react';
@@ -52,7 +53,8 @@ export function CategoryForm({
           displayOrder: category.displayOrder,
           description: category.description ?? '',
           isActive: category.isActive,
-          imageUrl: category.imageUrl ?? ''
+          imageUrl: category.imageUrl ?? '',
+          tags: category.tags ?? []
         }
       : {
           name: '',
@@ -61,7 +63,8 @@ export function CategoryForm({
           displayOrder: 0,
           description: '',
           isActive: true,
-          imageUrl: ''
+          imageUrl: '',
+          tags: []
         }
   });
 
@@ -195,6 +198,20 @@ export function CategoryForm({
         {errors.description && (
           <p className="text-sm text-red-500 absolute bottom-0">{errors.description.message}</p>
         )}
+      </div>
+
+      {/* Tags */}
+      <div className="space-y-2 pb-2">
+        <Label htmlFor="tags">Tags de búsqueda</Label>
+        <TagsInput
+          id="tags"
+          value={watch('tags')}
+          onChange={(tags) => setValue('tags', tags, { shouldDirty: true })}
+          disabled={isLoading}
+        />
+        <p className="text-xs text-muted-foreground">
+          Sinónimos con los que los clientes buscan esta categoría.
+        </p>
       </div>
 
       {/* Is Active */}

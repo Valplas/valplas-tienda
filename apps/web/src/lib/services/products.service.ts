@@ -30,6 +30,12 @@ function mapRawImage(img: RawProductImage): ProductImage {
   };
 }
 
+/** Valor de atributo que se manda al crear/editar un producto (admin). */
+export interface ProductAttributeInput {
+  attributeId: string;
+  value: string | number;
+}
+
 export interface ProductFilters {
   search?: string;
   categoryId?: string;
@@ -193,7 +199,9 @@ export function normalizeProduct(raw: RawProduct): Product {
     unitLabel: (raw.unitLabel as string | null) ?? null,
     unitContentQuantity: (raw.unitContentQuantity as number | null) ?? null,
     unitContentLabel: (raw.unitContentLabel as string | null) ?? null,
-    tiers: raw.priceTiers ?? []
+    tiers: raw.priceTiers ?? [],
+    attributes: (raw.attributes as Product['attributes']) ?? [],
+    tags: (raw.tags as string[] | undefined) ?? []
   } as unknown as Product;
 }
 
@@ -267,6 +275,8 @@ export async function createProduct(data: {
   isActive?: boolean;
   tempId?: string;
   tempImageOrder?: string[];
+  attributes?: ProductAttributeInput[];
+  tags?: string[];
 }) {
   const res = await post<{ product: RawProduct }>('/products', data);
   if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear producto');
@@ -294,6 +304,8 @@ export async function updateProduct(
     unitContentLabel: string | null;
     isFeatured: boolean;
     isActive: boolean;
+    attributes: ProductAttributeInput[];
+    tags: string[];
   }>
 ) {
   const res = await put<{ product: RawProduct }>(`/products/${id}`, data);
