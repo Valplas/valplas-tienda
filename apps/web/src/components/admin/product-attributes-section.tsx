@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Loader2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -47,6 +48,7 @@ export function ProductAttributesSection({
   const [dictionaryFailed, setDictionaryFailed] = React.useState(false);
   const [categoryAttrs, setCategoryAttrs] = React.useState<AttributeDefinition[]>([]);
   const [loadingCategory, setLoadingCategory] = React.useState(false);
+  const [categoryFailed, setCategoryFailed] = React.useState(false);
 
   const initial = React.useMemo(
     () => (initialAttributes ?? []).filter(isAdminAttribute),
@@ -78,16 +80,23 @@ export function ProductAttributesSection({
   React.useEffect(() => {
     if (!categoryId) {
       setCategoryAttrs([]);
+      setCategoryFailed(false);
       return;
     }
     let active = true;
     setLoadingCategory(true);
+    setCategoryFailed(false);
     getAttributesForCategory(categoryId)
       .then((list) => {
         if (active) setCategoryAttrs(list);
       })
       .catch(() => {
-        if (active) setCategoryAttrs([]);
+        if (!active) return;
+        setCategoryAttrs([]);
+        setCategoryFailed(true);
+        toast.error('No se pudieron cargar los atributos de la categoría', {
+          description: 'Las características no se van a modificar al guardar.'
+        });
       })
       .finally(() => {
         if (active) setLoadingCategory(false);
@@ -128,7 +137,7 @@ export function ProductAttributesSection({
     return ids.map((id) => definitionById.get(id)).filter((d): d is AttributeDefinition => !!d);
   }, [categoryAttrs, extraIds, definitionById]);
 
-  const ready = dictionaryReady && !dictionaryFailed && !loadingCategory;
+  const ready = dictionaryReady && !dictionaryFailed && !loadingCategory && !categoryFailed;
 
   React.useEffect(() => {
     const inputs: ProductAttributeInput[] = [];
@@ -174,6 +183,13 @@ export function ProductAttributesSection({
       {dictionaryFailed && (
         <p className="text-sm text-destructive">
           No se pudieron cargar los atributos. Se guardará el producto sin tocar sus
+          características.
+        </p>
+      )}
+
+      {categoryFailed && (
+        <p className="text-sm text-destructive">
+          No se pudieron cargar los atributos de la categoría. Se guardará el producto sin tocar sus
           características.
         </p>
       )}

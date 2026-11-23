@@ -343,7 +343,12 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             Sinónimos y palabras con las que los clientes pueden buscar este producto.
           </p>
         </div>
-        <TagsInput value={tags} onChange={setTags} disabled={isSubmitting} />
+        <TagsInput
+          aria-label="Tags de búsqueda"
+          value={tags}
+          onChange={setTags}
+          disabled={isSubmitting}
+        />
       </div>
 
       {/* Unidad de venta */}

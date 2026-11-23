@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 
 interface TagsInputProps {
   id?: string;
+  'aria-label'?: string;
   value: string[];
   onChange: (tags: string[]) => void;
   placeholder?: string;
@@ -24,6 +25,7 @@ interface TagsInputProps {
  */
 export function TagsInput({
   id,
+  'aria-label': ariaLabel,
   value,
   onChange,
   placeholder = 'Escribí y apretá Enter',
@@ -81,6 +83,7 @@ export function TagsInput({
         ))}
         <input
           id={id}
+          aria-label={ariaLabel}
           value={draft}
           disabled={disabled || value.length >= maxTags}
           onChange={(e) => setDraft(e.target.value)}

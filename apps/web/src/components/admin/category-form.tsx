@@ -68,6 +68,9 @@ export function CategoryForm({
         }
   });
 
+  // Los tags solo llegan con sesión admin vigente: sin ellos no se puede editar sin pisarlos
+  const tagsUnavailable = !!category && category.tags === undefined;
+
   const name = useWatch({ control, name: 'name' });
   const slug = useWatch({ control, name: 'slug' });
 
@@ -205,10 +208,16 @@ export function CategoryForm({
         <Label htmlFor="tags">Tags de búsqueda</Label>
         <TagsInput
           id="tags"
+          aria-label="Tags de búsqueda"
           value={watch('tags')}
           onChange={(tags) => setValue('tags', tags, { shouldDirty: true })}
-          disabled={isLoading}
+          disabled={isLoading || tagsUnavailable}
         />
+        {tagsUnavailable && (
+          <p className="text-xs text-destructive">
+            No se pudieron cargar los tags; volvé a iniciar sesión.
+          </p>
+        )}
         <p className="text-xs text-muted-foreground">
           Sinónimos con los que los clientes buscan esta categoría.
         </p>
