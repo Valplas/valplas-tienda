@@ -17,6 +17,7 @@ export async function getCatalogState(): Promise<CatalogState> {
     'SELECT version, updated_at FROM catalog_state WHERE id = 1'
   );
   const row = result.rows[0];
+  if (!row) throw new Error('catalog_state sin fila id=1 (migración 055)');
   return { version: Number(row.version), updated_at: new Date(row.updated_at).toISOString() };
 }
 
@@ -33,6 +34,7 @@ export async function getCatalogStatus(): Promise<CatalogStatus> {
      WHERE cs.id = 1 AND ss.id = 1`
   );
   const row = result.rows[0];
+  if (!row) throw new Error('catalog_state o store_settings sin fila id=1');
   return {
     version: Number(row.version),
     updated_at: new Date(row.updated_at).toISOString(),
