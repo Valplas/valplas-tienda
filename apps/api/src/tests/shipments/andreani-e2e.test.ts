@@ -127,7 +127,7 @@ describe('Andreani mock-mode E2E', () => {
     // Recorre todos los pasos del mock refrescando dos veces por paso
     let s = created;
     for (let step = 0; step < 6; step++) {
-      s = await domain.refreshShipment(created.id);
+      await domain.refreshShipment(created.id);
       s = await domain.refreshShipment(created.id);
       advance(1);
     }
