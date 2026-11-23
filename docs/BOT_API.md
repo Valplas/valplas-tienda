@@ -313,8 +313,71 @@ pedidos), presentaciones y precios por cantidad, listas de precios y márgenes, 
 imágenes de productos. Cambia **una sola vez por transacción confirmada**, al momento del commit y junto
 con los datos: si ves una versión nueva, los datos nuevos ya son visibles.
 
-`storeInfoUpdatedAt` se refiere a la información de la tienda, que llega en una parte posterior; hoy
-refleja los cambios en `store_settings`.
+`storeInfoUpdatedAt` cambia cuando se guarda la información del negocio (ver `GET /store/info`). También
+puede cambiar al actualizar el logo: es un refresco extra inofensivo. Si cambió, volvé a pedir
+`/store/info`.
+
+### Información del negocio
+
+#### `GET /store/info`
+
+Horarios, entregas, medios de pago, datos de contacto y demás información del negocio, para responder
+preguntas frecuentes sin inventar datos.
+
+```json
+{
+  "success": true,
+  "data": {
+    "businessHours": "Lunes a viernes de 9 a 18 hs. Sábados de 9 a 13 hs.",
+    "deliveryDays": ["monday", "wednesday", "friday"],
+    "deliveryZones": ["CABA", "Zona Norte", "Zona Oeste"],
+    "minimumOrder": 20000,
+    "freeShippingFrom": 80000,
+    "paymentMethods": ["mercadopago", "transfer", "cash_pickup"],
+    "transferDetails": {
+      "alias": "ejemplo.alias.falso",
+      "cbu": "0000000000000000000000",
+      "holder": "Titular de Ejemplo SRL",
+      "bank": "Banco de Ejemplo"
+    },
+    "pickupAddress": "Calle Falsa 123, Buenos Aires",
+    "priceListUrl": "https://example.com/lista-de-precios.pdf",
+    "contactPhone": "+5491100000000",
+    "contactEmail": "contacto@example.com",
+    "additionalInfo": "Texto libre con aclaraciones adicionales.",
+    "updatedAt": "2026-11-20T09:15:00.000Z"
+  }
+}
+```
+
+Campos:
+
+- `businessHours`: horario de atención, texto libre.
+- `deliveryDays`: días de reparto, valores `monday`, `tuesday`, `wednesday`, `thursday`, `friday`,
+  `saturday`, `sunday` (lunes a domingo).
+- `deliveryZones`: zonas a las que se reparte (texto libre, ej. "CABA").
+- `minimumOrder`: monto mínimo de compra en pesos.
+- `freeShippingFrom`: monto del carrito desde el cual el envío es gratis, en pesos.
+- `paymentMethods`: medios de pago aceptados. Valores: `mercadopago` (Mercado Pago), `transfer`
+  (transferencia bancaria), `cash_on_delivery` (efectivo contra entrega), `cash_pickup` (efectivo al
+  retirar en el local).
+- `transferDetails`: `{ alias, cbu, holder, bank }` para pagar por transferencia. Es `null` si no se
+  cargó ningún dato.
+- `pickupAddress`: dirección para retirar en el local.
+- `priceListUrl`: link (https) a la lista de precios.
+- `contactPhone` (formato E.164), `contactEmail`: contacto del negocio.
+- `additionalInfo`: aclaraciones libres.
+- `updatedAt`: última vez que se guardó esta información.
+
+**Campo sin dato → `null`.** Si el dato que necesitás viene `null`, no lo inventes: derivá esa pregunta a
+una persona.
+
+**Caché:** la respuesta se cachea hasta 60 s en la API; al guardar desde el admin se invalida. Para saber
+cuándo refrescar, usá `storeInfoUpdatedAt` de `GET /catalog/status`.
+
+**Informativo vs. fuente de verdad:** `freeShippingFrom` y `deliveryZones` son informativos. El costo y la
+disponibilidad real de envío salen siempre de `POST /quote` con `postcode`. Del mismo modo, los
+`paymentMethods` son informativos: las órdenes creadas por el bot son **siempre Mercado Pago**.
 
 ### Clientes
 

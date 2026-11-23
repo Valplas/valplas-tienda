@@ -174,6 +174,7 @@ webhook saliente: [BOT_API.md](./BOT_API.md).
 | ------ | --------------------------------------- | --------------------------------------------- |
 | GET    | `/bot/catalog/categories`               | Árbol de categorías activas                   |
 | GET    | `/bot/catalog/status`                   | Versión del catálogo (para detectar cambios)  |
+| GET    | `/bot/store/info`                       | Info del negocio (horarios, pagos, contacto)  |
 | GET    | `/bot/catalog/products`                 | Buscar productos con stock y presentaciones   |
 | GET    | `/bot/catalog/products/:id`             | Detalle de producto (precio y stock actuales) |
 | GET    | `/bot/customers/by-phone/:phone`        | Buscar cliente por teléfono                   |
@@ -186,6 +187,27 @@ webhook saliente: [BOT_API.md](./BOT_API.md).
 | GET    | `/bot/orders/:orderNumber`              | Estado y detalle de la orden                  |
 | POST   | `/bot/orders/:orderNumber/payment-link` | Regenerar link de pago                        |
 | POST   | `/bot/orders/:orderNumber/cancel`       | Cancelar orden pendiente de pago              |
+
+## 🏪 Info del negocio (admin)
+
+Datos que consume el bot en `GET /bot/store/info` (ver [BOT_API.md](./BOT_API.md)). Roles: `admin`, `owner`.
+
+| Method | Endpoint               | Auth | Roles        | Description                                              |
+| ------ | ---------------------- | ---- | ------------ | -------------------------------------------------------- |
+| GET    | `/settings/store-info` | ✅   | admin, owner | Info del negocio. Respuesta envuelta: `{ storeInfo }`    |
+| PUT    | `/settings/store-info` | ✅   | admin, owner | Reemplaza todo: los campos omitidos o vacíos quedan null |
+
+Body del `PUT` en **snake_case** (todos opcionales; `''`/omitido → null):
+
+- `business_hours` (texto, máx. 2000), `additional_info` (máx. 5000), `pickup_address` (máx. 500).
+- `delivery_days`: array de `monday`…`sunday` (sin duplicados). `delivery_zones`: array de textos (máx. 50, 100 c/u).
+- `payment_methods`: array de `mercadopago`, `transfer`, `cash_on_delivery`, `cash_pickup`.
+- `minimum_order`, `free_shipping_from`: número >= 0.
+- `transfer_alias` (máx. 40), `transfer_cbu` (exactamente 22 dígitos), `transfer_holder` (máx. 100), `transfer_bank` (máx. 60).
+- `price_list_url`: URL `https://` (máx. 500). `contact_phone`: se normaliza a E.164 (inválido → 400). `contact_email`: email válido, en minúsculas.
+- Errores de validación: `400 VALIDATION_ERROR`. Guardar invalida el caché de 60 s del bot.
+
+Respuesta (camelCase): `{ success: true, data: { storeInfo: { businessHours, deliveryDays, deliveryZones, minimumOrder, freeShippingFrom, paymentMethods, transferDetails: { alias, cbu, holder, bank } | null, pickupAddress, priceListUrl, contactPhone, contactEmail, additionalInfo, updatedAt } } }`.
 
 ## 🔑 Roles y Permisos
 
