@@ -2,11 +2,34 @@ import type { Request, Response, NextFunction } from 'express';
 import * as settingsService from './settings.service.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
+import type { StoreInfoInput } from './store-info.validator.js';
 
 export async function getSettings(_req: Request, res: Response, next: NextFunction) {
   try {
     const settings = await settingsService.getPublicSettings();
     return res.json(ApiResponse.success({ settings }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getStoreInfo(_req: Request, res: Response, next: NextFunction) {
+  try {
+    const storeInfo = await settingsService.getStoreInfo();
+    return res.json(ApiResponse.success({ store_info: storeInfo }));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateStoreInfo(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = (req.user as AuthenticatedUser).userId;
+    const storeInfo = await settingsService.updateStoreInfo(
+      req.validated?.body as StoreInfoInput,
+      userId
+    );
+    return res.json(ApiResponse.success({ store_info: storeInfo }));
   } catch (error) {
     next(error);
   }

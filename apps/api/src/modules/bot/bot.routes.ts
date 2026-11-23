@@ -69,6 +69,22 @@ router.get('/catalog/categories', botController.listCategories);
 
 /**
  * @swagger
+ * /api/bot/store/info:
+ *   get:
+ *     summary: Datos del negocio (horarios, reparto, pagos, transferencia, contacto)
+ *     tags: [Bot]
+ *     security:
+ *       - botApiKey: []
+ *     responses:
+ *       200:
+ *         description: "{ businessHours, deliveryDays, deliveryZones, minimumOrder, freeShippingFrom, paymentMethods, transferDetails: { alias, cbu, holder, bank } | null, pickupAddress, priceListUrl, contactPhone, contactEmail, additionalInfo, updatedAt } — campo sin dato = null"
+ *       401:
+ *         description: INVALID_API_KEY
+ */
+router.get('/store/info', botController.getStoreInfo);
+
+/**
+ * @swagger
  * /api/bot/catalog/products:
  *   get:
  *     summary: Buscar productos activos con stock (nombre o SKU)

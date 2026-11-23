@@ -47,6 +47,10 @@ export const getCatalogStatus = handle(async (_req, res) => {
   res.json(ApiResponse.success(await botDomain.getCatalogStatus()));
 });
 
+export const getStoreInfo = handle(async (_req, res) => {
+  res.json(ApiResponse.success(await botDomain.getStoreInfo()));
+});
+
 export const listCategories = handle(async (_req, res) => {
   res.json(ApiResponse.success({ categories: await botDomain.listCategories() }));
 });

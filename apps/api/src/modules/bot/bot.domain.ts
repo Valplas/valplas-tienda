@@ -15,6 +15,7 @@ import {
 import * as catalogRepository from '../catalog/catalog.repository.js';
 import * as catalogStateRepository from '../catalog/catalog-state.repository.js';
 import * as categoryService from '../categories/category.service.js';
+import * as settingsService from '../settings/settings.service.js';
 import * as userRepository from '../users/user.repository.js';
 import * as addressRepository from '../addresses/address.repository.js';
 import * as addressDomain from '../addresses/address.domain.js';
@@ -59,6 +60,10 @@ export async function getCatalogStatus() {
     catalogUpdatedAt: status.updated_at,
     storeInfoUpdatedAt: status.store_info_updated_at
   };
+}
+
+export async function getStoreInfo() {
+  return settingsService.getStoreInfo();
 }
 
 export async function listCategories() {
