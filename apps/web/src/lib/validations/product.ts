@@ -7,28 +7,35 @@ import { z } from 'zod';
 /**
  * Product Schema (for admin CRUD)
  */
-export const productSchema = z.object({
-  name: z.string().min(3, 'Mínimo 3 caracteres'),
-  sku: z
-    .string()
-    .regex(/^[a-zA-Z0-9-]*$/, 'SKU solo puede contener letras, números y guiones')
-    .optional(),
-  description: z.string().min(10, 'Mínimo 10 caracteres'),
-  costPrice: z
-    .number({ message: 'Precio de costo requerido' })
-    .min(0, 'Debe ser mayor o igual a 0'),
-  stock: z.number({ message: 'Cantidad requerida' }).min(0, 'No puede ser negativo'),
-  categoryId: z.string().min(1, 'Seleccioná una categoría'),
-  brandId: z.string().optional(),
-  unit: z.string().optional(),
-  weight: z.number().min(0).optional(),
-  width: z.number().min(0).optional(),
-  length: z.number().min(0).optional(),
-  height: z.number().min(0).optional(),
-  origin: z.string().max(100).optional(),
-  isFeatured: z.boolean(),
-  isActive: z.boolean()
-});
+export const productSchema = z
+  .object({
+    name: z.string().min(3, 'Mínimo 3 caracteres'),
+    sku: z
+      .string()
+      .regex(/^[a-zA-Z0-9-]*$/, 'SKU solo puede contener letras, números y guiones')
+      .optional(),
+    description: z.string().min(10, 'Mínimo 10 caracteres'),
+    costPrice: z
+      .number({ message: 'Precio de costo requerido' })
+      .min(0, 'Debe ser mayor o igual a 0'),
+    stock: z.number({ message: 'Cantidad requerida' }).min(0, 'No puede ser negativo'),
+    categoryId: z.string().min(1, 'Seleccioná una categoría'),
+    brandId: z.string().optional(),
+    unitLabel: z.string().max(30, 'Máximo 30 caracteres').optional(),
+    unitContentQuantity: z.number().positive('Debe ser mayor a 0').optional(),
+    unitContentLabel: z.string().max(40, 'Máximo 40 caracteres').optional(),
+    weight: z.number().min(0).optional(),
+    width: z.number().min(0).optional(),
+    length: z.number().min(0).optional(),
+    height: z.number().min(0).optional(),
+    origin: z.string().max(100).optional(),
+    isFeatured: z.boolean(),
+    isActive: z.boolean()
+  })
+  .refine((d) => (d.unitContentQuantity === undefined) === !d.unitContentLabel?.trim(), {
+    message: 'Completá la cantidad y el nombre del contenido, o dejá ambos vacíos',
+    path: ['unitContentLabel']
+  });
 
 export type ProductFormData = z.infer<typeof productSchema>;
 

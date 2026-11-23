@@ -144,6 +144,11 @@ interface RawProduct {
     priceListName?: string; // solo endpoints admin: el detalle público no lo expone (margen)
     minQuantity: number;
     unitPrice: number;
+    label?: string | null;
+    contains?: string | null;
+    description?: string;
+    bundlePrice?: number;
+    savingsPercent?: number;
   }>;
   [key: string]: unknown;
 }
@@ -185,6 +190,9 @@ export function normalizeProduct(raw: RawProduct): Product {
     height: (raw.height as number | null) ?? null,
     origin: (raw.origin as string | null) ?? null,
     isFeatured: (raw.isFeatured as boolean) ?? false,
+    unitLabel: (raw.unitLabel as string | null) ?? null,
+    unitContentQuantity: (raw.unitContentQuantity as number | null) ?? null,
+    unitContentLabel: (raw.unitContentLabel as string | null) ?? null,
     tiers: raw.priceTiers ?? []
   } as unknown as Product;
 }
@@ -252,6 +260,9 @@ export async function createProduct(data: {
   length?: number;
   height?: number;
   origin?: string;
+  unitLabel?: string | null;
+  unitContentQuantity?: number | null;
+  unitContentLabel?: string | null;
   isFeatured?: boolean;
   isActive?: boolean;
   tempId?: string;
@@ -278,6 +289,9 @@ export async function updateProduct(
     length: number;
     height: number;
     origin: string;
+    unitLabel: string | null;
+    unitContentQuantity: number | null;
+    unitContentLabel: string | null;
     isFeatured: boolean;
     isActive: boolean;
   }>

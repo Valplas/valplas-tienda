@@ -61,7 +61,9 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           stock: product.stock,
           categoryId: product.categoryId,
           brandId: product.brandId,
-          unit: product.unit,
+          unitLabel: product.unitLabel ?? undefined,
+          unitContentQuantity: product.unitContentQuantity ?? undefined,
+          unitContentLabel: product.unitContentLabel ?? undefined,
           weight: product.weight ?? undefined,
           width: product.width ?? undefined,
           length: product.length ?? undefined,
@@ -294,12 +296,39 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               </p>
             )}
           </div>
+        </div>
+      </div>
 
+      {/* Unidad de venta */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Unidad de venta</h2>
+          <p className="text-sm text-muted-foreground">
+            Cómo se vende la unidad y qué trae adentro. Ej.: paquete de 100 bolsas. Si lo dejás
+            vacío se muestra &quot;Unidad&quot;.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <FormField
-            label="Unidad"
-            placeholder="ej: unidad, pack x 10"
-            error={errors.unit?.message}
-            {...register('unit')}
+            label="Nombre"
+            placeholder="ej: paquete, caja"
+            error={errors.unitLabel?.message}
+            {...register('unitLabel')}
+          />
+          <FormField
+            label="Cantidad de contenido"
+            type="number"
+            min={1}
+            step="any"
+            placeholder="ej: 100"
+            error={errors.unitContentQuantity?.message}
+            {...register('unitContentQuantity', { setValueAs: toNumber })}
+          />
+          <FormField
+            label="Contenido"
+            placeholder="ej: bolsas"
+            error={errors.unitContentLabel?.message}
+            {...register('unitContentLabel')}
           />
         </div>
       </div>

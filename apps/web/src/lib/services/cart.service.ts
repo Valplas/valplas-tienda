@@ -15,6 +15,8 @@ export interface CartItem {
   minQuantity?: number; // bundle size (1 if no tier)
   unitPrice?: number; // price per individual unit
   pricePerBundle?: number; // unitPrice × minQuantity
+  presentationLabel?: string; // ej. "Bulto", "Unidad"
+  presentationContains?: string | null; // ej. "10 cajas (1.000 unidades)"
   subtotal?: number;
 }
 

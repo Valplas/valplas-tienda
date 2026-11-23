@@ -35,6 +35,8 @@ function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
       priceListId: item.priceListId,
       minQuantity: item.minQuantity,
       unitPrice: item.unitPrice,
+      presentationLabel: item.presentationLabel,
+      presentationContains: item.presentationContains,
       product: {
         id: item.productId,
         name: item.name,
@@ -43,8 +45,7 @@ function mapServiceCartToFrontendCart(serviceCart: ServiceCart) {
         price: item.price,
         // subtotal del backend = pricePerBundle * quantity → finalPrice = pricePerBundle
         finalPrice: item.pricePerBundle ?? item.price,
-        availableStock: item.availableStock,
-        unit: ''
+        availableStock: item.availableStock
       } as Product
     })),
     subtotal: serviceCart?.subtotal || 0,

@@ -35,7 +35,6 @@ export function PriceTierSelector({
 
   if (!selectedTier) return null;
 
-  const unitTier = tiers.find((t) => t.minQuantity === 1);
   const pricePerBundle = computeBundlePrice(selectedTier.unitPrice, selectedTier.minQuantity);
   const subtotal = computeLineSubtotal(pricePerBundle, bundleCount);
   const totalUnits = bundleCount * selectedTier.minQuantity;
@@ -51,7 +50,7 @@ export function PriceTierSelector({
     try {
       await addItem(productId, bundleCount, selectedTierId);
       toast.success('Producto agregado', {
-        description: `${productName} (${bundleCount} × ${presentationLabel(selectedTier.minQuantity)})`
+        description: `${productName} (${bundleCount} × ${selectedTier.label || presentationLabel(selectedTier.minQuantity)})`
       });
     } catch (error) {
       toast.error('Error al agregar producto', {
@@ -69,10 +68,7 @@ export function PriceTierSelector({
         <p className="mb-2 text-sm font-medium">Presentación:</p>
         <RadioGroup value={selectedTierId} onValueChange={handleTierChange} className="gap-2">
           {tiers.map((tier) => {
-            const discount =
-              unitTier && tier.priceListId !== unitTier.priceListId
-                ? Math.round((1 - tier.unitPrice / unitTier.unitPrice) * 100)
-                : null;
+            const savings = tier.savingsPercent ?? 0;
             const exceedsStock = tier.minQuantity > availableStock;
 
             return (
@@ -89,12 +85,21 @@ export function PriceTierSelector({
                   htmlFor={`tier-${tier.priceListId}`}
                   className="flex flex-1 cursor-pointer items-center justify-between"
                 >
-                  <span className="font-medium">{presentationLabel(tier.minQuantity)}</span>
+                  <span className="flex flex-col">
+                    <span className="font-medium">
+                      {tier.label || presentationLabel(tier.minQuantity)}
+                    </span>
+                    {tier.contains && (
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {tier.contains}
+                      </span>
+                    )}
+                  </span>
                   <span className="flex items-center gap-2">
                     <span>{formatPrice(tier.unitPrice)}/u</span>
-                    {discount && discount > 0 && (
+                    {savings > 0 && (
                       <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                        -{discount}%
+                        Ahorrás {savings}%
                       </span>
                     )}
                   </span>

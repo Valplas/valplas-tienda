@@ -135,7 +135,11 @@ export interface Product {
   stock: number;
   reservedStock: number;
   availableStock: number; // stock - reservedStock
-  unit: string; // "unidad", "pack x 10", "caja x 50"
+  // Unidad de venta (admin: campos planos del API)
+  unitLabel?: string | null; // "paquete", "caja"
+  unitContentQuantity?: number | null; // 100
+  unitContentLabel?: string | null; // "bolsas"
+  unit?: ProductUnit | null; // público (detalle): unidad ya armada por el API
   weight?: number | null; // kg
   width?: number | null; // cm
   length?: number | null; // cm
@@ -174,6 +178,8 @@ export interface CartItem {
   priceListId?: string; // lista de precios del tier elegido (para la orden)
   minQuantity?: number; // unidades por bulto (1 si no hay tier)
   unitPrice?: number; // precio por unidad de la lista del tier
+  presentationLabel?: string; // nombre de la presentación (API)
+  presentationContains?: string | null; // ej. "10 cajas (1.000 unidades)"
   product?: Product; // Populated for display
 }
 
@@ -230,6 +236,7 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  presentationLabelSnapshot?: string | null;
 }
 
 export interface Order {
@@ -300,11 +307,25 @@ export interface PriceList {
 // CATALOG — Public product types with price tiers
 // ============================================================================
 
+/** Unidad de venta tal como la expone el API público. */
+export interface ProductUnit {
+  label: string;
+  contains: { quantity: number; of: string | null } | null;
+}
+
 export interface PriceTier {
   minQuantity: number;
   unitPrice: number;
   priceListId?: string;
   priceListName?: string;
+  /** Nombre de la presentación (admin: puede ser null → se usa el fallback). */
+  label?: string | null;
+  /** Contenido legible, ej. "10 paquetes (1.000 bolsas)". Solo público. */
+  contains?: string | null;
+  description?: string;
+  bundlePrice?: number;
+  /** % de ahorro vs. comprar por unidad. Solo público. */
+  savingsPercent?: number;
 }
 
 export interface ProductPublic {
@@ -320,6 +341,7 @@ export interface ProductPublic {
   category: { id: string; name: string } | null;
   brand: { id: string; name: string } | null;
   tiers: PriceTier[]; // ordenados por minQuantity ASC
+  unit?: ProductUnit | null;
 }
 
 export interface CatalogFilters {

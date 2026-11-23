@@ -90,6 +90,9 @@ export default function EditProductPage({ params: paramsPromise }: EditProductPa
         length: data.length,
         height: data.height,
         origin: data.origin,
+        unitLabel: data.unitLabel?.trim() || null,
+        unitContentQuantity: data.unitContentQuantity ?? null,
+        unitContentLabel: data.unitContentLabel?.trim() || null,
         isFeatured: data.isFeatured,
         isActive: data.isActive
       });
