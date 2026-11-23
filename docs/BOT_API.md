@@ -106,7 +106,13 @@ bulto (`bundleSize`): por ejemplo, unidad suelta (1) o pack de 12.
   `PRICE_TIER_NOT_FOUND`.
 - Un producto con `purchasable: false` no tiene presentaciones y no se puede pedir por el bot.
 - `availableBundles` = stock disponible ÷ `bundleSize`. El stock real se valida al crear la orden.
-- El catálogo solo lista productos activos **con stock**.
+- Por defecto el catálogo solo lista productos activos **con stock**. Con `include_out_of_stock=true`
+  también lista los agotados (ver `GET /catalog/products`).
+- **Cambio de contrato:** `purchasable` ahora es `true` solo si el producto tiene presentaciones **y**
+  `availableStock > 0`. Antes, un producto agotado devuelto por `GET /catalog/products/:id` decía
+  `purchasable: true`. Es el único cambio de significado; el resto de los campos nuevos son opcionales.
+- Todos los strings que recibe la API se normalizan en el servidor (se recortan los espacios al
+  principio y al final), excepto las contraseñas.
 
 ## 5. Endpoints
 
@@ -124,13 +130,17 @@ bulto (`bundleSize`): por ejemplo, unidad suelta (1) o pack de 12.
 
 #### `GET /catalog/products`
 
-| Query           | Tipo                                                                          | Descripción                                  |
-| --------------- | ----------------------------------------------------------------------------- | -------------------------------------------- |
-| `search`        | string                                                                        | Busca en nombre (sin importar acentos) o SKU |
-| `category_id`   | uuid                                                                          | Filtra por categoría                         |
-| `brand_id`      | uuid                                                                          | Filtra por marca                             |
-| `sort`          | `featured` · `price_asc` · `price_desc` · `name_asc` · `name_desc` · `newest` | Orden. Default `featured`                    |
-| `page`, `limit` | int                                                                           | Paginación (`limit` ≤ 50)                    |
+| Query                  | Tipo                                                                          | Descripción                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `search`               | string                                                                        | Busca en nombre (sin importar acentos) o SKU                                             |
+| `category_id`          | uuid                                                                          | Filtra por categoría                                                                     |
+| `brand_id`             | uuid                                                                          | Filtra por marca                                                                         |
+| `sort`                 | `featured` · `price_asc` · `price_desc` · `name_asc` · `name_desc` · `newest` | Orden. Default `featured`                                                                |
+| `include_out_of_stock` | `true` · `false`                                                              | Si es `true` incluye productos agotados (`inStock: false`). Default `false` (como antes) |
+| `page`, `limit`        | int                                                                           | Paginación (`limit` ≤ 50)                                                                |
+
+Cada producto trae `inStock` (`availableStock > 0`). `purchasable` es `true` solo si el producto tiene
+presentaciones **y** `availableStock > 0`: un producto agotado nunca es `purchasable`.
 
 ```json
 {
@@ -143,6 +153,7 @@ bulto (`bundleSize`): por ejemplo, unidad suelta (1) o pack de 12.
       "slug": "bolsa-camiseta-40x50-transparente",
       "imageUrl": "https://…/bolsa.webp",
       "availableStock": 3600,
+      "inStock": true,
       "category": { "id": "…", "name": "Bolsas y Films" },
       "brand": { "id": "…", "name": "Valplas" },
       "purchasable": true,
@@ -165,6 +176,33 @@ bulto (`bundleSize`): por ejemplo, unidad suelta (1) o pack de 12.
 
 El mismo objeto, con precio y stock actuales. Devuelve `404 PRODUCT_NOT_FOUND` si el producto no existe,
 está inactivo o fue borrado. Este endpoint sí devuelve productos sin stock (`availableStock: 0`).
+
+#### `GET /catalog/status`
+
+Versión global del catálogo, para saber cuándo volver a descargarlo.
+
+```json
+{
+  "success": true,
+  "data": {
+    "catalogVersion": 1287,
+    "catalogUpdatedAt": "2026-11-22T14:03:11.000Z",
+    "storeInfoUpdatedAt": "2026-11-20T09:15:00.000Z"
+  }
+}
+```
+
+**Contrato:** consultá este endpoint periódicamente (por ejemplo, cada minuto) y volvé a descargar el
+catálogo cuando `catalogVersion` sea **distinto** del último valor que viste. Compará siempre por
+**desigualdad**, nunca por "mayor que".
+
+`catalogVersion` cambia ante cualquier modificación de: productos (incluido stock y reservas por
+pedidos), presentaciones y precios por cantidad, listas de precios y márgenes, categorías, marcas e
+imágenes de productos. Cambia **una sola vez por transacción confirmada**, al momento del commit y junto
+con los datos: si ves una versión nueva, los datos nuevos ya son visibles.
+
+`storeInfoUpdatedAt` se refiere a la información de la tienda, que llega en una parte posterior; hoy
+refleja los cambios en `store_settings`.
 
 ### Clientes
 

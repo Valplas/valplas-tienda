@@ -147,6 +147,7 @@ webhook saliente: [BOT_API.md](./BOT_API.md).
 | Method | Endpoint                                | Description                                   |
 | ------ | --------------------------------------- | --------------------------------------------- |
 | GET    | `/bot/catalog/categories`               | Árbol de categorías activas                   |
+| GET    | `/bot/catalog/status`                   | Versión del catálogo (para detectar cambios)  |
 | GET    | `/bot/catalog/products`                 | Buscar productos con stock y presentaciones   |
 | GET    | `/bot/catalog/products/:id`             | Detalle de producto (precio y stock actuales) |
 | GET    | `/bot/customers/by-phone/:phone`        | Buscar cliente por teléfono                   |
