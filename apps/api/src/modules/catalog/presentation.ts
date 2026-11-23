@@ -93,7 +93,8 @@ export function describePresentations(
   const singular = unit.label ?? 'u';
 
   return sorted.map((tier, index) => {
-    const isBase = index === 0;
+    // Base = presentación de 1 unidad; un único tier de 10 es un bulto (el baseline de ahorro sigue siendo el menor).
+    const isBase = index === 0 && tier.minQuantity === 1;
     const bundleSize = tier.minQuantity;
     const bundlePrice = computeBundlePrice(tier.unitPrice, bundleSize);
 

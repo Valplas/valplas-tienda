@@ -244,9 +244,9 @@ export async function bulkConfirm(
     for (const tier of tiersToUpdate) {
       await query(
         `UPDATE product_price_tiers
-         SET price_list_id = $1, label = $4, updated_at = NOW()
+         SET price_list_id = $1, label = COALESCE($4, label), updated_at = NOW()
          WHERE product_id = $2 AND min_quantity = $3`,
-        [tier.priceListId, product.id, tier.minQuantity, emptyToNull(tier.label) ?? null]
+        [tier.priceListId, product.id, tier.minQuantity, emptyToNull(tier.label) ?? null] // null = conservar el label existente
       );
       assigned++;
     }

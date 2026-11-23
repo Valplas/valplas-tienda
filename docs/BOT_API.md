@@ -183,13 +183,13 @@ Ejemplo de `GET /catalog/products/:id`:
 ### Cómo pedir: por presentación o por unidades
 
 Cada ítem de `/quote` y `/orders` tiene **uno de dos formatos**, y no se pueden mezclar **dentro de un
-mismo ítem** (un ítem con `units` y `price_list_id` a la vez responde `400 VALIDATION_ERROR`). Entre
+mismo ítem** (un ítem con `units` junto con `price_list_id` o `quantity` responde `400 VALIDATION_ERROR`). Entre
 ítems distintos sí se pueden combinar.
 
-| Formato                                               | Significado                                                                                                                                                |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `{ product_id, price_list_id, quantity }` (histórico) | `quantity` = cantidad de **bultos** de esa presentación (3 bultos de 10 = `quantity: 3`). `price_list_id` obligatorio. Sigue funcionando igual que siempre |
-| `{ product_id, units }` (nuevo)                       | `units` = unidades de venta (1 a 100000). El servidor elige la combinación **exacta más barata** de presentaciones                                         |
+| Formato                                               | Significado                                                                                                                                                                              |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{ product_id, price_list_id, quantity }` (histórico) | `quantity` = cantidad de **bultos** de esa presentación (3 bultos de 10 = `quantity: 3`). `price_list_id` obligatorio. Sigue funcionando igual que siempre (las claves extra se ignoran) |
+| `{ product_id, units }` (nuevo)                       | `units` = unidades de venta (1 a 100000). El servidor elige la combinación **exacta más barata** de presentaciones                                                                       |
 
 - Con `units`, la API reparte las unidades en presentaciones sin pasarse ni quedarse corta. Pedir 12
   paquetes cuesta 1 bulto de 10 + 2 paquetes (no 12 paquetes sueltos).

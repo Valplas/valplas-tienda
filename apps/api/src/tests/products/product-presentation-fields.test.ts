@@ -118,4 +118,30 @@ describe('persistencia de unidad y presentación', () => {
     const tiers = await tierRepository.findTiersByProductId(p.id);
     expect(tiers[0].label).toBe('Caja');
   });
+
+  it('bulkConfirm overwrite sin label conserva el label existente; con label lo reemplaza', async () => {
+    const p = await createTestProduct({ tiers: [{ minQuantity: 10, label: 'Bulto' }] });
+    const [list] = p.priceListIds;
+    const filter = { categoryId: p.categoryId };
+
+    await tierRepository.bulkConfirm([{ priceListId: list, minQuantity: 10 }], filter, 'overwrite');
+    let tiers = await tierRepository.findTiersByProductId(p.id);
+    expect(tiers[0].label).toBe('Bulto');
+
+    await tierRepository.bulkConfirm(
+      [{ priceListId: list, minQuantity: 10, label: '' }],
+      filter,
+      'overwrite'
+    );
+    tiers = await tierRepository.findTiersByProductId(p.id);
+    expect(tiers[0].label).toBe('Bulto');
+
+    await tierRepository.bulkConfirm(
+      [{ priceListId: list, minQuantity: 10, label: 'Caja' }],
+      filter,
+      'overwrite'
+    );
+    tiers = await tierRepository.findTiersByProductId(p.id);
+    expect(tiers[0].label).toBe('Caja');
+  });
 });

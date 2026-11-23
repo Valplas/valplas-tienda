@@ -16,7 +16,13 @@ export function trimDeep(value: unknown, isSkippedKey?: (key: string) => boolean
   if (value !== null && typeof value === 'object') {
     const result: Record<string, unknown> = {};
     for (const [key, item] of Object.entries(value)) {
-      result[key] = isSkippedKey?.(key) ? item : trimDeep(item, isSkippedKey);
+      // defineProperty: una clave `__proto__` queda como propiedad propia, no cambia el prototipo
+      Object.defineProperty(result, key, {
+        value: isSkippedKey?.(key) ? item : trimDeep(item, isSkippedKey),
+        enumerable: true,
+        writable: true,
+        configurable: true
+      });
     }
     return result;
   }

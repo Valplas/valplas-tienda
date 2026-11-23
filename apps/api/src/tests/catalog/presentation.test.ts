@@ -3,6 +3,7 @@ import {
   formatArs,
   pluralizeUnit,
   describePresentations,
+  describeLineTier,
   productSummary,
   presentationSnapshot,
   type SalesUnit,
@@ -59,6 +60,27 @@ describe('describePresentations', () => {
     expect(views[1].description).toBe('Bulto x10: $46.980 ($4.698 c/u, 20% menos)');
     expect(views[0].contains).toBeNull();
     expect(views[1].contains).toBeNull();
+  });
+
+  it('producto con solo un tier de 10: no lo trata como base y coincide con describeLineTier', () => {
+    const only10: TierForDisplay[] = [
+      { priceListId: 'a', minQuantity: 10, unitPrice: 4698, label: null }
+    ];
+    const [view] = describePresentations(unit, only10);
+    expect(view.label).toBe('Bulto');
+    expect(view.contains).toBe('10 paquetes (1.000 bolsas)');
+    expect(view.description).toBe(
+      'Bulto de 10 paquetes (1.000 bolsas): $46.980 ($4.698 c/paquete)'
+    );
+    expect(view.description).toBe(describeLineTier(unit, only10[0]).description);
+    const line = describeLineTier(unit, only10[0]);
+    expect(line.label).toBe(view.label);
+    expect(line.contains).toBe(view.contains);
+
+    const [noUnitView] = describePresentations(noUnit, only10);
+    expect(noUnitView.label).toBe('Bulto x10');
+    expect(noUnitView.contains).toBeNull();
+    expect(describeLineTier(noUnit, only10[0]).label).toBe('Bulto x10');
   });
 
   it('capitalizes unit label as fallback label', () => {

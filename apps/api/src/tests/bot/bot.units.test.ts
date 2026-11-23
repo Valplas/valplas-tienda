@@ -19,6 +19,7 @@ import { errorHandler, AppError } from '../../shared/middleware/error.middleware
 import { camelCaseResponse } from '../../shared/middleware/camel-case.middleware.js';
 import { env } from '../../env.js';
 import { findUnitsPlanMismatches } from '../../modules/bot/bot-units.js';
+import { botOrderItemSchema } from '../../modules/bot/bot.validators.js';
 import { pricingProblemToError } from '../../modules/orders/order-pricing.js';
 import {
   bulkConfirmSchema,
@@ -279,6 +280,52 @@ describe('bot units: validación HTTP', () => {
     });
     expect(status).toBe(400);
     expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('ítem con units y price_list_id → 400 con mensaje claro', async () => {
+    const { status, body } = await post('/quote', {
+      items: [
+        {
+          product_id: '00000000-0000-4000-8000-000000000001',
+          price_list_id: '00000000-0000-4000-8000-000000000002',
+          units: 3
+        }
+      ]
+    });
+    expect(status).toBe(400);
+    expect(JSON.stringify(body.error)).toContain('units no se puede combinar');
+  });
+
+  it('ítem con units y quantity → 400', async () => {
+    const { status, body } = await post('/quote', {
+      items: [{ product_id: '00000000-0000-4000-8000-000000000001', units: 3, quantity: 2 }]
+    });
+    expect(status).toBe(400);
+    expect(JSON.stringify(body.error)).toContain('units no se puede combinar');
+  });
+
+  it('ítem histórico con claves extra se acepta (las extra se descartan)', () => {
+    const parsed = botOrderItemSchema.parse({
+      product_id: '00000000-0000-4000-8000-000000000001',
+      price_list_id: '00000000-0000-4000-8000-000000000002',
+      quantity: 2,
+      bundle_size: 10,
+      product_name: 'x'
+    });
+    expect(parsed).toEqual({
+      product_id: '00000000-0000-4000-8000-000000000001',
+      price_list_id: '00000000-0000-4000-8000-000000000002',
+      quantity: 2
+    });
+    const unitsParsed = botOrderItemSchema.parse({
+      product_id: '00000000-0000-4000-8000-000000000001',
+      units: 3,
+      product_name: 'x'
+    });
+    expect(unitsParsed).toEqual({
+      product_id: '00000000-0000-4000-8000-000000000001',
+      units: 3
+    });
   });
 
   it('units fuera de rango → 400', async () => {

@@ -18,6 +18,17 @@ describe('trim-strings', () => {
     });
   });
 
+  it('trimDeep no permite que una clave __proto__ cambie el prototipo', () => {
+    const result = trimDeep(JSON.parse('{"__proto__": {"isAdmin": true}, "a": " x "}')) as Record<
+      string,
+      unknown
+    >;
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+    expect(result.isAdmin).toBeUndefined();
+    expect(result.a).toBe('x');
+    expect(Object.prototype.hasOwnProperty.call(result, '__proto__')).toBe(true);
+  });
+
   it('no toca claves con password (cualquier mayúscula)', () => {
     const skip = (k: string) => /password/i.test(k);
     expect(trimDeep({ password: ' p ', newPassword: ' q ', name: ' n ' }, skip)).toEqual({
