@@ -31,16 +31,18 @@ const validatedQuery = <T>(req: Request) => req.validated?.query as T;
 const validatedParams = <T>(req: Request) => req.validated?.params as T;
 const validatedBody = <T>(req: Request) => req.validated?.body as T;
 
+function paginationOf(pagination: PaginationQuery, total: number) {
+  return {
+    page: pagination.page,
+    limit: pagination.limit,
+    total,
+    totalPages: Math.ceil(total / pagination.limit),
+    hasMore: pagination.page * pagination.limit < total
+  };
+}
+
 function paginated<T>(res: Response, data: T[], pagination: PaginationQuery, total: number) {
-  return res.json(
-    ApiResponse.paginated(data, {
-      page: pagination.page,
-      limit: pagination.limit,
-      total,
-      totalPages: Math.ceil(total / pagination.limit),
-      hasMore: pagination.page * pagination.limit < total
-    })
-  );
+  return res.json(ApiResponse.paginated(data, paginationOf(pagination, total)));
 }
 
 export const getCatalogStatus = handle(async (_req, res) => {
@@ -57,8 +59,12 @@ export const listCategories = handle(async (_req, res) => {
 
 export const searchProducts = handle(async (req, res) => {
   const filters = validatedQuery<CatalogProductsQuery>(req);
-  const { products, total } = await botDomain.searchProducts(filters);
-  paginated(res, products, filters, total);
+  const { products, total, searchMode } = await botDomain.searchProducts(filters);
+  // search_mode va junto a data, fuera de pagination (el middleware lo pasa a searchMode)
+  res.json({
+    ...ApiResponse.paginated(products, paginationOf(filters, total)),
+    search_mode: searchMode
+  });
 });
 
 export const getProduct = handle(async (req, res) => {

@@ -1,12 +1,22 @@
 import { query } from '../../infrastructure/database/client.js';
-import { findValuesByProductIds } from '../attributes/attribute.repository.js';
+import { findValuesByProductIds, getAliasIndex } from '../attributes/attribute.repository.js';
 import type { ProductAttributeView } from '../attributes/attribute.types.js';
+import {
+  buildSearchSql,
+  MAX_CATEGORY_DEPTH,
+  planSearchAttempts,
+  SEARCH_JOINS,
+  SEARCH_WITH,
+  type SearchAttempt,
+  type SearchMode
+} from './catalog-search.js';
 import {
   describePresentations,
   toPublicUnit,
   type PublicUnit,
   type TierForDisplay
 } from './presentation.js';
+import { parseSearch } from './search-parser.js';
 
 /** Presentación pública de un producto (sin nombre de lista: expone el margen). */
 export interface PriceTier {
@@ -118,6 +128,26 @@ export interface PublicProductOptions {
   includeTags?: boolean;
 }
 
+export interface PublicProductsPage {
+  products: PublicProduct[];
+  total: number;
+  /**
+   * Cómo se resolvió `search`: 'exact' (todos los términos), 'relaxed' (ningún producto tenía
+   * todos: alcanza con una palabra) o null (sin búsqueda, o solo stopwords/signos).
+   */
+  search_mode: SearchMode | null;
+}
+
+/** Filtros fijos (sin búsqueda) y paginación, compartidos por todos los intentos. */
+interface PageQuery {
+  conditions: string[];
+  params: unknown[];
+  sort: CatalogSort | undefined;
+  hasPriceFilter: boolean;
+  limit: number;
+  offset: number;
+}
+
 /**
  * Obtener productos públicos con tiers de precio calculados en DB.
  * cost_price y margin nunca se exponen al cliente.
@@ -125,11 +155,15 @@ export interface PublicProductOptions {
  * Paginación en dos pasos para no calcular precio, imagen ni joins de categoría/marca
  * sobre filas que se descartan: (1) página de ids con filtro y orden, (2) detalle solo de
  * esos ids. El LATERAL de precio entra al paso 1 únicamente si hay filtro u orden por precio.
+ *
+ * `search` pasa por parseSearch (stopwords, medidas, cantidades con unidad) y se prueba en
+ * intentos (catalog-search.ts → planSearchAttempts): el primero con resultados gana. Con
+ * búsqueda y `sort` ausente o 'featured' se ordena por relevancia; un `sort` explícito se respeta.
  */
 export async function findPublicProducts(
   filters: CatalogFilters,
   options: PublicProductOptions = {}
-): Promise<{ products: PublicProduct[]; total: number }> {
+): Promise<PublicProductsPage> {
   const {
     search,
     category_id,
@@ -141,96 +175,133 @@ export async function findPublicProducts(
     page = 1,
     limit = 20
   } = filters;
-  const offset = (page - 1) * limit;
   const conditions: string[] = ['p.deleted_at IS NULL', 'p.is_active = true'];
   if (!include_out_of_stock) {
     conditions.push('(p.stock - p.reserved_stock) > 0');
   }
-  const filterParams: unknown[] = [];
-  let paramIndex = 1;
-
-  if (search) {
-    conditions.push(
-      `(unaccent(p.name) ILIKE unaccent($${paramIndex}) OR p.sku ILIKE $${paramIndex})`
-    );
-    filterParams.push(`%${search}%`);
-    paramIndex++;
-  }
+  const params: unknown[] = [];
 
   if (category_id) {
-    conditions.push(`p.category_id = $${paramIndex}`);
-    filterParams.push(category_id);
-    paramIndex++;
+    params.push(category_id);
+    conditions.push(`p.category_id = $${params.length}`);
   }
 
   if (brand_id) {
-    conditions.push(`p.brand_id = $${paramIndex}`);
-    filterParams.push(brand_id);
-    paramIndex++;
+    params.push(brand_id);
+    conditions.push(`p.brand_id = $${params.length}`);
   }
 
   if (min_price !== undefined) {
-    conditions.push(`${EFFECTIVE_PRICE_SQL} >= $${paramIndex}`);
-    filterParams.push(min_price);
-    paramIndex++;
+    params.push(min_price);
+    conditions.push(`${EFFECTIVE_PRICE_SQL} >= $${params.length}`);
   }
 
   if (max_price !== undefined) {
-    conditions.push(`${EFFECTIVE_PRICE_SQL} <= $${paramIndex}`);
-    filterParams.push(max_price);
-    paramIndex++;
+    params.push(max_price);
+    conditions.push(`${EFFECTIVE_PRICE_SQL} <= $${params.length}`);
   }
 
-  const where = conditions.join(' AND ');
-  const resolvedSort = sort ?? 'featured';
-  const orderBy = ORDER_BY_CLAUSE[resolvedSort] ?? ORDER_BY_CLAUSE.featured;
+  const pageQuery: PageQuery = {
+    conditions,
+    params,
+    sort,
+    hasPriceFilter: min_price !== undefined || max_price !== undefined,
+    limit,
+    offset: (page - 1) * limit
+  };
 
-  const hasPriceFilter = min_price !== undefined || max_price !== undefined;
-  const sortsByPrice = resolvedSort === 'price_asc' || resolvedSort === 'price_desc';
+  const attempts = search?.trim()
+    ? planSearchAttempts(parseSearch(search, await getAliasIndex()))
+    : [];
+
+  if (attempts.length === 0) {
+    const { ids, total } = await findPageIds(pageQuery, null);
+    return { products: await findPublicProductsByIds(ids, options), total, search_mode: null };
+  }
+
+  let found: { ids: string[]; total: number } = { ids: [], total: 0 };
+  let mode: SearchMode = attempts[0].mode;
+  for (const attempt of attempts) {
+    found = await findPageIds(pageQuery, attempt);
+    mode = attempt.mode;
+    if (found.total > 0) break;
+  }
+
+  return {
+    products: await findPublicProductsByIds(found.ids, options),
+    total: found.total,
+    search_mode: mode
+  };
+}
+
+/**
+ * Paso 1 de la paginación: ids de la página y total con el MISMO WHERE (filtros + búsqueda).
+ * Relevancia (score; en el relajado primero la cantidad de términos que coinciden) solo si hay
+ * búsqueda y el orden pedido es el por defecto ('featured' o ausente).
+ */
+async function findPageIds(
+  pageQuery: PageQuery,
+  attempt: SearchAttempt | null
+): Promise<{ ids: string[]; total: number }> {
+  const { conditions, sort, hasPriceFilter, limit, offset } = pageQuery;
+  const search = attempt ? buildSearchSql(attempt, pageQuery.params.length + 1) : null;
+  const byRelevance = search !== null && (sort === undefined || sort === 'featured');
+
+  const where = (search ? [...conditions, `(${search.where})`] : conditions).join(' AND ');
+  let orderBy = ORDER_BY_CLAUSE[sort ?? 'featured'] ?? ORDER_BY_CLAUSE.featured;
+  if (byRelevance && search) {
+    orderBy = `${search.score} DESC, ${ORDER_BY_CLAUSE.featured}`;
+    if (attempt?.mode === 'relaxed') orderBy = `${search.matched} DESC, ${orderBy}`;
+  }
+
+  // Postgres rechaza parámetros sin referenciar: el COUNT (y un orden explícito) solo llevan
+  // los de filtros + WHERE de la búsqueda; score/matched usan además los del resto
+  const whereParams = search
+    ? [...pageQuery.params, ...search.params.slice(0, search.whereParamCount)]
+    : pageQuery.params;
+  const pageParams = byRelevance && search ? [...pageQuery.params, ...search.params] : whereParams;
+
+  const sortsByPrice = !byRelevance && (sort === 'price_asc' || sort === 'price_desc');
   const pageJoin = hasPriceFilter || sortsByPrice ? PRICE_LATERAL : '';
   const countJoin = hasPriceFilter ? PRICE_LATERAL : '';
+  const withClause = search ? SEARCH_WITH : '';
+  const searchJoins = search ? SEARCH_JOINS : '';
 
   const idsQuery = `
+    ${withClause}
     SELECT p.id
     FROM products p
+    ${searchJoins}
     ${pageJoin}
     WHERE ${where}
     ORDER BY ${orderBy}
-    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    LIMIT $${pageParams.length + 1} OFFSET $${pageParams.length + 2}
   `;
-  const paginationParams = [...filterParams, limit, offset];
 
   const countQuery = `
+    ${withClause}
     SELECT COUNT(*) AS total
     FROM products p
+    ${searchJoins}
     ${countJoin}
     WHERE ${where}
   `;
 
   const [idsResult, countResult] = await Promise.all([
-    query<{ id: string }>(idsQuery, paginationParams),
-    query<{ total: string }>(countQuery, filterParams)
+    query<{ id: string }>(idsQuery, [...pageParams, limit, offset]),
+    query<{ total: string }>(countQuery, whereParams)
   ]);
 
-  const total = parseInt(countResult.rows[0]?.total ?? '0', 10);
-
-  if (idsResult.rows.length === 0) {
-    return { products: [], total };
-  }
-
-  const productIds = idsResult.rows.map((r) => r.id);
-  const products = await findPublicProductsByIds(productIds, options);
-
-  return { products, total };
+  return {
+    ids: idsResult.rows.map((r) => r.id),
+    total: parseInt(countResult.rows[0]?.total ?? '0', 10)
+  };
 }
 
 /** Unión sin duplicados conservando orden: primero los del producto, luego los de la categoría. */
 function mergeTags(productTags: string[], categoryTags: string[]): string[] {
   return [...new Set([...productTags, ...categoryTags])];
 }
-
-/** Profundidad máxima al subir por categories.parent_id (guarda contra ciclos de datos). */
-const MAX_CATEGORY_DEPTH = 20;
 
 /**
  * Tags de cada categoría dada más los de todos sus ancestros (propia primero, luego padre,

@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 import { query, transaction } from '../../infrastructure/database/client.js';
+import { normalizeSearchText, type AttributeAliasIndex } from '../catalog/search-parser.js';
 import type {
   AdminProductAttribute,
   AttributeDefinition,
@@ -10,6 +11,48 @@ import type {
   ResolvedProductAttributeValue,
   UpdateAttributeData
 } from './attribute.types.js';
+
+const ALIAS_INDEX_TTL_MS = 60_000;
+let aliasIndexCache: { index: AttributeAliasIndex; expiresAt: number } | null = null;
+
+/** Descarta el índice de alias en caché: la próxima búsqueda lo recarga. */
+export function invalidateAliasIndex(): void {
+  aliasIndexCache = null;
+}
+
+/**
+ * Índice término → clave de atributo para parseSearch ("20 mic" → micrones), armado con las
+ * definiciones activas en UNA query y cacheado 60 s en memoria (create/update/remove lo
+ * invalidan en este proceso). Términos normalizados como el texto buscado: clave, label y
+ * alias; después la unidad ("µm" → "um"). Si dos atributos comparten un término gana el de
+ * menor display_order, y una unidad nunca pisa una clave/label/alias ("cm" → ancho).
+ */
+export async function getAliasIndex(): Promise<AttributeAliasIndex> {
+  if (aliasIndexCache && aliasIndexCache.expiresAt > Date.now()) return aliasIndexCache.index;
+
+  const r = await query<{ key: string; label: string; unit: string | null; aliases: string[] }>(
+    `SELECT key, label, unit, aliases FROM attribute_definitions
+     WHERE is_active = true
+     ORDER BY display_order, key`
+  );
+  const terms = new Map<string, string>();
+  const add = (raw: string | null, key: string) => {
+    if (!raw) return;
+    const term = normalizeSearchText(raw);
+    // El parser compara de a un token: términos con espacios ("g/m²" → "g m") nunca coincidirían
+    if (/^[a-z0-9]+$/.test(term) && !terms.has(term)) terms.set(term, key);
+  };
+  for (const row of r.rows) {
+    add(row.key, row.key);
+    add(row.label, row.key);
+    for (const alias of row.aliases ?? []) add(alias, row.key);
+  }
+  for (const row of r.rows) add(row.unit, row.key);
+
+  const index: AttributeAliasIndex = { terms };
+  aliasIndexCache = { index, expiresAt: Date.now() + ALIAS_INDEX_TTL_MS };
+  return index;
+}
 
 /** Columnas de la definición con alias `d.` (camelCase; el middleware ya convierte igual). */
 const COLUMNS = `d.id, d.key, d.label, d.value_type AS "valueType", d.unit, d.options, d.aliases,
@@ -70,6 +113,7 @@ export async function create(data: CreateAttributeData): Promise<AttributeDefini
       data.is_active
     ]
   );
+  invalidateAliasIndex();
   return r.rows[0];
 }
 
@@ -99,6 +143,7 @@ export async function update(
      WHERE d.id = $${params.length} RETURNING ${COLUMNS}`,
     params
   );
+  invalidateAliasIndex();
   return r.rows[0] ?? null;
 }
 
@@ -111,6 +156,7 @@ export async function hasValues(id: string): Promise<boolean> {
 
 export async function remove(id: string): Promise<void> {
   await query('DELETE FROM attribute_definitions WHERE id = $1', [id]);
+  invalidateAliasIndex();
 }
 
 /** Ids de categorías (no borradas) que existen, de entre los recibidos. */

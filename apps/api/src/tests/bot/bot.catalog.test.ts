@@ -44,6 +44,10 @@ async function call(path: string, init: { method?: string; body?: string } = {})
   return { status: response.status, body: (await response.json()) as any };
 }
 
+// Sin coincidencia exacta la búsqueda pasa al modo relajado, que puede traer otros productos
+// con alguna palabra del nombre: lo que importa es que el producto sin stock no aparezca
+const listedIds = (body: { data: Array<{ id: string }> }): string[] => body.data.map((p) => p.id);
+
 describe('bot catalog: productos sin stock', () => {
   it('no lista el producto sin stock por defecto', async () => {
     const product = await createTestProduct({ stock: 0 });
@@ -51,7 +55,7 @@ describe('bot catalog: productos sin stock', () => {
       `/catalog/products?search=${encodeURIComponent(product.name)}`
     );
     expect(status).toBe(200);
-    expect(body.data).toHaveLength(0);
+    expect(listedIds(body)).not.toContain(product.id);
   });
 
   it('con include_out_of_stock=false tampoco lo lista', async () => {
@@ -59,7 +63,7 @@ describe('bot catalog: productos sin stock', () => {
     const { body } = await call(
       `/catalog/products?include_out_of_stock=false&search=${encodeURIComponent(product.name)}`
     );
-    expect(body.data).toHaveLength(0);
+    expect(listedIds(body)).not.toContain(product.id);
   });
 
   it('con include_out_of_stock=true lo lista con inStock false y purchasable false', async () => {

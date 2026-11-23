@@ -71,12 +71,15 @@ export async function listCategories() {
   return tree.map(toBotCategory);
 }
 
-/** Productos activos y con stock (mismo filtro que el catálogo web). */
+/**
+ * Productos activos y con stock (misma búsqueda y filtro que el catálogo web). `searchMode`
+ * 'relaxed' le permite al bot decir "no encontré exactamente eso, pero tengo…".
+ */
 export async function searchProducts(filters: CatalogProductsQuery) {
-  const { products, total } = await catalogRepository.findPublicProducts(filters, {
+  const { products, total, search_mode } = await catalogRepository.findPublicProducts(filters, {
     includeTags: true
   });
-  return { products: products.map(toBotProduct), total };
+  return { products: products.map(toBotProduct), total, searchMode: search_mode };
 }
 
 export async function getProduct(id: string) {
