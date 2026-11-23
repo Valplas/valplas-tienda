@@ -4,7 +4,7 @@
 
 **Goal:** Mover al backend toda la lógica que hoy duplica el bot de WhatsApp (combinación de presentaciones, búsqueda, datos del negocio) y mostrar en la web los mismos nombres de presentación y atributos.
 
-**Architecture:** Migraciones nuevas 054–059 (nunca editar existentes). Funciones puras testeables para lo que tiene reglas (`describePresentations`, `planUnits`, `parseSearch`, `trimDeep`), consumidas por los módulos existentes (`catalog`, `bot`, `orders`, `cart`, `products`, `settings`) y un módulo nuevo `attributes`. Todo lo nuevo en `/api/bot` es aditivo. La web consume los campos derivados que devuelve la API.
+**Architecture:** Migraciones nuevas 054–060 (nunca editar existentes). Funciones puras testeables para lo que tiene reglas (`describePresentations`, `planUnits`, `parseSearch`, `trimDeep`), consumidas por los módulos existentes (`catalog`, `bot`, `orders`, `cart`, `products`, `settings`) y un módulo nuevo `attributes`. Todo lo nuevo en `/api/bot` es aditivo. La web consume los campos derivados que devuelve la API.
 
 **Tech Stack:** Express 5 + TS, `pg` contra Supabase, Zod 4, Vitest (contra la dev DB), Next.js 16 + shadcn/ui + React Hook Form.
 
@@ -145,7 +145,7 @@ it('integración: ?search=%20bolsa%20 devuelve lo mismo que ?search=bolsa', asyn
 **Interfaces:**
 
 - Produces: SQL `bump_catalog_version()`; `getCatalogState(): Promise<{ version: number; updated_at: string }>`; bot `GET /api/bot/catalog/status` → `{ catalogVersion, catalogUpdatedAt, storeInfoUpdatedAt }` (`storeInfoUpdatedAt` = `store_settings.updated_at`).
-- Task 17 agrega triggers a las tablas de atributos con `bump_catalog_version()`.
+- Task 4b (migración 056) reemplaza los triggers de sentencia por constraint triggers diferidos (`<tabla>_catalog_bump`, `AFTER INSERT OR UPDATE OR DELETE … DEFERRABLE INITIALLY DEFERRED FOR EACH ROW`) con flag por transacción; Task 17 agrega ese mismo trigger a las tablas de atributos.
 
 - [ ] **Step 1: Tests que fallan** (leer `version` antes y después):
   - `UPDATE price_lists SET margin = margin WHERE id = <lista de test>` → version +1 (al menos);
@@ -182,11 +182,11 @@ Comentario en la migración: el `UPDATE` de `catalog_state` toma el lock de la f
 
 # Parte 2 — Presentaciones (PR 2)
 
-### Task 6: Campos de unidad y nombre de presentación (migración 056 + admin API)
+### Task 6: Campos de unidad y nombre de presentación (migración 057 + admin API)
 
 **Files:**
 
-- Create: `apps/api/src/infrastructure/database/migrations/056_add_presentation_fields.sql`
+- Create: `apps/api/src/infrastructure/database/migrations/057_add_presentation_fields.sql`
 - Modify: `apps/api/src/modules/products/product.validator.ts`, `product.types.ts`, `product.repository.ts` (`createProduct`, `updateProduct`, `transformProductRow`, `PRICE_TIERS_SQL`)
 - Modify: `apps/api/src/modules/products/price-tiers/price-tier.validator.ts`, `price-tier.types.ts`, `price-tier.repository.ts` (`replaceProductTiers`, `findTiersByProductId`)
 - Test: `apps/api/src/tests/products/product-presentation-fields.test.ts`
@@ -200,7 +200,7 @@ Comentario en la migración: el `UPDATE` de `catalog_state` toma el lock de la f
 - [ ] **Step 2: Correr** → FAIL.
 - [ ] **Step 3: Implementar** migración (rollback comentado) + Zod (`z.string().max(30).nullable().optional()`, `''` → `null` con `.transform`) + refine "contenido completo o vacío" + repositorio.
 - [ ] **Step 4: Aplicar migración; correr** el test + `src/tests/products` → PASS.
-- [ ] **Step 5: Commit** `feat(products): sales unit and presentation label fields (056)`
+- [ ] **Step 5: Commit** `feat(products): sales unit and presentation label fields (057)`
 
 ### Task 7: `describePresentations` (función pura)
 
@@ -407,7 +407,7 @@ Respuesta de quote suma `requested: [{ productId, units, subtotal, breakdown: Qu
 
 **Files:**
 
-- Create: `apps/api/src/infrastructure/database/migrations/057_add_store_info.sql`
+- Create: `apps/api/src/infrastructure/database/migrations/058_add_store_info.sql`
 - Create: `apps/api/src/modules/settings/store-info.validator.ts`
 - Modify: `apps/api/src/modules/settings/settings.repository.ts`, `settings.service.ts`, `settings.controller.ts`, `settings.routes.ts`
 - Modify: `apps/api/src/modules/bot/bot.routes.ts`, `bot.controller.ts`, `bot.domain.ts`
@@ -423,7 +423,7 @@ Respuesta de quote suma `requested: [{ productId, units, subtotal, breakdown: Qu
 - [ ] **Step 2: Correr** → FAIL.
 - [ ] **Step 3: Implementar.** Teléfono con `normalizePhone` (`shared/utils/phone.ts`); emails `toLowerCase`.
 - [ ] **Step 4: Aplicar migración; correr** el test + `src/tests/settings` → PASS.
-- [ ] **Step 5: Commit** `feat(settings): store info (hours, delivery, payments, transfer) for admin and bot (057)`
+- [ ] **Step 5: Commit** `feat(settings): store info (hours, delivery, payments, transfer) for admin and bot (058)`
 
 ### Task 15: Sección "Información del negocio" en `/admin/configuracion`
 
@@ -445,11 +445,11 @@ Respuesta de quote suma `requested: [{ productId, units, subtotal, breakdown: Qu
 
 # Parte 4 — Atributos, tags y búsqueda (PR 4)
 
-### Task 17: Diccionario de atributos (migración 058 + módulo `attributes`)
+### Task 17: Diccionario de atributos (migración 059 + módulo `attributes`)
 
 **Files:**
 
-- Create: `apps/api/src/infrastructure/database/migrations/058_create_product_attributes.sql`
+- Create: `apps/api/src/infrastructure/database/migrations/059_create_product_attributes.sql`
 - Create: `apps/api/src/modules/attributes/attribute.{types,validator,repository,service,controller,routes}.ts`
 - Modify: `apps/api/src/server.ts` (`app.use('/api/attributes', attributeRoutes)`)
 - Modify: `apps/api/src/tests/setup.ts` (borrar `attribute_definitions WHERE key LIKE 'vitest_%'` después de productos)
@@ -457,7 +457,7 @@ Respuesta de quote suma `requested: [{ productId, units, subtotal, breakdown: Qu
 
 **Interfaces:**
 
-- Produces (DB): enum `attribute_value_type ('number','text','option')`; `attribute_definitions`, `category_attributes`, `product_attribute_values` exactamente como el spec §5 (PK, CHECK "exactamente un valor", índices, FKs `CASCADE` desde producto/categoría y `RESTRICT` desde definición); triggers de `bump_catalog_version()` (3 por tabla, patrón de Task 4) en las 3 tablas; RLS habilitado; semilla `ON CONFLICT (key) DO NOTHING`:
+- Produces (DB): enum `attribute_value_type ('number','text','option')`; `attribute_definitions`, `category_attributes`, `product_attribute_values` exactamente como el spec §5 (PK, CHECK "exactamente un valor", índices, FKs `CASCADE` desde producto/categoría y `RESTRICT` desde definición); el constraint trigger diferido `<tabla>_catalog_bump` con `bump_catalog_version()` (patrón de la migración 056) en las 3 tablas; RLS habilitado; semilla `ON CONFLICT (key) DO NOTHING`:
   `ancho` "Ancho" number cm · `alto` "Alto" number cm · `profundidad` "Profundidad" number cm · `micrones` "Micrones" number µm aliases `{mic,micras,micron}` · `largo` "Largo" number m aliases `{metros,mts,mt}` · `gramaje` "Gramaje" number g/m² aliases `{gr,grs,gramos}` · `peso` "Peso" number kg · `capacidad` "Capacidad" number L aliases `{litros,lts,lt}` · `color` "Color" text · `talle` "Talle" option `{XS,S,M,L,XL,XXL}`. (Medidas del producto, no las de envío `products.width/height/length`.)
 - Produces (API, `admin`/`owner`): `GET /api/attributes` (lista con categorías asignadas), `POST /api/attributes`, `PATCH /api/attributes/:id` (`key` inmutable), `DELETE /api/attributes/:id` (409 `ATTRIBUTE_IN_USE` si tiene valores; sugerir desactivar), `PUT /api/attributes/:id/categories` `{ category_ids: string[] }`, `GET /api/attributes/for-category/:categoryId` (propias + ancestros, sin duplicados, por `display_order`).
 
@@ -465,7 +465,7 @@ Respuesta de quote suma `requested: [{ productId, units, subtotal, breakdown: Qu
 - [ ] **Step 2: Correr** → FAIL.
 - [ ] **Step 3: Implementar** (ancestros con CTE recursiva sobre `categories.parent_id`).
 - [ ] **Step 4: Aplicar migración; correr** → PASS.
-- [ ] **Step 5: Commit** `feat(attributes): attribute dictionary with category presets (058)`
+- [ ] **Step 5: Commit** `feat(attributes): attribute dictionary with category presets (059)`
 
 ### Task 18: Valores de atributos en productos y en el catálogo
 
@@ -486,18 +486,18 @@ Respuesta de quote suma `requested: [{ productId, units, subtotal, breakdown: Qu
 - [ ] **Step 4: Correr** el test + `src/tests/products` + `src/tests/bot` → PASS.
 - [ ] **Step 5: Commit** `feat(products): attribute values on products, exposed in bot and public catalog`
 
-### Task 19: Tags (migración 059)
+### Task 19: Tags (migración 060)
 
 **Files:**
 
-- Create: `apps/api/src/infrastructure/database/migrations/059_add_tags.sql` (`products.tags TEXT[] NOT NULL DEFAULT '{}'`, `categories.tags TEXT[] NOT NULL DEFAULT '{}'`)
+- Create: `apps/api/src/infrastructure/database/migrations/060_add_tags.sql` (`products.tags TEXT[] NOT NULL DEFAULT '{}'`, `categories.tags TEXT[] NOT NULL DEFAULT '{}'`)
 - Create: `apps/api/src/shared/utils/tags.ts` (`normalizeTags(input: string[]): string[]` → minúscula, trim, colapsa espacios, sin vacíos ni duplicados, máx 30 tags de 40 caracteres)
 - Modify: validators/repositorios de products y categories (create/update aceptan `tags`), `bot.mappers.ts` (`tags: string[]` = tags del producto ∪ tags de su categoría y ancestros), la API pública **no** los devuelve
 - Test: `apps/api/src/tests/shared/tags.test.ts`, `apps/api/src/tests/products/product-tags.test.ts`
 
 - [ ] **Step 1: Tests que fallan:** `normalizeTags([' Consorcio ', 'consorcio', '', 'Bolsa  Residuo'])` → `['consorcio','bolsa residuo']`; PUT producto con tags → bot los devuelve junto con los de la categoría; `GET /api/products/slug/:slug` no tiene `tags`.
 - [ ] **Step 2–4:** correr → FAIL; implementar; aplicar migración; correr → PASS.
-- [ ] **Step 5: Commit** `feat(catalog): editable tags on products and categories (059)`
+- [ ] **Step 5: Commit** `feat(catalog): editable tags on products and categories (060)`
 
 ### Task 20: Parser de búsqueda (función pura)
 
