@@ -16,6 +16,11 @@ import type {
   UpdateProductData
 } from './product.types.js';
 
+/** '' (input en blanco) equivale a "sin valor": se guarda como null; undefined se conserva. */
+export function emptyToNull(value: string | null | undefined): string | null | undefined {
+  return value === '' ? null : value;
+}
+
 // Tiers activos del producto con precio de venta derivado (costo × margen de lista).
 // Lo usan listado y detalle para que el front calcule el precio efectivo.
 const PRICE_TIERS_SQL = `COALESCE(
@@ -475,9 +480,9 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
       data.origin || null,
       data.isFeatured || false,
       true,
-      data.unitLabel ?? null,
+      emptyToNull(data.unitLabel) ?? null,
       data.unitContentQuantity ?? null,
-      data.unitContentLabel ?? null
+      emptyToNull(data.unitContentLabel) ?? null
     ]
   );
 
@@ -578,7 +583,7 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
 
   if (data.unitLabel !== undefined) {
     updates.push(`unit_label = $${paramIndex}`);
-    params.push(data.unitLabel);
+    params.push(emptyToNull(data.unitLabel));
     paramIndex++;
   }
 
@@ -590,7 +595,7 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
 
   if (data.unitContentLabel !== undefined) {
     updates.push(`unit_content_label = $${paramIndex}`);
-    params.push(data.unitContentLabel);
+    params.push(emptyToNull(data.unitContentLabel));
     paramIndex++;
   }
 

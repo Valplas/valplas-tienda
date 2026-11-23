@@ -339,7 +339,7 @@ export interface TestCatalogProduct {
  * Producto de catálogo de test: categoría `vitest-<suffix>`, SKU `VITEST-<SUFFIX>` y una
  * presentación (tier) por cada entrada de `tiers`, cada una en una lista de precios activa
  * distinta. El cleanup de setup.ts lo borra por SKU (los tiers caen por CASCADE).
- * `label` se ignora hasta que exista la columna.
+ * `label` (nombre de la presentación) y `unit` (unidad de venta del producto) son opcionales.
  */
 export async function createTestProduct(
   opts: {

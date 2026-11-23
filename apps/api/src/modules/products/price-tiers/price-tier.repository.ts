@@ -1,4 +1,5 @@
 import { query } from '../../../infrastructure/database/client.js';
+import { emptyToNull } from '../product.repository.js';
 import type {
   ProductPriceTier,
   ProductPriceTierInput,
@@ -106,7 +107,7 @@ export async function replaceProductTiers(
     .map((_, i) => `($1, $${i * 3 + 2}, $${i * 3 + 3}, $${i * 3 + 4})`)
     .join(', ');
   const values: (string | number | null)[] = [productId];
-  tiers.forEach((t) => values.push(t.priceListId, t.minQuantity, t.label ?? null));
+  tiers.forEach((t) => values.push(t.priceListId, t.minQuantity, emptyToNull(t.label) ?? null));
 
   await query(
     `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, label)
@@ -230,7 +231,9 @@ export async function bulkConfirm(
         .map((_, i) => `($1, $${i * 3 + 2}, $${i * 3 + 3}, $${i * 3 + 4})`)
         .join(', ');
       const values: (string | number | null)[] = [product.id];
-      tiersToInsert.forEach((t) => values.push(t.priceListId, t.minQuantity, t.label ?? null));
+      tiersToInsert.forEach((t) =>
+        values.push(t.priceListId, t.minQuantity, emptyToNull(t.label) ?? null)
+      );
       await query(
         `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, label) VALUES ${placeholders}`,
         values
@@ -241,9 +244,9 @@ export async function bulkConfirm(
     for (const tier of tiersToUpdate) {
       await query(
         `UPDATE product_price_tiers
-         SET price_list_id = $1, updated_at = NOW()
+         SET price_list_id = $1, label = $4, updated_at = NOW()
          WHERE product_id = $2 AND min_quantity = $3`,
-        [tier.priceListId, product.id, tier.minQuantity]
+        [tier.priceListId, product.id, tier.minQuantity, emptyToNull(tier.label) ?? null]
       );
       assigned++;
     }
