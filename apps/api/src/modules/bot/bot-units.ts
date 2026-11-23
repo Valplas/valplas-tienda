@@ -22,9 +22,12 @@ export type BotItemInput =
 
 export interface RequestedGroup {
   product_id: string;
-  /** Unidades pedidas (legacy: quantity × bundle_size de la presentación; 0 si no se resuelve) */
-  /** 'legacy': units se completa al cotizar desde la línea; 'units': unidades pedidas */
+  /** 'legacy': ítem por presentación; 'units': ítem por unidades */
   kind: 'legacy' | 'units';
+  /**
+   * Solo kind 'units': unidades pedidas. En 'legacy' queda en 0 y quote() las calcula sumando el
+   * `real_quantity` de las líneas ya cotizadas (las que no se cotizan no suman).
+   */
   units: number;
   /** Índices en `pricingItems` de las líneas de este ítem recibido */
   lineIndexes: number[];
@@ -69,9 +72,8 @@ export async function expandBotItems(items: BotItemInput[]): Promise<ExpandedBot
     }
   }
 
-  // Dos queries en batch (sin N+1): tiers activos de todos los productos y datos de producto
-  // (nombre y estado) solo si hay ítems `units`.
-  // Sin ítems `units` no hace falta ninguna de las dos consultas.
+  // Dos queries en batch (sin N+1): tiers activos y datos de producto (nombre y estado), solo de
+  // los productos con ítems `units`. Sin ítems `units` no se hace ninguna de las dos consultas.
   const unitsProductIds = [...unitsByProduct.keys()];
   const [tiersByProduct, products] =
     unitsProductIds.length > 0

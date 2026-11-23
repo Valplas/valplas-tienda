@@ -23,6 +23,32 @@ Base URL: `http://localhost:3001/api` (desarrollo) / `https://valplas-tienda-dev
 | PUT    | `/products/:id`        | ✅   | admin, owner | Actualizar producto        |
 | DELETE | `/products/:id`        | ✅   | admin, owner | Eliminar producto          |
 
+### Unidad de venta (admin, camelCase)
+
+`POST /products` y `PUT /products/:id` aceptan tres campos opcionales que describen la unidad de venta
+(sirven para armar los textos de las presentaciones en el catálogo, el carrito y el bot):
+
+| Campo                 | Tipo             | Descripción                                                            |
+| --------------------- | ---------------- | ---------------------------------------------------------------------- |
+| `unitLabel`           | string ≤ 30/null | Nombre de la unidad: `"paquete"`, `"caja"`. `""` se guarda como `null` |
+| `unitContentQuantity` | number > 0/null  | Cantidad que trae cada unidad: `100`                                   |
+| `unitContentLabel`    | string ≤ 40/null | Qué contiene: `"bolsas"`. Va junto con `unitContentQuantity`           |
+
+`unitContentQuantity` y `unitContentLabel` se envían **juntos** (ambos con valor o ambos vacíos); si no,
+`400 VALIDATION_ERROR`.
+
+### Precios por cantidad (presentaciones, admin)
+
+- `GET /products/:id/price-tiers` y `PUT /products/:id/price-tiers` (reemplaza todas las presentaciones del
+  producto). Cada tier: `{ priceListId, minQuantity, label? }`.
+- `label` (opcional, ≤ 40 caracteres, `""` se guarda como `null`): nombre de la presentación, por ejemplo
+  `"Bulto de 10 paquetes"`. Si falta, se usa un nombre por defecto (`Bulto`, `Bulto x12`, o la unidad de venta
+  para la presentación base).
+- **Validación:** no puede haber dos presentaciones con la misma `priceListId` en un mismo producto
+  (`400 VALIDATION_ERROR`, "No puede haber dos presentaciones con la misma lista de precios"). Lo mismo
+  aplica a `POST /products/price-tiers/bulk-preview` y `bulk-confirm`. Motivo: el precio se busca por
+  (producto, lista) y con listas repetidas la línea podría resolverse a otro bulto.
+
 ## 📂 Categories
 
 | Method | Endpoint                        | Auth | Roles        | Description                  |

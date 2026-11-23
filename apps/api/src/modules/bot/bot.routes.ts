@@ -311,7 +311,9 @@ router.get(
  *           breakdown: [líneas] }. Si dos ítems units comparten producto, el primero lleva el
  *           breakdown y el subtotal completos; los siguientes vienen con breakdown [], subtotal 0
  *           y mergedInto = índice del primero. problems puede incluir UNITS_NOT_ACHIEVABLE
- *           { productId, productName, requested, nearestBelow, nearestAbove }.
+ *           { productId, productName, requested, nearestBelow, nearestAbove } y UNITS_PLAN_MISMATCH
+ *           { productId, productName, requested } (las presentaciones cambiaron mientras se
+ *           cotizaba: volver a cotizar).
  */
 router.post('/quote', validateBody(quoteSchema), botController.quote);
 
@@ -354,7 +356,7 @@ router.post('/quote', validateBody(quoteSchema), botController.quote);
  *       400:
  *         description: INVALID_SHIPPING_ADDRESS | INVALID_CARRIER | PRODUCT_NOT_FOUND | PRODUCT_UNAVAILABLE | PRICE_TIER_NOT_FOUND | POSTCODE_NOT_COVERED
  *       409:
- *         description: INSUFFICIENT_STOCK | IDEMPOTENCY_KEY_CONFLICT
+ *         description: INSUFFICIENT_STOCK | IDEMPOTENCY_KEY_CONFLICT | UNITS_PLAN_MISMATCH (modo units, las presentaciones cambiaron - volver a cotizar)
  *       422:
  *         description: "UNITS_NOT_ACHIEVABLE (modo units): details { productId, requested, nearestBelow, nearestAbove }"
  */
