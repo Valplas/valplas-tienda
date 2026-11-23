@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import { env } from '../../env.js';
-import { describePresentations } from '../catalog/presentation.js';
+import { describeLineTier } from '../catalog/presentation.js';
 import * as cartRepository from './cart.repository.js';
 import type { TierInfo } from './cart.repository.js';
 import type {
@@ -181,25 +181,19 @@ export async function getCartWithDetails(cart: Cart): Promise<CartSummary> {
 
     const itemSubtotal = Math.trunc(pricePerBundle * quantity * 100) / 100;
 
-    // Texto de la presentación. describePresentations trata el menor tier como base, así que
-    // una línea de bulto (minQuantity > 1) se describe junto a una base sintética de 1 unidad.
-    const lineTier = {
-      priceListId: item.priceListId ?? '',
-      minQuantity,
-      unitPrice,
-      label: tier?.label ?? null
-    };
-    const views = describePresentations(
+    const presentation = describeLineTier(
       {
         label: product.unitLabel,
         contentQuantity: product.unitContentQuantity,
         contentLabel: product.unitContentLabel
       },
-      minQuantity > 1
-        ? [{ ...lineTier, priceListId: '', minQuantity: 1, label: null }, lineTier]
-        : [lineTier]
+      {
+        priceListId: item.priceListId ?? '',
+        minQuantity,
+        unitPrice,
+        label: tier?.label ?? null
+      }
     );
-    const presentation = views[views.length - 1];
 
     itemsWithProduct.push({
       productId: product.id,

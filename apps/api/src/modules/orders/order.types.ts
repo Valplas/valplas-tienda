@@ -120,6 +120,8 @@ export interface OrderItemWithProduct extends OrderItem {
   product_name: string;
   product_sku: string;
   product_image?: string;
+  /** Texto de la presentación al comprar (null en órdenes anteriores) */
+  presentation_label_snapshot?: string | null;
 }
 
 export interface CreateOrderInput {

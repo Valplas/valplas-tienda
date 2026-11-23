@@ -7,6 +7,7 @@
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import { findProductsByIds } from '../products/product.repository.js';
 import { getTiersForCartItems } from '../cart/cart.repository.js';
+import { describeLineTier, presentationSnapshot } from '../catalog/presentation.js';
 import type { CreateOrderItemInput } from './order.types.js';
 
 /**
@@ -33,6 +34,8 @@ export interface PricedOrderLine {
   price_list_id?: string;
   /** Unidades disponibles (stock - reserved_stock) al momento de cotizar */
   available_stock: number;
+  /** Texto de la presentación al comprar (ej: "Bulto · 10 paquetes"); no cambia si se renombra el tier */
+  presentation_label_snapshot: string | null;
   /** Posición en el array de ítems recibido (las líneas con problema se omiten) */
   item_index: number;
 }
@@ -181,6 +184,21 @@ export async function priceOrderItems(
       subtotal: itemSubtotal,
       price_list_id: item.price_list_id,
       available_stock: availableStock,
+      presentation_label_snapshot: presentationSnapshot(
+        describeLineTier(
+          {
+            label: product.unitLabel ?? null,
+            contentQuantity: product.unitContentQuantity ?? null,
+            contentLabel: product.unitContentLabel ?? null
+          },
+          {
+            priceListId: item.price_list_id ?? '',
+            minQuantity: bundleSize,
+            unitPrice,
+            label: tier?.label ?? null
+          }
+        )
+      ),
       item_index: itemIndex
     });
   }

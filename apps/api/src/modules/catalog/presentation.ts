@@ -127,6 +127,21 @@ export function describePresentations(
   });
 }
 
+/**
+ * Descripción de la presentación de UNA línea (tier). describePresentations trata el menor tier
+ * como base, así que un bulto (minQuantity > 1) se describe junto a una base sintética de
+ * 1 unidad sin nombre.
+ */
+export function describeLineTier(unit: SalesUnit, tier: TierForDisplay): PresentationView {
+  const views = describePresentations(
+    unit,
+    tier.minQuantity > 1
+      ? [{ ...tier, priceListId: '', minQuantity: 1, label: null }, tier]
+      : [tier]
+  );
+  return views[views.length - 1];
+}
+
 export function productSummary(name: string, views: PresentationView[]): string | null {
   if (views.length === 0) return null;
   return `${name} viene en: ${views.map((v) => v.description).join('; ')}`;

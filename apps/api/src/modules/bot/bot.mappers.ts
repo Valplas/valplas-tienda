@@ -215,7 +215,8 @@ export function toBotOrder(order: OrderWithDetails) {
         quantity: item.quantity,
         bundle_size: bundleSize ?? 1,
         bundle_price: item.unit_price,
-        subtotal: item.subtotal
+        subtotal: item.subtotal,
+        presentation_label: item.presentation_label_snapshot ?? null
       };
     })
   };
