@@ -25,9 +25,9 @@
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "csrf-csrf": "4.0.3",
+    "csrf-csrf": "4.1.0",
     "dayjs": "^1.11.13",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.10",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.0.0",
@@ -48,7 +48,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
+    "@eslint/js": "^10.0.1",
     "@types/bcryptjs": "^3.0.0",
     "@types/cookie-parser": "^1.4.7",
     "@types/cors": "^2.8.17",
@@ -64,11 +64,11 @@
     "@types/pg": "^8.11.10",
     "@typescript-eslint/eslint-plugin": "^8.24.0",
     "@typescript-eslint/parser": "^8.24.0",
-    "eslint": "^9.39.4",
+    "eslint": "^10.15.0",
     "globals": "^17.7.0",
     "prettier": "^3.4.2",
     "tsx": "^4.19.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.12"
+    "vitest": "^5.1.0"
   }
 }
