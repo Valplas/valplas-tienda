@@ -26,6 +26,11 @@ const ALLOW = new Map([
   ['GHSA-23c5-xmqv-rm74', 'minimatch: ReDoS — solo glob de build tooling'],
   ['GHSA-3v7f-55p6-f55p', 'picomatch: glob matching — solo build tooling'],
   ['GHSA-c2c7-rcm5-vvqj', 'picomatch: ReDoS — solo build tooling'],
+  // Sin versión corregida (afecta <=4.0.7, la última publicada). picomatch@4 llega por
+  // tinyglobby (typescript-eslint), vite y vitest; picomatch@2 por micromatch/chokidar de
+  // tsc-alias (paso de build, no se carga en `node dist/server.js`) y eslint-config-next.
+  // Quitar cuando se publique picomatch >4.0.7 y bun lo resuelva.
+  ['GHSA-fc5q-39xc-vjpf', 'picomatch: ReDoS extglobs, sin fix publicado — solo lint/test/build'],
   // brace-expansion 1.x/2.x/5.x conviven (minimatch 3/9/10): bun no permite
   // override por major. Llega por eslint/typescript-eslint/lint-staged y, en
   // runtime, por swagger-jsdoc → glob@7 con el patrón fijo de config/swagger.ts.
@@ -35,6 +40,12 @@ const ALLOW = new Map([
   ['GHSA-qhr7-859c-m2p7', 'brace-expansion: recursión anidada — solo globs hardcodeados'],
   ['GHSA-6j4f-fj2g-mc7p', 'brace-expansion: recursión parseCommaParts — solo globs hardcodeados'],
   ['GHSA-q2hr-2g5m-vwhr', 'brace-expansion: tiempo cuadrático — solo globs hardcodeados'],
+  // minimatch 10.x (>=7 <11.0.1): no hay versión corregida dentro de la línea 10 y un override
+  // global a 11 rompería minimatch@3 (swagger-jsdoc → glob@7, eslint-plugin-*), que se importa
+  // como función. La copia vulnerable llega solo por @typescript-eslint/typescript-estree
+  // (lint/typecheck), nunca por runtime ni por input de un atacante: los globs son config fija.
+  // Quitar cuando typescript-estree suba a minimatch 11 (hoy declara ^10.2.2).
+  ['GHSA-g3hv-75wg-m249', 'minimatch 10.x: DoS por amplificación de globparts — solo tooling de lint'],
   // braces 3.0.3 es la última versión publicada (sin fix). Llega solo por
   // micromatch de tooling: tsc-alias (build), eslint-config-next, lint-staged.
   ['GHSA-vfj7-8cjw-p6xm', 'braces: stack exhaustion — sin fix publicado, solo build tooling']

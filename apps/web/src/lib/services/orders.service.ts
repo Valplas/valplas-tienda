@@ -2,16 +2,15 @@
 
 import { get, post, patch } from '../api';
 import type { ApiResponse } from '../api';
+import type { BranchSnapshot, ServiceType, Shipment, ShipmentStatus } from './shipments.service';
 
 export type OrderStatus =
   | 'pending_payment'
   | 'payment_confirmed'
   | 'processing'
   | 'ready_to_ship'
-  | 'in_transit'
   | 'delivered'
   | 'cancelled'
-  | 'payment_failed'
   | 'refunded'
   | 'shipped'
   | 'failed';
@@ -34,6 +33,15 @@ export interface OrderUser {
   firstName: string;
   lastName: string;
   phone: string;
+}
+
+export interface OrderStatusHistoryEntry {
+  id: string;
+  orderId: string;
+  status: OrderStatus;
+  notes: string | null;
+  changedBy: string | null;
+  createdAt: string;
 }
 
 export interface Order {
@@ -64,8 +72,20 @@ export interface Order {
     quantity: number;
     unitPrice: number;
     subtotal: number;
+    presentationLabelSnapshot?: string | null;
   }>;
   user?: OrderUser;
+  trackingNumber?: string | null;
+  shippedAt?: string | null;
+  deliveredAt?: string | null;
+  cancelledAt?: string | null;
+  paidAt?: string | null;
+  shippingMethod?: ServiceType;
+  pickupBranch?: BranchSnapshot | null;
+  statusHistory?: OrderStatusHistoryEntry[];
+  shipments?: Shipment[];
+  /** Solo en listados de pedidos */
+  activeShipment?: { id: string; status: ShipmentStatus; trackingNumber: string | null } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -144,7 +164,7 @@ const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
   pending_payment: ['payment_confirmed', 'cancelled', 'failed'],
   payment_confirmed: ['processing', 'refunded', 'cancelled'],
   processing: ['ready_to_ship', 'cancelled'],
-  ready_to_ship: ['shipped', 'cancelled'],
+  ready_to_ship: ['shipped', 'processing', 'cancelled'],
   shipped: ['delivered', 'cancelled'],
   delivered: ['refunded'],
   cancelled: [],
@@ -157,7 +177,10 @@ export function getValidNextStatuses(currentStatus: string): string[] {
 }
 
 export async function getAdminOrders(params?: {
+  /** Paginación clásica (OFFSET). Si se omite, se pagina por cursor. */
   page?: number;
+  /** Cursor devuelto por la página anterior (solo modo cursor). */
+  cursor?: string;
   limit?: number;
   status?: string;
   fromDate?: string;
@@ -167,6 +190,7 @@ export async function getAdminOrders(params?: {
 }) {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
+  if (params?.cursor) query.set('cursor', params.cursor);
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.status && params.status !== 'all') query.set('status', params.status);
   if (params?.fromDate) query.set('from_date', params.fromDate);
@@ -176,11 +200,22 @@ export async function getAdminOrders(params?: {
 
   const qs = query.toString();
   const res = await get<Order[]>(`/orders/admin/all${qs ? `?${qs}` : ''}`);
-  if (!res.success || !res.data) return { orders: [], total: 0, totalPages: 0 };
+  if (!res.success || !res.data) {
+    return {
+      orders: [],
+      total: 0,
+      totalPages: 0,
+      hasMore: false,
+      nextCursor: null as string | null
+    };
+  }
   return {
     orders: res.data,
+    // Con cursor el total solo llega en la primera página: ahí es el que se muestra
     total: res.pagination?.total ?? res.data.length,
-    totalPages: res.pagination?.totalPages ?? 1
+    totalPages: res.pagination?.totalPages ?? 1,
+    hasMore: res.pagination?.hasMore ?? false,
+    nextCursor: (res.pagination?.cursor ?? null) as string | null
   };
 }
 

@@ -154,9 +154,14 @@ router.get('/:id', orderController.getOrderById);
  *     responses:
  *       200:
  *         description: Order status updated
+ *       403:
+ *         description: El usuario no es admin/owner
+ *       409:
+ *         description: ORDER_STATUS_CONFLICT (el estado cambió mientras se procesaba) o SHIPMENT_ACTIVE (el pedido tiene un envío activo con Andreani)
  */
 router.patch(
   '/:id/status',
+  requireRole(['admin', 'owner']),
   validate(updateOrderStatusSchema, 'body'),
   orderController.updateOrderStatus
 );

@@ -19,7 +19,8 @@ import {
   Percent,
   Calculator,
   GalleryHorizontal,
-  Settings
+  Settings,
+  ListChecks
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -70,6 +71,12 @@ const navItems: NavItem[] = [
     title: 'Marcas',
     href: '/admin/marcas',
     icon: Tag
+  },
+  {
+    title: 'Atributos',
+    href: '/admin/atributos',
+    icon: ListChecks,
+    roles: [UserRole.ADMIN, UserRole.OWNER]
   },
   {
     title: 'Listas de Precio',

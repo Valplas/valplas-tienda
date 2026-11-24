@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import { GitMerge, Pencil, Plus, Trash2, Loader2, Users } from 'lucide-react';
@@ -49,6 +49,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRequireAuth } from '@/hooks/use-require-auth';
+import { useInfiniteList } from '@/hooks/use-infinite-list';
 
 const PAGE_SIZE = 50;
 
@@ -58,11 +59,6 @@ export default function UsuariosPage() {
   });
   const currentUser = useAuthStore((state) => state.user);
 
-  const [users, setUsers] = useState<AdminUserWithAddresses[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -73,110 +69,48 @@ export default function UsuariosPage() {
   const [contactFilter, setContactFilter] = useState<'all' | 'missing'>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const isMountedRef = useRef(false);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  const loadUsers = useCallback(
-    async (searchTerm: string) => {
-      setLoading(true);
-      setPage(1);
-      setHasMore(true);
-      try {
-        const result = await getAdminUsers({
-          page: 1,
-          limit: PAGE_SIZE,
-          role: roleFilter === 'all' ? undefined : roleFilter,
-          search: searchTerm || undefined,
-          contactStatus: contactFilter === 'missing' ? 'missing' : undefined,
-          sort: sortBy,
-          includeAddresses: true
-        });
-        if (!isMountedRef.current) return;
-        setUsers(result.users as AdminUserWithAddresses[]);
-        setHasMore(result.users.length === PAGE_SIZE);
-      } catch {
-        if (!isMountedRef.current) return;
-        toast.error('Error al cargar usuarios');
-      } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
-      }
+  const {
+    items: users,
+    loading,
+    loadingMore: isLoadingMore,
+    hasMore,
+    sentinelRef,
+    reload
+  } = useInfiniteList<AdminUserWithAddresses>({
+    // Un cursor solo vale para la lista que lo generó: cualquier cambio de filtro, orden o
+    // búsqueda arranca de nuevo. El orden por último pedido (contact_status=missing) es
+    // calculado y sigue paginado por número de página.
+    resetKey: JSON.stringify([roleFilter, sortBy, contactFilter, search]),
+    fetchPage: async ({ cursor, page }) => {
+      const missing = contactFilter === 'missing';
+      const result = await getAdminUsers({
+        page: missing ? page : undefined,
+        cursor: missing ? undefined : cursor,
+        limit: PAGE_SIZE,
+        role: roleFilter === 'all' ? undefined : roleFilter,
+        search: search || undefined,
+        contactStatus: missing ? 'missing' : undefined,
+        sort: sortBy,
+        includeAddresses: true
+      });
+      return {
+        items: result.users as AdminUserWithAddresses[],
+        hasMore: result.hasMore,
+        nextCursor: result.nextCursor
+      };
     },
-    [roleFilter, sortBy, contactFilter]
-  );
+    onError: (_error, phase) =>
+      toast.error(phase === 'first' ? 'Error al cargar usuarios' : 'Error al cargar más usuarios')
+  });
 
   const { openMergeWith, handleSaveConflict, mergeDialogs } = useUserMerge(() => {
     setSheetOpen(false);
-    loadUsers(search);
+    void reload();
   });
-
-  const loadMore = useCallback(
-    async (nextPage: number) => {
-      setIsLoadingMore(true);
-      try {
-        const result = await getAdminUsers({
-          page: nextPage,
-          limit: PAGE_SIZE,
-          role: roleFilter === 'all' ? undefined : roleFilter,
-          search: search || undefined,
-          contactStatus: contactFilter === 'missing' ? 'missing' : undefined,
-          sort: sortBy,
-          includeAddresses: true
-        });
-        if (!isMountedRef.current) return;
-        setUsers((prev) => [...prev, ...(result.users as AdminUserWithAddresses[])]);
-        setHasMore(result.users.length === PAGE_SIZE);
-        setPage(nextPage);
-      } catch {
-        if (!isMountedRef.current) return;
-        setHasMore(false);
-        toast.error('Error al cargar más usuarios');
-      } finally {
-        if (isMountedRef.current) {
-          setIsLoadingMore(false);
-        }
-      }
-    },
-    [roleFilter, search, sortBy, contactFilter]
-  );
-
-  useEffect(() => {
-    loadUsers(search);
-  }, [loadUsers, search]);
 
   const handleSearch = useCallback((value: string) => {
     setSearch(value);
   }, []);
-
-  // IntersectionObserver for infinite scroll
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    let active = true;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (active && entries[0].isIntersecting && hasMore && !isLoadingMore && !loading) {
-          loadMore(page + 1);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(sentinel);
-    return () => {
-      active = false;
-      observer.disconnect();
-    };
-  }, [hasMore, isLoadingMore, loading, page, loadMore]);
 
   const handleCreate = () => {
     setSelectedUser(null);
@@ -205,7 +139,7 @@ export default function UsuariosPage() {
         };
         await updateAdminUser(selectedUser.id, updateData);
         toast.success('Usuario actualizado correctamente');
-        await loadUsers(search);
+        await reload();
         setSheetOpen(false);
       } else {
         const createData = data as CreateUserFormData;
@@ -220,7 +154,7 @@ export default function UsuariosPage() {
           isActive: createData.isActive
         });
         toast.success('Usuario creado correctamente');
-        await loadUsers(search);
+        await reload();
         setCreatedUserId(newUser.id);
       }
     } catch (err) {
@@ -251,7 +185,7 @@ export default function UsuariosPage() {
     try {
       await deleteAdminUser(userToDelete.id);
       toast.success('Usuario eliminado correctamente');
-      await loadUsers(search);
+      await reload();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al eliminar usuario';
       toast.error(message);

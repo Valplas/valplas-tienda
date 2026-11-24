@@ -11,11 +11,13 @@ export async function getCart(req: Request, res: Response, next: NextFunction) {
     const cart = cartService.getCartFromCookie(req);
     const cartWithDetails = await cartService.getCartWithDetails(cart);
 
-    // Si el carrito cambió (productos eliminados o cantidades ajustadas), actualizar cookie
+    // Si el carrito cambió (productos eliminados o cantidades ajustadas), actualizar cookie.
+    // Conservar la presentación (priceListId): sin ella los bultos pasan a contarse como unidades.
     const updatedCart = {
       items: cartWithDetails.items.map((item) => ({
         productId: item.productId,
-        quantity: item.quantity
+        quantity: item.quantity,
+        ...(item.priceListId && { priceListId: item.priceListId })
       }))
     };
 
@@ -81,7 +83,9 @@ export async function updateCartItem(req: Request, res: Response, next: NextFunc
 export async function removeFromCart(req: Request, res: Response, next: NextFunction) {
   try {
     const cart = cartService.getCartFromCookie(req);
-    const result = cartService.removeFromCart(cart, req.params.productId as string);
+    const priceListId =
+      typeof req.query.priceListId === 'string' ? req.query.priceListId : undefined;
+    const result = cartService.removeFromCart(cart, req.params.productId as string, priceListId);
 
     cartService.saveCartToCookie(res, result.cart);
 

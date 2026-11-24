@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useRequireAuth } from '@/hooks/use-require-auth';
+import { useInfiniteList } from '@/hooks/use-infinite-list';
 import { UserRole } from '@/types';
 import type { PriceList } from '@/types';
 import {
-  getPriceLists,
+  getPriceListsPage,
   createPriceList,
   updatePriceList,
   deletePriceList
@@ -26,91 +27,44 @@ export default function ListasDePrecioPage() {
   const { user, isLoading: authLoading } = useRequireAuth({
     allowedRoles: [UserRole.OWNER, UserRole.ADMIN]
   });
-  const [priceLists, setPriceLists] = useState<PriceList[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [search, setSearch] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selected, setSelected] = useState<PriceList | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const isMountedRef = useRef(false);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
+  const {
+    items: priceLists,
+    loading: isLoading,
+    loadingMore: isLoadingMore,
+    hasMore,
+    sentinelRef,
+    reload: load
+  } = useInfiniteList<PriceList>({
+    // La búsqueda va al servidor: antes solo filtraba las filas ya cargadas
+    resetKey: search,
+    fetchPage: async ({ cursor }) => {
+      const result = await getPriceListsPage({
+        cursor,
+        limit: PAGE_SIZE,
+        search: search || undefined
+      });
+      return {
+        items: result.priceLists,
+        hasMore: result.hasMore,
+        nextCursor: result.nextCursor
+      };
+    },
+    onError: (_error, phase) =>
+      toast.error(
+        phase === 'first'
+          ? 'Error al cargar listas de precios'
+          : 'Error al cargar más listas de precios'
+      )
+  });
+
+  const handleSearch = useCallback((value: string) => {
+    setSearch(value);
   }, []);
-
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    setPage(1);
-    setHasMore(true);
-    try {
-      const res = await getPriceLists({ page: 1, limit: PAGE_SIZE });
-      if (!isMountedRef.current) return;
-      if (res.success && res.data) {
-        setPriceLists(res.data.priceLists);
-        setHasMore(res.data.priceLists.length === PAGE_SIZE);
-      }
-    } catch {
-      if (!isMountedRef.current) return;
-      toast.error('Error al cargar listas de precios');
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, []);
-
-  const loadMore = useCallback(async (nextPage: number) => {
-    setIsLoadingMore(true);
-    try {
-      const res = await getPriceLists({ page: nextPage, limit: PAGE_SIZE });
-      if (!isMountedRef.current) return;
-      if (res.success && res.data) {
-        setPriceLists((prev) => [...prev, ...res.data!.priceLists]);
-        setHasMore(res.data.priceLists.length === PAGE_SIZE);
-        setPage(nextPage);
-      }
-    } catch {
-      if (!isMountedRef.current) return;
-      setHasMore(false);
-      toast.error('Error al cargar más listas de precios');
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoadingMore(false);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // IntersectionObserver for infinite scroll
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    let active = true;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (active && entries[0].isIntersecting && hasMore && !isLoadingMore && !isLoading) {
-          loadMore(page + 1);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(sentinel);
-    return () => {
-      active = false;
-      observer.disconnect();
-    };
-  }, [hasMore, isLoadingMore, isLoading, page, loadMore]);
 
   const handleCreate = () => {
     setSelected(undefined);
@@ -143,7 +97,7 @@ export default function ListasDePrecioPage() {
         toast.success('Lista de precios creada');
       }
       setSheetOpen(false);
-      load();
+      void load();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error al guardar';
       toast.error(message);
@@ -158,7 +112,7 @@ export default function ListasDePrecioPage() {
       toast.success(
         `${items.length} lista${items.length > 1 ? 's' : ''} eliminada${items.length > 1 ? 's' : ''}`
       );
-      load();
+      void load();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error al eliminar';
       toast.error(message);
@@ -236,7 +190,7 @@ export default function ListasDePrecioPage() {
       <DataTable
         data={priceLists}
         columns={columns}
-        searchKey="name"
+        onSearch={handleSearch}
         searchPlaceholder="Buscar por nombre..."
         onDelete={handleDelete}
         isLoading={isLoading}

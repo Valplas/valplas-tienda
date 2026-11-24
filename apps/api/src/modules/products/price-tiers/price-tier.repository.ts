@@ -1,4 +1,5 @@
 import { query } from '../../../infrastructure/database/client.js';
+import { emptyToNull } from '../product.repository.js';
 import type {
   ProductPriceTier,
   ProductPriceTierInput,
@@ -13,6 +14,7 @@ interface RawTierRow {
   price_list_id: string;
   price_list_name: string;
   min_quantity: number;
+  label: string | null;
   unit_price: number;
   is_active: boolean;
   created_at: Date;
@@ -26,6 +28,7 @@ function mapTier(row: RawTierRow): ProductPriceTier {
     priceListId: row.price_list_id,
     priceListName: row.price_list_name,
     minQuantity: Number(row.min_quantity),
+    label: row.label,
     unitPrice: Number(row.unit_price),
     isActive: row.is_active,
     createdAt: row.created_at,
@@ -41,6 +44,7 @@ export async function findTiersByProductId(productId: string): Promise<ProductPr
        ppt.price_list_id,
        pl.name AS price_list_name,
        ppt.min_quantity,
+       ppt.label,
        -- Formula: TRUNC(cost_price * (1 + margin / 100), 2)
        TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100 AS unit_price,
        ppt.is_active,
@@ -71,6 +75,7 @@ export async function findTierByProductAndPriceList(
        ppt.price_list_id,
        pl.name AS price_list_name,
        ppt.min_quantity,
+       ppt.label,
        TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100 AS unit_price,
        ppt.is_active,
        ppt.created_at,
@@ -98,12 +103,14 @@ export async function replaceProductTiers(
 
   if (tiers.length === 0) return [];
 
-  const placeholders = tiers.map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`).join(', ');
-  const values: (string | number)[] = [productId];
-  tiers.forEach((t) => values.push(t.priceListId, t.minQuantity));
+  const placeholders = tiers
+    .map((_, i) => `($1, $${i * 3 + 2}, $${i * 3 + 3}, $${i * 3 + 4})`)
+    .join(', ');
+  const values: (string | number | null)[] = [productId];
+  tiers.forEach((t) => values.push(t.priceListId, t.minQuantity, emptyToNull(t.label) ?? null));
 
   await query(
-    `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity)
+    `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, label)
      VALUES ${placeholders}`,
     values
   );
@@ -221,12 +228,14 @@ export async function bulkConfirm(
 
     if (tiersToInsert.length > 0) {
       const placeholders = tiersToInsert
-        .map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`)
+        .map((_, i) => `($1, $${i * 3 + 2}, $${i * 3 + 3}, $${i * 3 + 4})`)
         .join(', ');
-      const values: (string | number)[] = [product.id];
-      tiersToInsert.forEach((t) => values.push(t.priceListId, t.minQuantity));
+      const values: (string | number | null)[] = [product.id];
+      tiersToInsert.forEach((t) =>
+        values.push(t.priceListId, t.minQuantity, emptyToNull(t.label) ?? null)
+      );
       await query(
-        `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity) VALUES ${placeholders}`,
+        `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, label) VALUES ${placeholders}`,
         values
       );
       assigned += tiersToInsert.length;
@@ -235,9 +244,9 @@ export async function bulkConfirm(
     for (const tier of tiersToUpdate) {
       await query(
         `UPDATE product_price_tiers
-         SET price_list_id = $1, updated_at = NOW()
+         SET price_list_id = $1, label = COALESCE($4, label), updated_at = NOW()
          WHERE product_id = $2 AND min_quantity = $3`,
-        [tier.priceListId, product.id, tier.minQuantity]
+        [tier.priceListId, product.id, tier.minQuantity, emptyToNull(tier.label) ?? null] // null = conservar el label existente
       );
       assigned++;
     }

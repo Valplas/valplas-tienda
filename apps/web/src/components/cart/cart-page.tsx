@@ -6,7 +6,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCartStore } from '@/stores/cart-store';
+import { useCartStore, cartLineKey } from '@/stores/cart-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CartItem } from './cart-item';
@@ -36,7 +36,8 @@ export function CartPage() {
       </Button>
 
       <h1 className="text-xl font-bold mb-4 sm:text-2xl sm:mb-6">
-        Carrito de compras {itemCount > 0 && `(${itemCount} productos)`}
+        Carrito de compras{' '}
+        {itemCount > 0 && `(${itemCount} ${itemCount === 1 ? 'producto' : 'productos'})`}
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -49,7 +50,7 @@ export function CartPage() {
             <CardContent className="p-0">
               <div className="divide-y px-6">
                 {items.map((item) => (
-                  <CartItem key={item.productId} item={item} />
+                  <CartItem key={cartLineKey(item)} item={item} />
                 ))}
               </div>
             </CardContent>

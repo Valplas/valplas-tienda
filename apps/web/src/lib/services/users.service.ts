@@ -38,7 +38,9 @@ export interface AdminUserWithAddresses extends AdminUser {
 }
 
 export interface GetAdminUsersParams {
+  /** Sin page se pagina por cursor; con page, OFFSET clásico. */
   page?: number;
+  cursor?: string;
   limit?: number;
   search?: string;
   role?: string;
@@ -48,26 +50,39 @@ export interface GetAdminUsersParams {
   contactStatus?: 'missing';
 }
 
-export async function getAdminUsers(
-  params?: GetAdminUsersParams
-): Promise<{ users: (AdminUser | AdminUserWithAddresses)[]; total: number; totalPages: number }> {
+export async function getAdminUsers(params?: GetAdminUsersParams): Promise<{
+  users: (AdminUser | AdminUserWithAddresses)[];
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+  nextCursor: string | null;
+}> {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
+  if (params?.cursor) query.set('cursor', params.cursor);
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.search) query.set('search', params.search);
   if (params?.role) query.set('role', params.role);
   if (params?.isActive !== undefined) query.set('is_active', String(params.isActive));
-  if (params?.sort) query.set('sort', params.sort);
+  // El backend espera snake_case en los query params
+  if (params?.sort) query.set('sort', params.sort === 'createdAt' ? 'created_at' : 'first_name');
   if (params?.includeAddresses) query.set('include_addresses', 'true');
   if (params?.contactStatus) query.set('contact_status', params.contactStatus);
 
   const qs = query.toString();
   const res = await get<AdminUser[]>(`/users${qs ? `?${qs}` : ''}`);
-  if (!res.success || !res.data) return { users: [], total: 0, totalPages: 0 };
+  if (!res.success || !res.data) {
+    return { users: [], total: 0, totalPages: 0, hasMore: false, nextCursor: null };
+  }
+  const pagination = res.pagination;
+  const totalPages = pagination?.totalPages ?? 1;
   return {
     users: res.data,
-    total: res.pagination?.total ?? res.data.length,
-    totalPages: res.pagination?.totalPages ?? 1
+    total: pagination?.total ?? res.data.length,
+    totalPages,
+    // Por cursor el servidor informa hasMore; con page se deduce del total de páginas
+    hasMore: pagination?.hasMore ?? (pagination?.page ?? 1) < totalPages,
+    nextCursor: pagination?.cursor ?? null
   };
 }
 

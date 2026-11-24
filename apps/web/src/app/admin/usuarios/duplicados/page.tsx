@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, MapPin } from 'lucide-react';
+import { ArrowLeft, Loader2, MapPin, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -121,8 +121,8 @@ export default function DuplicadosPage() {
         </Link>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Posibles duplicados</h1>
         <p className="text-muted-foreground">
-          Cuentas nuevas que comparten dirección con un cliente migrado del CRM o cargado por el
-          admin que nunca entró a la web.
+          Cuentas nuevas (web o WhatsApp) que comparten teléfono o dirección con un cliente migrado
+          del CRM o cargado por el admin que nunca entró a la web.
         </p>
       </div>
 
@@ -145,20 +145,34 @@ export default function DuplicadosPage() {
                   <Badge variant={s.confidence === 'high' ? 'default' : 'secondary'}>
                     Coincidencia {s.confidence === 'high' ? 'alta' : 'media'}
                   </Badge>
-                  <span className="inline-flex items-center text-sm text-muted-foreground">
-                    <MapPin className="mr-1 h-4 w-4" />
-                    {s.matchedAddress.street} {s.matchedAddress.streetNumber},{' '}
-                    {s.matchedAddress.city}
-                  </span>
+                  {s.matchedPhone && (
+                    <span className="inline-flex items-center text-sm text-muted-foreground">
+                      <Phone className="mr-1 h-4 w-4" />
+                      {s.matchedPhone}
+                    </span>
+                  )}
+                  {s.matchedAddress && (
+                    <span className="inline-flex items-center text-sm text-muted-foreground">
+                      <MapPin className="mr-1 h-4 w-4" />
+                      {s.matchedAddress.street} {s.matchedAddress.streetNumber},{' '}
+                      {s.matchedAddress.city}
+                    </span>
+                  )}
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-0.5 text-sm">
-                    <p className="text-xs font-medium uppercase text-muted-foreground">
+                    <p className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
                       Cuenta nueva
+                      {s.user.signupChannel === 'whatsapp' && (
+                        <Badge variant="outline" className="normal-case">
+                          WhatsApp
+                        </Badge>
+                      )}
                     </p>
                     <p className="font-semibold">{fullName(s.user)}</p>
                     <p className="break-all">{displayEmail(s.user.email)}</p>
+                    {s.user.phone && <p className="text-muted-foreground">{s.user.phone}</p>}
                     <p className="text-muted-foreground">
                       {s.user.hasGoogle ? 'Google · ' : ''}Alta {formatDate(s.user.createdAt)}
                     </p>
@@ -169,6 +183,9 @@ export default function DuplicadosPage() {
                     </p>
                     <p className="font-semibold">{fullName(s.legacyUser)}</p>
                     <p className="break-all">{displayEmail(s.legacyUser.email)}</p>
+                    {s.legacyUser.phone && (
+                      <p className="text-muted-foreground">{s.legacyUser.phone}</p>
+                    )}
                     <p className="text-muted-foreground">{s.legacyUser.ordersCount} órdenes</p>
                   </div>
                 </div>

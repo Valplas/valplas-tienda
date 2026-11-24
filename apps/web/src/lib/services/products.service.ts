@@ -30,6 +30,12 @@ function mapRawImage(img: RawProductImage): ProductImage {
   };
 }
 
+/** Valor de atributo que se manda al crear/editar un producto (admin). */
+export interface ProductAttributeInput {
+  attributeId: string;
+  value: string | number;
+}
+
 export interface ProductFilters {
   search?: string;
   categoryId?: string;
@@ -141,9 +147,14 @@ interface RawProduct {
   images?: RawProductImage[];
   priceTiers?: Array<{
     priceListId: string;
-    priceListName: string;
+    priceListName?: string; // solo endpoints admin: el detalle público no lo expone (margen)
     minQuantity: number;
     unitPrice: number;
+    label?: string | null;
+    contains?: string | null;
+    description?: string;
+    bundlePrice?: number;
+    savingsPercent?: number;
   }>;
   [key: string]: unknown;
 }
@@ -185,7 +196,12 @@ export function normalizeProduct(raw: RawProduct): Product {
     height: (raw.height as number | null) ?? null,
     origin: (raw.origin as string | null) ?? null,
     isFeatured: (raw.isFeatured as boolean) ?? false,
-    tiers: raw.priceTiers ?? []
+    unitLabel: (raw.unitLabel as string | null) ?? null,
+    unitContentQuantity: (raw.unitContentQuantity as number | null) ?? null,
+    unitContentLabel: (raw.unitContentLabel as string | null) ?? null,
+    tiers: raw.priceTiers ?? [],
+    attributes: (raw.attributes as Product['attributes']) ?? [],
+    tags: (raw.tags as string[] | undefined) ?? []
   } as unknown as Product;
 }
 
@@ -202,7 +218,9 @@ export type AdminProductSort =
   | 'updated_asc';
 
 export async function getAdminProducts(params?: {
+  /** Sin page se pagina por cursor; con page, OFFSET clásico. */
   page?: number;
+  cursor?: string;
   limit?: number;
   search?: string;
   categoryId?: string;
@@ -212,6 +230,7 @@ export async function getAdminProducts(params?: {
 }) {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', String(params.page));
+  if (params?.cursor) query.set('cursor', params.cursor);
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.search) query.set('search', params.search);
   if (params?.categoryId) query.set('category_id', params.categoryId);
@@ -222,11 +241,16 @@ export async function getAdminProducts(params?: {
   const qs = query.toString();
   // API returns paginated shape: { success, data: RawProduct[], pagination: { total, totalPages, ... } }
   const res = await get<RawProduct[]>(`/products${qs ? `?${qs}` : ''}`);
-  if (!res.success || !res.data) return { products: [], total: 0, totalPages: 0 };
+  if (!res.success || !res.data) {
+    return { products: [], total: 0, totalPages: 0, hasMore: false, nextCursor: null };
+  }
+  const pagination = res.pagination;
   return {
     products: res.data.map(normalizeProduct),
-    total: res.pagination?.total ?? 0,
-    totalPages: res.pagination?.totalPages ?? 0
+    total: pagination?.total ?? 0,
+    totalPages: pagination?.totalPages ?? 0,
+    hasMore: pagination?.hasMore ?? false,
+    nextCursor: pagination?.cursor ?? null
   };
 }
 
@@ -244,10 +268,15 @@ export async function createProduct(data: {
   length?: number;
   height?: number;
   origin?: string;
+  unitLabel?: string | null;
+  unitContentQuantity?: number | null;
+  unitContentLabel?: string | null;
   isFeatured?: boolean;
   isActive?: boolean;
   tempId?: string;
   tempImageOrder?: string[];
+  attributes?: ProductAttributeInput[];
+  tags?: string[];
 }) {
   const res = await post<{ product: RawProduct }>('/products', data);
   if (!res.success || !res.data) throw new Error(res.error?.message ?? 'Error al crear producto');
@@ -270,8 +299,13 @@ export async function updateProduct(
     length: number;
     height: number;
     origin: string;
+    unitLabel: string | null;
+    unitContentQuantity: number | null;
+    unitContentLabel: string | null;
     isFeatured: boolean;
     isActive: boolean;
+    attributes: ProductAttributeInput[];
+    tags: string[];
   }>
 ) {
   const res = await put<{ product: RawProduct }>(`/products/${id}`, data);

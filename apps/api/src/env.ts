@@ -92,7 +92,53 @@ export const env = {
   MP_CLIENT_ID: getEnv('MP_CLIENT_ID', ''),
   MP_CLIENT_SECRET: getEnv('MP_CLIENT_SECRET', ''),
   // State secreto para CSRF protection en el OAuth callback (elegís vos el valor)
-  MP_OAUTH_STATE: getEnv('MP_OAUTH_STATE', '')
+  MP_OAUTH_STATE: getEnv('MP_OAUTH_STATE', ''),
+
+  // Bot de WhatsApp (canal externo, ver docs/BOT_API.md)
+  // API keys aceptadas en el header X-Api-Key, separadas por coma (2 durante una rotación).
+  // Vacío = /api/bot responde 503 BOT_API_DISABLED.
+  BOT_API_KEYS: getEnv('BOT_API_KEYS', '')
+    .split(',')
+    .map((key) => key.trim())
+    .filter(Boolean),
+  // Vuelta del comprador al terminar el pago en MP (ej: https://wa.me/5491122334455).
+  // Vacío = página de resultado del checkout web.
+  BOT_PAYMENT_RETURN_URL: getEnv('BOT_PAYMENT_RETURN_URL', ''),
+  // Webhook saliente con los cambios de estado de las órdenes WSP. Vacío = no se envía nada
+  // (los eventos quedan encolados en outbound_webhook_events).
+  BOT_WEBHOOK_URL: getEnv('BOT_WEBHOOK_URL', ''),
+  // Secreto para firmar (HMAC-SHA256) el webhook saliente. Compartido con el bot.
+  BOT_WEBHOOK_SECRET: getEnv('BOT_WEBHOOK_SECRET', ''),
+
+  // Andreani (envíos). ANDREANI_MODE: disabled | mock | qa | prod. disabled = integración apagada;
+  // mock = simulador local (rechazado en producción); qa/prod = API real (exigen credenciales).
+  ANDREANI_MODE: getEnv('ANDREANI_MODE', 'disabled'),
+  // Override opcional de la URL base (default según modo).
+  ANDREANI_BASE_URL: getEnv('ANDREANI_BASE_URL', ''),
+  ANDREANI_USERNAME: getEnv('ANDREANI_USERNAME', ''),
+  ANDREANI_PASSWORD: getEnv('ANDREANI_PASSWORD', ''),
+  ANDREANI_CLIENT_CODE: getEnv('ANDREANI_CLIENT_CODE', ''),
+  ANDREANI_CONTRACT_HOME: getEnv('ANDREANI_CONTRACT_HOME', ''),
+  ANDREANI_CONTRACT_BRANCH: getEnv('ANDREANI_CONTRACT_BRANCH', ''),
+  // Opcional: multi-bulto o más de 50 kg.
+  ANDREANI_CONTRACT_B2B: getEnv('ANDREANI_CONTRACT_B2B', ''),
+  ANDREANI_ORIGIN_BRANCH_ID: getEnv('ANDREANI_ORIGIN_BRANCH_ID', ''),
+  ANDREANI_SENDER_NAME: getEnv('ANDREANI_SENDER_NAME', ''),
+  ANDREANI_SENDER_EMAIL: getEnv('ANDREANI_SENDER_EMAIL', ''),
+  ANDREANI_SENDER_PHONE: getEnv('ANDREANI_SENDER_PHONE', ''),
+  ANDREANI_SENDER_DOC_TYPE: getEnv('ANDREANI_SENDER_DOC_TYPE', ''),
+  ANDREANI_SENDER_DOC_NUMBER: getEnv('ANDREANI_SENDER_DOC_NUMBER', ''),
+  ANDREANI_DEFAULT_ITEM_WEIGHT_KG: getEnvNumber('ANDREANI_DEFAULT_ITEM_WEIGHT_KG', 0.5),
+  ANDREANI_DEFAULT_ITEM_VOLUME_CM3: getEnvNumber('ANDREANI_DEFAULT_ITEM_VOLUME_CM3', 1000),
+  ANDREANI_AUTO_CREATE_SHIPMENT: getEnvBoolean('ANDREANI_AUTO_CREATE_SHIPMENT', false),
+  ANDREANI_POLL_CRON: getEnv('ANDREANI_POLL_CRON', '*/15 * * * *'),
+  // Link público de tracking; placeholder {tracking}. Vacío = sin link público.
+  ANDREANI_TRACKING_URL_TEMPLATE: getEnv('ANDREANI_TRACKING_URL_TEMPLATE', ''),
+  // Credenciales Basic del webhook PUSH de Andreani. Vacío = webhook apagado.
+  ANDREANI_PUSH_USERNAME: getEnv('ANDREANI_PUSH_USERNAME', ''),
+  ANDREANI_PUSH_PASSWORD: getEnv('ANDREANI_PUSH_PASSWORD', ''),
+  // Modo mock: segundos entre estados simulados.
+  ANDREANI_MOCK_STEP_SECONDS: getEnvNumber('ANDREANI_MOCK_STEP_SECONDS', 60)
 } as const;
 
 /**

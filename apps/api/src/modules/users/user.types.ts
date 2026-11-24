@@ -18,6 +18,11 @@ export interface User {
   deleted_at: Date | null;
 }
 
+/** Usuario encontrado por clave de teléfono, con la fecha de su última orden (para desempatar). */
+export interface UserPhoneMatch extends User {
+  last_order_at: Date | null;
+}
+
 export interface UserWithStats extends User {
   total_orders: number;
   total_addresses: number;
@@ -77,7 +82,10 @@ export interface UserFilters {
   email_verified?: boolean;
   search?: string;
   contact_status?: 'missing';
+  /** Paginación clásica (OFFSET). Si se omite, se pagina por cursor. */
   page?: number;
+  /** Cursor opaco de la página anterior. */
+  cursor?: string;
   limit?: number;
   sort?: 'first_name' | 'created_at';
   includeAddresses?: boolean;

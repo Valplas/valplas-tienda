@@ -40,6 +40,8 @@ export interface Category {
   imageUrl: string | null;
   isActive: boolean;
   displayOrder: number;
+  /** Sinónimos de búsqueda: solo los devuelve la API admin (admin/owner). */
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }

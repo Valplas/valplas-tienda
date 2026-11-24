@@ -3,35 +3,65 @@
 import * as orderRepository from './order.repository.js';
 import { AppError } from '../../shared/middleware/error.middleware.js';
 import { getCarrierShippingCost } from '../shipping/shipping-cost.js';
-import { createOrderPreference } from '../../infrastructure/external/mercadopago.js';
+import {
+  priceOrderItems,
+  pricingProblemToError,
+  type OrderPricingOptions
+} from './order-pricing.js';
+import { createPaymentLinkForOrder } from './order-payment.js';
+import type { CreateOrderChannelOptions } from './order.repository.js';
 import * as addressRepository from '../addresses/address.repository.js';
 import * as shippingRepository from '../shipping/shipping.repository.js';
-import { findProductById, findProductsByIds } from '../products/product.repository.js';
+import { findProductsByIds } from '../products/product.repository.js';
 import { getTiersForCartItems } from '../cart/cart.repository.js';
-import { calculatePrice } from '../price-lists/price-list.service.js';
-import { getTierByProductAndPriceList } from '../products/price-tiers/price-tier.service.js';
+import { describeLineTier, presentationSnapshot } from '../catalog/presentation.js';
+import { findPriceListsByIds } from '../price-lists/price-list.repository.js';
+import type { PoolClient } from 'pg';
+import { transaction } from '../../infrastructure/database/client.js';
+import { findBlockingByOrderId } from '../shipments/shipment.repository.js';
+import {
+  CUSTOMER_HIDDEN_SHIPMENT_STATUSES,
+  customerVisibleShipments,
+  toAdminShipment
+} from '../shipments/shipment.view.js';
 import { VALID_STATUS_TRANSITIONS } from './order.types.js';
 import type {
   Order,
   OrderWithDetails,
+  OrderDetailView,
   CreateOrderInput,
   CreateAdminOrderInput,
   UpdateAdminOrderInput,
   UpdateOrderStatusInput,
-  OrderFilters
+  OrderFilters,
+  OrderStatus
 } from './order.types.js';
 
 /**
  * Get user's orders
  */
 export async function getUserOrders(userId: string, filters: Omit<OrderFilters, 'user_id'>) {
-  return orderRepository.findOrders({
+  const result = await orderRepository.findOrders({
     ...filters,
     user_id: userId,
     // La vista "Mis pedidos" del cliente renderiza la cantidad de items de
     // cada orden — sin esto el front recibe orders sin `items` y explota.
     includeItems: true
   });
+  // Las notas internas del admin nunca se exponen al cliente (tampoco en el listado), ni los
+  // envíos que el detalle le oculta (fallidos o sin confirmar con el correo).
+  return {
+    ...result,
+    orders: result.orders.map((o) => {
+      const visible = stripAdminNotes(o);
+      const hidden =
+        visible.active_shipment &&
+        (CUSTOMER_HIDDEN_SHIPMENT_STATUSES as readonly string[]).includes(
+          visible.active_shipment.status
+        );
+      return hidden ? { ...visible, active_shipment: null } : visible;
+    })
+  };
 }
 
 /**
@@ -48,7 +78,7 @@ export async function getOrderById(
   id: string,
   userId: string,
   isAdmin: boolean = false
-): Promise<OrderWithDetails> {
+): Promise<OrderDetailView> {
   const order = await orderRepository.findOrderWithDetails(id);
 
   if (!order) {
@@ -60,7 +90,57 @@ export async function getOrderById(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para ver esta orden', 403);
   }
 
-  return order;
+  return toOrderDetailView(order, isAdmin);
+}
+
+/** Las notas internas del admin nunca se exponen al cliente. */
+function stripAdminNotes<T extends { admin_notes?: string | null }>(order: T): T {
+  const copy = { ...order };
+  delete (copy as Partial<T>).admin_notes;
+  return copy;
+}
+
+/** Admin: envíos sin payloads crudos. Cliente: sin notas internas y solo envíos visibles y saneados. */
+function toOrderDetailView(order: OrderWithDetails, isAdmin: boolean): OrderDetailView {
+  if (isAdmin) return { ...order, shipments: order.shipments.map(toAdminShipment) };
+  return { ...stripAdminNotes(order), shipments: customerVisibleShipments(order.shipments) };
+}
+
+const SHIPMENT_ACTIVE_CANCEL_MESSAGE =
+  'El pedido tiene un envío activo con Andreani. Cancelá el envío antes de cancelar el pedido.';
+
+/** Bloquea la operación sobre el pedido si hay un envío activo con el correo. */
+export async function assertNoBlockingShipment(
+  orderId: string,
+  message: string = SHIPMENT_ACTIVE_CANCEL_MESSAGE,
+  client?: PoolClient
+): Promise<void> {
+  const shipment = await findBlockingByOrderId(orderId, client);
+  if (shipment) throw new AppError('SHIPMENT_ACTIVE', message, 409);
+}
+
+/**
+ * Cancela el pedido en UNA transacción que primero lo bloquea (FOR UPDATE): se serializa con la
+ * tx1 del alta de envío (que bloquea el pedido y luego inserta), así no se puede cancelar un
+ * pedido mientras otro request le crea un envío. Devuelve null si falló el compare-and-swap.
+ */
+async function cancelOrderGuarded(
+  orderId: string,
+  notes: string | undefined,
+  userId: string,
+  expectedStatus: OrderStatus
+): Promise<Order | null> {
+  return transaction(async (client) => {
+    await client.query('SELECT id FROM orders WHERE id = $1 FOR UPDATE', [orderId]);
+    await assertNoBlockingShipment(orderId, undefined, client);
+    return orderRepository.updateOrderStatusTx(
+      client,
+      orderId,
+      { status: 'cancelled', notes },
+      userId,
+      { expectedStatus }
+    );
+  });
 }
 
 /**
@@ -70,7 +150,7 @@ export async function getOrderByNumber(
   orderNumber: string,
   userId: string,
   isAdmin: boolean = false
-): Promise<OrderWithDetails> {
+): Promise<OrderDetailView> {
   const order = await orderRepository.findOrderByNumber(orderNumber);
 
   if (!order) {
@@ -88,7 +168,16 @@ export async function getOrderByNumber(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para ver esta orden', 403);
   }
 
-  return orderWithDetails;
+  return toOrderDetailView(orderWithDetails, isAdmin);
+}
+
+export interface CreateOrderOptions extends CreateOrderChannelOptions, OrderPricingOptions {
+  /**
+   * No crear el link de MP dentro de createOrder: el llamador lo crea después con
+   * createPaymentLinkForOrder y decide qué hacer si MP falla (el bot devuelve la orden igual
+   * y reintenta el link; el checkout web propaga el error).
+   */
+  deferPaymentLink?: boolean;
 }
 
 /**
@@ -96,7 +185,8 @@ export async function getOrderByNumber(
  */
 export async function createOrder(
   userId: string,
-  data: CreateOrderInput
+  data: CreateOrderInput,
+  options: CreateOrderOptions = {}
 ): Promise<{ order: OrderWithDetails; paymentUrl?: string }> {
   // Validate address belongs to user and is active
   const address = await addressRepository.findAddressById(data.shipping_address_id);
@@ -110,68 +200,16 @@ export async function createOrder(
     throw new AppError('INVALID_CARRIER', 'Transportista inválido', 400);
   }
 
-  // Validate items and calculate totals.
-  // Batch lookup (WHERE id = ANY) en lugar de un query por ítem para evitar N+1.
-  let subtotal = 0;
-  const itemsWithPrices = [];
-
-  const products = await findProductsByIds(data.items.map((i) => i.product_id));
-  const productMap = new Map(products.map((p) => [p.id, p]));
-
-  // Tiers (precio de lista por bulto) para los ítems que traen price_list_id.
-  // Batch en un solo query para evitar N+1. Sin tier => unidad suelta.
-  const tierMap = await getTiersForCartItems(
-    data.items
-      .filter((i) => i.price_list_id)
-      .map((i) => ({ productId: i.product_id, priceListId: i.price_list_id as string }))
-  );
-
-  for (const item of data.items) {
-    const product = productMap.get(item.product_id);
-
-    if (!product) {
-      throw new AppError('PRODUCT_NOT_FOUND', `Producto ${item.product_id} no encontrado`, 400);
-    }
-
-    if (!product.isActive) {
-      throw new AppError('PRODUCT_UNAVAILABLE', `Producto ${product.name} no está disponible`, 400);
-    }
-
-    // Semántica de bultos: quantity = bultos; bundleSize = unidades por bulto.
-    const tier = item.price_list_id
-      ? tierMap.get(`${item.product_id}:${item.price_list_id}`)
-      : undefined;
-    const bundleSize = tier?.minQuantity ?? 1;
-    // Sin lista asignada se vende a costo (placeholder hasta asignar lista)
-    const unitPrice = tier?.unitPrice ?? product.costPrice;
-    const realQuantity = item.quantity * bundleSize; // unidades reales (para stock)
-    const pricePerBundle = Math.trunc(unitPrice * bundleSize * 100) / 100;
-    const itemSubtotal = Math.trunc(pricePerBundle * item.quantity * 100) / 100;
-
-    // El stock se controla en unidades reales, no en bultos.
-    const availableStock = product.stock - product.reservedStock;
-    if (availableStock < realQuantity) {
-      throw new AppError(
-        'INSUFFICIENT_STOCK',
-        `Stock insuficiente para ${product.name}. Disponible: ${availableStock}, solicitado: ${realQuantity}`,
-        409
-      );
-    }
-
-    subtotal += itemSubtotal;
-
-    itemsWithPrices.push({
-      product_id: item.product_id,
-      product_name: product.name,
-      product_sku: product.sku,
-      quantity: item.quantity, // bultos
-      real_quantity: realQuantity, // unidades
-      bundle_size_snapshot: bundleSize,
-      unit_price: pricePerBundle, // precio por bulto (trigger: subtotal = quantity × unit_price)
-      subtotal: itemSubtotal,
-      price_list_id: item.price_list_id
-    });
+  // Validate items and calculate totals (batch, sin N+1). El primer problema corta el pedido.
+  const { lines, subtotal, problems } = await priceOrderItems(data.items, {
+    requireTier: options.requireTier
+  });
+  if (problems.length > 0) {
+    throw pricingProblemToError(problems[0]);
   }
+  const itemsWithPrices = lines.map(
+    ({ available_stock: _availableStock, item_index: _itemIndex, ...line }) => line
+  );
 
   // Get shipping cost — mismas zonas/tarifas que la cotización pública
   const shippingCost = await getCarrierShippingCost(
@@ -200,7 +238,8 @@ export async function createOrder(
       shipping_province: address.province,
       shipping_postcode: address.postcode,
       carrier_name: carrier.name
-    }
+    },
+    { channel: options.channel, clientReference: options.clientReference }
   );
 
   // Return with details
@@ -211,31 +250,9 @@ export async function createOrder(
   }
 
   let paymentUrl: string | undefined;
-  if (data.payment_method === 'mercadopago') {
-    paymentUrl = await createOrderPreference({
-      orderNumber: orderWithDetails.order_number,
-      shippingCost,
-      items: orderWithDetails.items.map((item) => ({
-        id: item.product_id,
-        title: item.product_name,
-        description: item.product_sku,
-        quantity: item.quantity,
-        unit_price: item.unit_price
-      })),
-      payer: orderWithDetails.user?.email
-        ? {
-            email: orderWithDetails.user.email,
-            name: orderWithDetails.user.first_name ?? undefined,
-            surname: orderWithDetails.user.last_name ?? undefined,
-            phone: orderWithDetails.user.phone ?? undefined,
-            identification: data.payer_identification,
-            address: {
-              zip_code: orderWithDetails.shipping_postcode,
-              street_name: orderWithDetails.shipping_street,
-              street_number: orderWithDetails.shipping_street_number
-            }
-          }
-        : undefined
+  if (data.payment_method === 'mercadopago' && !options.deferPaymentLink) {
+    paymentUrl = await createPaymentLinkForOrder(orderWithDetails, {
+      payerIdentification: data.payer_identification
     });
   }
 
@@ -257,9 +274,18 @@ export async function updateOrderStatus(
     throw new AppError('ORDER_NOT_FOUND', 'Orden no encontrada', 404);
   }
 
-  // Check ownership unless admin
-  if (!isAdmin && order.user_id !== userId) {
+  // Solo admin/owner cambian estados (el controller y la ruta ya lo exigen; defensa en profundidad)
+  if (!isAdmin) {
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para modificar esta orden', 403);
+  }
+
+  // Otro admin ya aplicó este mismo estado (doble click / request concurrente): conflicto
+  if (order.status === data.status) {
+    throw new AppError(
+      'ORDER_STATUS_CONFLICT',
+      'El estado de la orden cambió mientras se procesaba la solicitud',
+      409
+    );
   }
 
   // Validate status transition
@@ -273,11 +299,29 @@ export async function updateOrderStatus(
     );
   }
 
-  // Update status
-  const updated = await orderRepository.updateOrderStatus(orderId, data, userId);
+  // Volver a "En proceso" con un envío vivo dejaría al pedido sin reflejar el envío generado
+  if (order.status === 'ready_to_ship' && data.status === 'processing') {
+    await assertNoBlockingShipment(
+      orderId,
+      'El pedido tiene un envío activo con Andreani. Cancelá o descartá el envío antes de volver el pedido a "En proceso".'
+    );
+  }
+
+  // Compare-and-swap: si otro proceso cambió el estado entre la lectura y el UPDATE, 409.
+  // Cancelar además revisa los envíos activos dentro de la misma transacción.
+  const updated =
+    data.status === 'cancelled'
+      ? await cancelOrderGuarded(orderId, data.notes, userId, order.status)
+      : await orderRepository.updateOrderStatus(orderId, data, userId, {
+          expectedStatus: order.status
+        });
 
   if (!updated) {
-    throw new AppError('ORDER_OPERATION_FAILED', 'Error al actualizar estado de la orden', 500);
+    throw new AppError(
+      'ORDER_STATUS_CONFLICT',
+      'El estado de la orden cambió mientras se procesaba la solicitud',
+      409
+    );
   }
 
   return updated;
@@ -303,6 +347,15 @@ export async function cancelOrder(
     throw new AppError('ORDER_FORBIDDEN', 'No tienes permiso para cancelar esta orden', 403);
   }
 
+  // El cliente solo puede cancelar mientras el pago está pendiente
+  if (!isAdmin && order.status !== 'pending_payment') {
+    throw new AppError(
+      'ORDER_NOT_CANCELLABLE',
+      `No se puede cancelar una orden en estado: ${order.status}`,
+      400
+    );
+  }
+
   // Check if cancellation is allowed
   const validTransitions = VALID_STATUS_TRANSITIONS[order.status];
   if (!validTransitions.includes('cancelled')) {
@@ -313,14 +366,75 @@ export async function cancelOrder(
     );
   }
 
-  // Cancel order
-  const cancelled = await orderRepository.cancelOrder(orderId, notes, userId);
+  const cancelled = await cancelOrderGuarded(orderId, notes, userId, order.status);
 
   if (!cancelled) {
-    throw new AppError('ORDER_OPERATION_FAILED', 'Error al cancelar orden', 500);
+    throw new AppError(
+      'ORDER_STATUS_CONFLICT',
+      'El estado de la orden cambió mientras se procesaba la solicitud',
+      409
+    );
   }
 
-  return cancelled;
+  return isAdmin ? cancelled : stripAdminNotes(cancelled);
+}
+
+/**
+ * Producto, tamaño de bulto y precio unitario de cada ítem de un pedido admin, resueltos con
+ * 3 queries en total (productos, listas de precio y tiers) en vez de 4 por ítem. Sin tier activo
+ * para (producto, lista) el pedido admin vende por unidad (bulto = 1). El precio unitario usa la
+ * misma fórmula que price-list.service.calculatePrice: costo × (1 + margen/100), truncado.
+ */
+async function resolveAdminItemPricing(
+  items: Array<{ product_id: string; price_list_id: string }>
+) {
+  const [products, priceLists, tierMap] = await Promise.all([
+    findProductsByIds([...new Set(items.map((i) => i.product_id))]),
+    findPriceListsByIds([...new Set(items.map((i) => i.price_list_id))]),
+    getTiersForCartItems(
+      items.map((i) => ({ productId: i.product_id, priceListId: i.price_list_id }))
+    )
+  ]);
+  const productMap = new Map(products.map((p) => [p.id, p]));
+  const priceListMap = new Map(priceLists.map((pl) => [pl.id, pl]));
+
+  return items.map((item) => {
+    const product = productMap.get(item.product_id);
+    if (!product || !product.isActive) {
+      throw new AppError(
+        'PRODUCT_NOT_FOUND',
+        `Producto ${item.product_id} no encontrado o inactivo`,
+        400
+      );
+    }
+    const priceList = priceListMap.get(item.price_list_id);
+    if (!priceList) {
+      throw new AppError('PRICE_LIST_NOT_FOUND', 'Lista de precios no encontrada', 404);
+    }
+
+    const tier = tierMap.get(`${item.product_id}:${item.price_list_id}`);
+    const bundleSize = tier?.minQuantity ?? 1;
+    const costPrice = Number(product.costPrice);
+    const unitPrice = Math.trunc(costPrice * (1 + Number(priceList.margin) / 100) * 100) / 100;
+
+    const presentationLabelSnapshot = presentationSnapshot(
+      describeLineTier(
+        {
+          label: product.unitLabel,
+          contentQuantity: product.unitContentQuantity,
+          contentLabel: product.unitContentLabel
+        },
+        {
+          priceListId: item.price_list_id,
+          minQuantity: bundleSize,
+          unitPrice,
+          label: tier?.label ?? null
+        }
+      )
+    );
+
+    return { product, bundleSize, unitPrice, costPrice, presentationLabelSnapshot };
+  });
 }
 
 /**
@@ -361,26 +475,19 @@ export async function createAdminOrder(
   let subtotal = 0;
   const validatedItems = [];
 
-  for (const item of data.items) {
-    const product = await findProductById(item.product_id);
-    if (!product || !product.isActive) {
-      throw new AppError(
-        'PRODUCT_NOT_FOUND',
-        `Producto ${item.product_id} no encontrado o inactivo`,
-        400
-      );
-    }
+  // Precios, bultos y producto de TODOS los ítems en 3 queries (antes: 4 por ítem)
+  const pricing = await resolveAdminItemPricing(data.items);
+
+  for (const [index, item] of data.items.entries()) {
+    const {
+      product,
+      bundleSize: bundleSizeSnapshot,
+      unitPrice,
+      costPrice,
+      presentationLabelSnapshot
+    } = pricing[index];
 
     const availableStock = product.stock - product.reservedStock;
-
-    // Admin orders bypass tier requirement — default bundle size to 1 if no tier exists
-    let bundleSizeSnapshot = 1;
-    try {
-      const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
-      bundleSizeSnapshot = tier.minQuantity;
-    } catch {
-      // No tier configured for this product+price list, treat as unit sale
-    }
     const realQuantity = item.quantity * bundleSizeSnapshot;
 
     if (availableStock < realQuantity) {
@@ -391,9 +498,12 @@ export async function createAdminOrder(
       );
     }
 
-    const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
+    // unit_price / cost_price_snapshot se guardan POR BULTO (igual que el checkout web):
+    // el trigger de subtotal y la columna revenue multiplican por quantity (bultos).
+    const pricePerBundle = Math.round(unitPrice * bundleSizeSnapshot * 100) / 100;
+    const costPerBundle = Math.round(costPrice * bundleSizeSnapshot * 100) / 100;
 
-    subtotal += Math.trunc(unitPrice * realQuantity * 100) / 100;
+    subtotal += Math.round(pricePerBundle * item.quantity * 100) / 100;
     validatedItems.push({
       product_id: item.product_id,
       product_name: product.name,
@@ -401,13 +511,14 @@ export async function createAdminOrder(
       quantity: item.quantity,
       bundle_size_snapshot: bundleSizeSnapshot,
       real_quantity: realQuantity,
-      unit_price: unitPrice,
+      unit_price: pricePerBundle,
       price_list_id: item.price_list_id,
-      cost_price_snapshot: costPrice
+      cost_price_snapshot: costPerBundle,
+      presentation_label_snapshot: presentationLabelSnapshot
     });
   }
 
-  subtotal = Math.trunc(subtotal * 100) / 100;
+  subtotal = Math.round(subtotal * 100) / 100;
 
   const order = await orderRepository.createAdminOrder(adminId, {
     ...data,
@@ -514,6 +625,10 @@ export async function updateAdminOrder(
       400
     );
   }
+  await assertNoBlockingShipment(
+    orderId,
+    'El pedido tiene un envío activo con Andreani. Cancelá o descartá el envío antes de editar el pedido.'
+  );
 
   // Validate address belongs to the order's user and is active. Sin chequeo de zona: los
   // pedidos del admin pueden ir a direcciones sin cobertura (el front avisa).
@@ -578,25 +693,18 @@ export async function updateAdminOrder(
   }
 
   const enrichedItems = [];
-  for (const item of activeItems) {
-    const product = await findProductById(item.product_id);
-    if (!product || !product.isActive) {
-      throw new AppError(
-        'PRODUCT_NOT_FOUND',
-        `Producto ${item.product_id} no encontrado o inactivo`,
-        400
-      );
-    }
-    // Admin orders bypass tier requirement — default bundle size to 1 if no tier exists
-    let bundleSizeSnapshot = 1;
-    try {
-      const tier = await getTierByProductAndPriceList(item.product_id, item.price_list_id);
-      bundleSizeSnapshot = tier.minQuantity;
-    } catch {
-      // No tier configured for this product+price list, treat as unit sale
-    }
+  // Precios, bultos y producto de TODOS los ítems en 3 queries (antes: 4 por ítem)
+  const pricing = await resolveAdminItemPricing(activeItems);
+  for (const [index, item] of activeItems.entries()) {
+    const {
+      product,
+      bundleSize: bundleSizeSnapshot,
+      unitPrice,
+      costPrice,
+      presentationLabelSnapshot
+    } = pricing[index];
     const realQuantity = item.quantity * bundleSizeSnapshot;
-    const { unitPrice, costPrice } = await calculatePrice(item.price_list_id, item.product_id);
+    // Precio y costo POR BULTO, igual que en createAdminOrder y en el checkout web
     enrichedItems.push({
       product_id: item.product_id,
       product_name: product.name,
@@ -604,9 +712,10 @@ export async function updateAdminOrder(
       quantity: item.quantity,
       bundle_size_snapshot: bundleSizeSnapshot,
       real_quantity: realQuantity,
-      unit_price: unitPrice,
+      unit_price: Math.round(unitPrice * bundleSizeSnapshot * 100) / 100,
       price_list_id: item.price_list_id,
-      cost_price_snapshot: costPrice
+      cost_price_snapshot: Math.round(costPrice * bundleSizeSnapshot * 100) / 100,
+      presentation_label_snapshot: presentationLabelSnapshot
     });
   }
 

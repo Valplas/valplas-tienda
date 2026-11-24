@@ -2,9 +2,14 @@ import type { Request, Response, NextFunction } from 'express';
 import * as categoryService from './category.service.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 
+/** Rutas públicas con auth opcional: los tags solo se devuelven a admin/owner. */
+function canSeeTags(req: Request): boolean {
+  return req.user?.role === 'admin' || req.user?.role === 'owner';
+}
+
 export async function listCategories(req: Request, res: Response, next: NextFunction) {
   try {
-    const categories = await categoryService.listCategories();
+    const categories = await categoryService.listCategories(canSeeTags(req));
     return res.json(ApiResponse.success({ categories }));
   } catch (error) {
     next(error);
@@ -13,7 +18,10 @@ export async function listCategories(req: Request, res: Response, next: NextFunc
 
 export async function getCategoryById(req: Request, res: Response, next: NextFunction) {
   try {
-    const category = await categoryService.getCategoryById(req.params.id as string as string);
+    const category = await categoryService.getCategoryById(
+      req.params.id as string,
+      canSeeTags(req)
+    );
     return res.json(ApiResponse.success({ category }));
   } catch (error) {
     next(error);

@@ -7,6 +7,23 @@ import * as orderDomain from './order.domain.js';
 import { clearCartCookie } from '../cart/cart.service.js';
 import { ApiResponseBuilder as ApiResponse } from '../../shared/utils/api-response.js';
 import { logger } from '../../infrastructure/logger/index.js';
+import type { FindOrdersResult } from './order.repository.js';
+
+/**
+ * Sin `page` la respuesta es por cursor ({ limit, hasMore, cursor, total solo en la primera
+ * página }); con `page` conserva el formato clásico con total y totalPages.
+ */
+function orderListResponse(result: FindOrdersResult, page: number | undefined, limit: number) {
+  if (page === undefined) {
+    return ApiResponse.paginated(result.orders, {
+      limit,
+      hasMore: result.hasMore,
+      cursor: result.nextCursor ?? undefined,
+      total: result.total ?? undefined
+    });
+  }
+  return ApiResponse.paginated(result.orders, page, limit, result.total ?? 0);
+}
 
 /**
  * Get current user's orders
@@ -14,10 +31,12 @@ import { logger } from '../../infrastructure/logger/index.js';
 export async function getMyOrders(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = (req.user as AuthenticatedUser).userId;
-    const { page, limit, status, from_date, to_date, order_number } = req.query;
+    const { page, cursor, limit, status, from_date, to_date, order_number } = req.query;
+    const pageNumber = page ? Number(page) : undefined;
 
     const result = await orderDomain.getUserOrders(userId, {
-      page: Number(page) || 1,
+      page: pageNumber,
+      cursor: cursor as string | undefined,
       limit: Number(limit) || 20,
       status: status as OrderStatus | undefined,
       from_date: from_date as string,
@@ -25,9 +44,7 @@ export async function getMyOrders(req: Request, res: Response, next: NextFunctio
       order_number: order_number as string
     });
 
-    return res.json(
-      ApiResponse.paginated(result.orders, Number(page) || 1, Number(limit) || 20, result.total)
-    );
+    return res.json(orderListResponse(result, pageNumber, Number(limit) || 20));
   } catch (error) {
     next(error);
   }
@@ -40,6 +57,7 @@ export async function getAllOrders(req: Request, res: Response, next: NextFuncti
   try {
     const {
       page,
+      cursor,
       limit,
       user_id,
       status,
@@ -50,8 +68,10 @@ export async function getAllOrders(req: Request, res: Response, next: NextFuncti
       include_items
     } = req.query;
 
+    const pageNumber = page ? Number(page) : undefined;
     const result = await orderDomain.getAllOrders({
-      page: Number(page) || 1,
+      page: pageNumber,
+      cursor: cursor as string | undefined,
       limit: Number(limit) || 20,
       user_id: user_id as string,
       status: status as OrderStatus | undefined,
@@ -62,9 +82,7 @@ export async function getAllOrders(req: Request, res: Response, next: NextFuncti
       includeItems: include_items === 'true'
     });
 
-    return res.json(
-      ApiResponse.paginated(result.orders, Number(page) || 1, Number(limit) || 20, result.total)
-    );
+    return res.json(orderListResponse(result, pageNumber, Number(limit) || 20));
   } catch (error) {
     next(error);
   }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 /**
@@ -29,7 +28,8 @@ import {
 } from '@/components/ui/select';
 import { OrderStatusBadge } from '@/components/admin/order-status-badge';
 import { getUserOrders } from '@/services';
-import { Order, OrderStatus } from '@/types';
+import type { Order } from '@/lib/services/orders.service';
+import { ShipmentStatusBadge } from '@/components/admin/shipment-status-badge';
 import { formatDate, formatPrice } from '@/lib/formatters';
 import { Package, Eye } from 'lucide-react';
 import { toast } from 'sonner';
@@ -50,8 +50,8 @@ export default function OrdersListPage() {
         const response = await getUserOrders();
 
         if (response.success && response.data) {
-          setOrders(response.data as any);
-          setFilteredOrders(response.data as any);
+          setOrders(response.data);
+          setFilteredOrders(response.data);
         }
       } catch (error) {
         console.error('Error fetching orders:', error);
@@ -97,11 +97,13 @@ export default function OrdersListPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
-            <SelectItem value={OrderStatus.PENDING}>Pendiente</SelectItem>
-            <SelectItem value={OrderStatus.PROCESSING}>En proceso</SelectItem>
-            <SelectItem value={OrderStatus.SHIPPED}>Enviado</SelectItem>
-            <SelectItem value={OrderStatus.DELIVERED}>Entregado</SelectItem>
-            <SelectItem value={OrderStatus.CANCELLED}>Cancelado</SelectItem>
+            <SelectItem value="pending_payment">Pendiente de pago</SelectItem>
+            <SelectItem value="payment_confirmed">Pago confirmado</SelectItem>
+            <SelectItem value="processing">En proceso</SelectItem>
+            <SelectItem value="ready_to_ship">Listo para enviar</SelectItem>
+            <SelectItem value="shipped">Enviado</SelectItem>
+            <SelectItem value="delivered">Entregado</SelectItem>
+            <SelectItem value="cancelled">Cancelado</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -166,7 +168,12 @@ export default function OrdersListPage() {
                       </TableCell>
                       <TableCell className="font-semibold">{formatPrice(order.total)}</TableCell>
                       <TableCell>
-                        <OrderStatusBadge status={order.status} />
+                        <div className="flex flex-col items-start gap-1">
+                          <OrderStatusBadge status={order.status} />
+                          {order.activeShipment && (
+                            <ShipmentStatusBadge status={order.activeShipment.status} />
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button asChild variant="ghost" size="sm">
@@ -190,11 +197,13 @@ export default function OrdersListPage() {
 
 function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
-    [OrderStatus.PENDING]: 'Pendiente',
-    [OrderStatus.PROCESSING]: 'En proceso',
-    [OrderStatus.SHIPPED]: 'Enviado',
-    [OrderStatus.DELIVERED]: 'Entregado',
-    [OrderStatus.CANCELLED]: 'Cancelado'
+    pending_payment: 'Pendiente de pago',
+    payment_confirmed: 'Pago confirmado',
+    processing: 'En proceso',
+    ready_to_ship: 'Listo para enviar',
+    shipped: 'Enviado',
+    delivered: 'Entregado',
+    cancelled: 'Cancelado'
   };
   return labels[status] || status;
 }

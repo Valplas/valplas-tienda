@@ -31,6 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog';
+import { AndreaniShipmentCard } from '@/components/admin/andreani-shipment-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Package, Pencil, Printer, User, MapPin, CreditCard, Truck } from 'lucide-react';
 import { toast } from 'sonner';
@@ -172,6 +173,8 @@ export default function PedidoDetailPage({
         </Card>
       )}
 
+      <AndreaniShipmentCard order={order} onChanged={loadOrder} />
+
       <div className="grid gap-6 md:grid-cols-2">
         {/* Customer Info */}
         <Card>
@@ -235,7 +238,7 @@ export default function PedidoDetailPage({
           <CardContent className="space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Transportista:</span>
-              <span className="font-medium">{order.shippingCarrier?.name ?? '-'}</span>
+              <span className="font-medium">{order.carrierName ?? '-'}</span>
             </div>
             {order.notes && (
               <div className="flex justify-between">
@@ -293,7 +296,14 @@ export default function PedidoDetailPage({
                 return (
                   <TableRow key={index}>
                     <TableCell className="font-mono text-sm">{item.productSku}</TableCell>
-                    <TableCell>{item.productName}</TableCell>
+                    <TableCell>
+                      {item.productName}
+                      {item.presentationLabelSnapshot && (
+                        <p className="text-xs text-muted-foreground">
+                          {item.presentationLabelSnapshot}
+                        </p>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">{item.quantity}</TableCell>
                     <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
                     <TableCell className="text-right font-medium">

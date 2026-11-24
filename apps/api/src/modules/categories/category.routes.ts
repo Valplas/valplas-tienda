@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import * as categoryController from './category.controller.js';
 import { validate } from '../../shared/middleware/validation.middleware.js';
-import { authMiddleware, requireRole } from '../../shared/middleware/auth.middleware.js';
+import {
+  authMiddleware,
+  optionalAuthMiddleware,
+  requireRole
+} from '../../shared/middleware/auth.middleware.js';
 import {
   createCategorySchema,
   updateCategorySchema,
@@ -10,8 +14,8 @@ import {
 
 const router = Router();
 
-router.get('/', categoryController.listCategories);
-router.get('/:id', categoryController.getCategoryById);
+router.get('/', optionalAuthMiddleware, categoryController.listCategories);
+router.get('/:id', optionalAuthMiddleware, categoryController.getCategoryById);
 router.post(
   '/',
   authMiddleware,

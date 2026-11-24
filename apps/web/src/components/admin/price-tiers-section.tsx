@@ -15,11 +15,25 @@ import {
 import { getPriceLists } from '@/services';
 import { getProductTiers, replaceProductTiers } from '@/services';
 import { formatPrice } from '@/lib/formatters';
+import { ApiError } from '@/lib/api';
+import { presentationLabel } from '@/lib/pricing';
 import type { PriceList, PriceTier } from '@/types';
 
 interface TierRow {
   priceListId: string;
   minQuantity: number;
+  label: string;
+}
+
+/** Mensaje del toast: si el API manda detalles de validación, se muestran (el mensaje base es genérico). */
+function tierErrorDescription(error: unknown): string {
+  if (error instanceof ApiError && Array.isArray(error.details)) {
+    const messages = error.details
+      .map((d) => (d && typeof d === 'object' && 'message' in d ? String(d.message) : ''))
+      .filter(Boolean);
+    if (messages.length > 0) return messages.join('. ');
+  }
+  return error instanceof Error ? error.message : 'Intenta nuevamente';
 }
 
 interface PriceTiersSectionProps {
@@ -29,7 +43,7 @@ interface PriceTiersSectionProps {
 
 export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionProps) {
   const [priceLists, setPriceLists] = useState<PriceList[]>([]);
-  const [rows, setRows] = useState<TierRow[]>([{ priceListId: '', minQuantity: 1 }]);
+  const [rows, setRows] = useState<TierRow[]>([{ priceListId: '', minQuantity: 1, label: '' }]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -49,7 +63,8 @@ export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionPro
         setRows(
           tiersData.map((t) => ({
             priceListId: t.priceListId ?? '',
-            minQuantity: t.minQuantity
+            minQuantity: t.minQuantity,
+            label: t.label ?? ''
           }))
         );
       }
@@ -73,7 +88,7 @@ export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionPro
   };
 
   const addRow = () => {
-    setRows((prev) => [...prev, { priceListId: '', minQuantity: 2 }]);
+    setRows((prev) => [...prev, { priceListId: '', minQuantity: 2, label: '' }]);
   };
 
   const removeRow = (index: number) => {
@@ -105,13 +120,26 @@ export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionPro
       return;
     }
 
+    const listIds = rows.map((r) => r.priceListId);
+    if (new Set(listIds).size !== listIds.length) {
+      toast.error('No puede haber dos presentaciones con la misma lista de precios');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      await replaceProductTiers(productId, rows);
+      await replaceProductTiers(
+        productId,
+        rows.map((r) => ({
+          priceListId: r.priceListId,
+          minQuantity: r.minQuantity,
+          label: r.label.trim() || null
+        }))
+      );
       toast.success('Tiers de precio guardados');
     } catch (error) {
       toast.error('Error al guardar tiers', {
-        description: error instanceof Error ? error.message : 'Intenta nuevamente'
+        description: tierErrorDescription(error)
       });
     } finally {
       setIsSaving(false);
@@ -137,6 +165,7 @@ export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionPro
           <thead>
             <tr className="border-b text-left">
               <th className="pb-2 pr-4 font-medium text-muted-foreground">Bulto (cant. mín.)</th>
+              <th className="pb-2 pr-4 font-medium text-muted-foreground">Nombre</th>
               <th className="pb-2 pr-4 font-medium text-muted-foreground">Lista de precios</th>
               <th className="pb-2 pr-4 font-medium text-muted-foreground">Precio/u</th>
               <th className="pb-2 font-medium text-muted-foreground"></th>
@@ -165,6 +194,16 @@ export function PriceTiersSection({ productId, costPrice }: PriceTiersSectionPro
                         className="w-20 rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                       />
                     )}
+                  </td>
+                  <td className="py-2 pr-4">
+                    <input
+                      type="text"
+                      maxLength={30}
+                      value={row.label}
+                      placeholder={presentationLabel(row.minQuantity)}
+                      onChange={(e) => updateRow(index, { label: e.target.value })}
+                      className="w-36 rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
                   </td>
                   <td className="py-2 pr-4">
                     <Select

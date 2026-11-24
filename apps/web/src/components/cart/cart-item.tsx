@@ -12,6 +12,7 @@ import { CartItem as CartItemType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { QuantitySelector } from '@/components/product/quantity-selector';
 import { formatPrice } from '@/lib/formatters';
+import { computeLineSubtotal, presentationLabel } from '@/lib/pricing';
 import { useCartStore } from '@/stores/cart-store';
 import { toast } from 'sonner';
 import { useState } from 'react';
@@ -34,7 +35,7 @@ export function CartItem({ item }: CartItemProps) {
     if (newQuantity === item.quantity) return;
 
     try {
-      await updateQuantity(product.id, newQuantity);
+      await updateQuantity(product.id, newQuantity, item.priceListId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al actualizar cantidad');
     }
@@ -43,7 +44,7 @@ export function CartItem({ item }: CartItemProps) {
   const handleRemove = async () => {
     setIsRemoving(true);
     try {
-      await removeItem(product.id);
+      await removeItem(product.id, item.priceListId);
       toast.success('Producto eliminado del carrito');
     } catch {
       toast.error('Error al eliminar producto');
@@ -51,7 +52,10 @@ export function CartItem({ item }: CartItemProps) {
     }
   };
 
-  const itemSubtotal = product.finalPrice * item.quantity;
+  // quantity = bultos de la presentación; finalPrice = precio del bulto
+  const bundleSize = item.minQuantity ?? 1;
+  const maxBundles = Math.floor(product.availableStock / bundleSize);
+  const itemSubtotal = computeLineSubtotal(product.finalPrice, item.quantity);
 
   return (
     <div className="flex gap-4 py-4 border-b last:border-0">
@@ -78,14 +82,22 @@ export function CartItem({ item }: CartItemProps) {
           {product.name}
         </Link>
 
-        <p className="text-sm text-muted-foreground mt-1">{product.unit}</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {item.presentationLabel || presentationLabel(bundleSize)}
+          {bundleSize > 1 && ` · ${item.quantity} ${item.quantity === 1 ? 'unidad' : 'unidades'}`}
+        </p>
+
+        {item.presentationContains && (
+          <p className="text-xs text-muted-foreground">{item.presentationContains}</p>
+        )}
 
         <div className="flex items-center gap-2 mt-2">
-          <span className="text-sm font-semibold">{formatPrice(product.finalPrice)}</span>
-          {product.price > product.finalPrice && (
-            <span className="text-xs text-muted-foreground line-through">
-              {formatPrice(product.price)}
-            </span>
+          <span className="text-sm font-semibold">
+            {formatPrice(product.finalPrice)}
+            {bundleSize > 1 && <span className="font-normal text-muted-foreground">/bulto</span>}
+          </span>
+          {bundleSize > 1 && item.unitPrice !== undefined && (
+            <span className="text-xs text-muted-foreground">({formatPrice(item.unitPrice)}/u)</span>
           )}
         </div>
 
@@ -93,7 +105,7 @@ export function CartItem({ item }: CartItemProps) {
         <div className="mt-3 flex items-center justify-between md:hidden">
           <QuantitySelector
             value={item.quantity}
-            max={product.availableStock}
+            max={maxBundles}
             onChange={handleQuantityChange}
             className="scale-90 origin-left"
           />
@@ -103,11 +115,7 @@ export function CartItem({ item }: CartItemProps) {
 
       {/* Desktop: Quantity */}
       <div className="hidden md:flex items-center">
-        <QuantitySelector
-          value={item.quantity}
-          max={product.availableStock}
-          onChange={handleQuantityChange}
-        />
+        <QuantitySelector value={item.quantity} max={maxBundles} onChange={handleQuantityChange} />
       </div>
 
       {/* Desktop: Subtotal */}

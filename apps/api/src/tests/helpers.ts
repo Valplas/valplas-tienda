@@ -258,3 +258,170 @@ export async function createRawOrder(
   );
   return result.rows[0].id;
 }
+
+/** Número de abonado AMBA aleatorio de 8 dígitos que libphonenumber considera válido (4XXXXXXX). */
+export function randomSubscriber(): string {
+  return `4${Math.floor(Math.random() * 1e7)
+    .toString()
+    .padStart(7, '0')}`;
+}
+
+/** Teléfono celular AMBA aleatorio en E.164, con el 9 de móvil (+54911XXXXXXXX). */
+export function randomMobilePhone(): string {
+  return `+54911${randomSubscriber()}`;
+}
+
+export interface TestTier {
+  tierId: string;
+  productId: string;
+  priceListId: string;
+  bundleSize: number;
+  unitPrice: number;
+}
+
+/**
+ * Presentación (tier) de test sobre un producto real con stock y una lista activa. La dev DB
+ * puede no tener tiers: los tests que los necesitan crean el suyo y lo borran con deleteTestTiers.
+ */
+export async function createTestTier(minAvailable = 50, bundleSize = 1): Promise<TestTier> {
+  const result = await query<TestTier>(
+    `WITH product AS (
+       SELECT p.id, p.cost_price FROM products p
+       WHERE p.is_active = true AND p.deleted_at IS NULL
+         AND (p.stock - p.reserved_stock) >= $1
+         AND NOT EXISTS (
+           SELECT 1 FROM product_price_tiers t
+           WHERE t.product_id = p.id AND t.min_quantity = $2
+         )
+       ORDER BY p.created_at
+       LIMIT 1
+     ),
+     list AS (
+       SELECT id, margin FROM price_lists
+       WHERE is_active = true AND deleted_at IS NULL
+       ORDER BY created_at
+       LIMIT 1
+     ),
+     tier AS (
+       INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, is_active)
+       SELECT product.id, list.id, $2, true FROM product, list
+       RETURNING id, product_id, price_list_id, min_quantity
+     )
+     SELECT tier.id AS "tierId", tier.product_id AS "productId",
+            tier.price_list_id AS "priceListId", tier.min_quantity AS "bundleSize",
+            (TRUNC(product.cost_price * (1 + list.margin / 100) * 100) / 100)::float AS "unitPrice"
+     FROM tier, product, list`,
+    [minAvailable, bundleSize]
+  );
+
+  if (!result.rows[0]) {
+    throw new Error('No hay producto con stock o lista de precios activa para crear un tier');
+  }
+  return result.rows[0];
+}
+
+export async function deleteTestTiers(tierIds: string[]): Promise<void> {
+  if (tierIds.length === 0) return;
+  await query('DELETE FROM product_price_tiers WHERE id = ANY($1)', [tierIds]);
+}
+
+export interface TestCatalogProduct {
+  id: string;
+  sku: string;
+  name: string;
+  slug: string;
+  categoryId: string;
+  tierIds: string[];
+  priceListIds: string[];
+}
+
+/**
+ * Producto de catálogo de test: categoría `vitest-<suffix>`, SKU `VITEST-<SUFFIX>` y una
+ * presentación (tier) por cada entrada de `tiers`, cada una en una lista de precios activa
+ * distinta. El cleanup de setup.ts lo borra por SKU (los tiers caen por CASCADE).
+ * `label` (nombre de la presentación) y `unit` (unidad de venta del producto) son opcionales.
+ */
+export async function createTestProduct(
+  opts: {
+    stock?: number;
+    name?: string;
+    costPrice?: number;
+    tiers?: Array<{ minQuantity: number; label?: string | null }>;
+    unit?: { label?: string | null; contentQuantity?: number | null; contentLabel?: string | null };
+    /** Valores de atributos; `key` se resuelve contra attribute_definitions (seed 059 o de test). */
+    attributes?: Array<{ key: string; value: string | number }>;
+    /** Tags del producto y de su categoría (se guardan tal cual; pasar ya normalizados). */
+    tags?: string[];
+    categoryTags?: string[];
+  } = {}
+): Promise<TestCatalogProduct> {
+  const suffix = uniqueSuffix();
+  const tiers = opts.tiers ?? [{ minQuantity: 1 }];
+  const name = opts.name ?? `vitest-product-${suffix}`;
+  const slug = `vitest-${suffix}`;
+
+  const category = await query<{ id: string }>(
+    'INSERT INTO categories (name, slug, is_active, tags) VALUES ($1, $2, true, $3) RETURNING id',
+    [slug, slug, opts.categoryTags ?? []]
+  );
+  const categoryId = category.rows[0].id;
+
+  const product = await query<{ id: string; sku: string }>(
+    `INSERT INTO products (sku, name, slug, category_id, cost_price, stock, reserved_stock, is_active,
+                           unit_label, unit_content_quantity, unit_content_label, tags)
+     VALUES ($1, $2, $3, $4, $5, $6, 0, true, $7, $8, $9, $10)
+     RETURNING id, sku`,
+    [
+      `VITEST-${suffix.toUpperCase()}`,
+      name,
+      slug,
+      categoryId,
+      opts.costPrice ?? 1000,
+      opts.stock ?? 100,
+      opts.unit?.label ?? null,
+      opts.unit?.contentQuantity ?? null,
+      opts.unit?.contentLabel ?? null,
+      opts.tags ?? []
+    ]
+  );
+  const { id, sku } = product.rows[0];
+
+  const tierIds: string[] = [];
+  const priceListIds: string[] = [];
+  if (tiers.length > 0) {
+    const lists = await query<{ id: string }>(
+      `SELECT id FROM price_lists
+       WHERE is_active = true AND deleted_at IS NULL
+       ORDER BY created_at
+       LIMIT $1`,
+      [tiers.length]
+    );
+    if (lists.rows.length < tiers.length) {
+      throw new Error(`Se necesitan ${tiers.length} listas de precios activas en la DB de test`);
+    }
+    for (const [index, tier] of tiers.entries()) {
+      const priceListId = lists.rows[index].id;
+      const inserted = await query<{ id: string }>(
+        `INSERT INTO product_price_tiers (product_id, price_list_id, min_quantity, label, is_active)
+         VALUES ($1, $2, $3, $4, true) RETURNING id`,
+        [id, priceListId, tier.minQuantity, tier.label ?? null]
+      );
+      tierIds.push(inserted.rows[0].id);
+      priceListIds.push(priceListId);
+    }
+  }
+
+  for (const attr of opts.attributes ?? []) {
+    const isNumber = typeof attr.value === 'number';
+    const inserted = await query(
+      `INSERT INTO product_attribute_values (product_id, attribute_id, value_number, value_text)
+       SELECT $1, d.id, $3, $4 FROM attribute_definitions d WHERE d.key = $2`,
+      [id, attr.key, isNumber ? attr.value : null, isNumber ? null : String(attr.value)]
+    );
+    if (inserted.rowCount !== 1) {
+      throw new Error(`Atributo inexistente en la DB de test: ${attr.key}`);
+    }
+  }
+
+  return { id, sku, name, slug, categoryId, tierIds, priceListIds };
+}

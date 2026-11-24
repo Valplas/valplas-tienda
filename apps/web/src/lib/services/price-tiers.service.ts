@@ -12,6 +12,7 @@ export interface BulkPreviewFilter {
 export interface BulkTierInput {
   priceListId: string;
   minQuantity: number;
+  label?: string | null;
 }
 
 export interface BulkConflict {

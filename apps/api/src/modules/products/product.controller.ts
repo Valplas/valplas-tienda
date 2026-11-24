@@ -18,15 +18,7 @@ export async function listProducts(req: Request, res: Response, next: NextFuncti
     };
     const result = await productService.listProducts(filters);
 
-    return res.json(
-      ApiResponse.paginated(result.products, {
-        page: result.pagination.page,
-        limit: result.pagination.limit,
-        total: result.pagination.total,
-        totalPages: result.pagination.totalPages,
-        hasMore: result.pagination.hasMore
-      })
-    );
+    return res.json(ApiResponse.paginated(result.products, result.pagination));
   } catch (error) {
     next(error);
   }

@@ -13,11 +13,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { formatPrice } from '@/lib/formatters';
+import { presentationLabel } from '@/lib/pricing';
 import { ShippingOption, CartItem } from '@/types';
 import { type Address } from '@/lib/services/addresses.service';
 import { Loader2, CreditCard } from 'lucide-react';
 import { createOrder } from '@/services';
-import { useCartStore } from '@/stores/cart-store';
+import { useCartStore, cartLineKey } from '@/stores/cart-store';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -121,12 +122,19 @@ export function PaymentStep({
               if (!product) return null;
 
               return (
-                <div key={item.productId} className="flex justify-between text-sm">
+                <div key={cartLineKey(item)} className="flex justify-between text-sm">
                   <div className="flex-1">
                     <div className="font-medium">{product.name}</div>
                     <div className="text-muted-foreground">
-                      {item.quantity} x {formatPrice(product.finalPrice)}
+                      {item.quantity} ×{' '}
+                      {item.presentationLabel || presentationLabel(item.minQuantity ?? 1)} ·{' '}
+                      {formatPrice(product.finalPrice)}
                     </div>
+                    {item.presentationContains && (
+                      <div className="text-xs text-muted-foreground">
+                        {item.presentationContains}
+                      </div>
+                    )}
                   </div>
                   <div className="font-medium">
                     {formatPrice(product.finalPrice * item.quantity)}

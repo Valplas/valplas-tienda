@@ -12,24 +12,56 @@ import type {
   CreateAdminOrderInput,
   UpdateOrderStatusInput,
   OrderFilters,
-  OrderStatus
+  OrderStatus,
+  OrderChannel
 } from './order.types.js';
 import type { User } from '../users/user.types.js';
+import { INACTIVE_SHIPMENT_STATUSES } from '../shipments/shipment.types.js';
+import type { ShipmentWithEvents } from '../shipments/shipment.types.js';
+import { fromBoundSql, toBoundSql } from '../../shared/utils/date-range.js';
+import {
+  decodeCursor,
+  encodeCursor,
+  keysetPredicate,
+  sliceKeysetPage,
+  tsKey
+} from '../../shared/utils/keyset.js';
+
+/**
+ * Prefijo del order_number por canal: solo para lectura humana. Los reportes filtran por
+ * orders.sales_channel (migración 049), no por el prefijo.
+ */
+export const ORDER_NUMBER_PREFIX: Record<OrderChannel, string> = {
+  web: 'VLP',
+  admin: 'ADM',
+  whatsapp: 'WSP'
+};
+
+const AR_DATE_FORMAT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+
+/** Fecha YYYYMMDD en hora argentina (con toISOString, después de las 21h ART salía la de mañana). */
+export function orderNumberDate(now: Date = new Date()): string {
+  return AR_DATE_FORMAT.format(now).replace(/-/g, '');
+}
 
 /**
  * Generate order number (PREFIX-YYYYMMDD-NNNNNN)
- * VLP = customer web order, ADM = admin/owner created order
+ * VLP = customer web order, ADM = admin/owner created order, WSP = bot de WhatsApp
  * Counter is yearly (resets each year). Example: VLP-20260311-000001
  */
 export async function generateOrderNumber(
-  prefix: 'VLP' | 'ADM',
+  channel: OrderChannel,
   client: PoolClient
 ): Promise<string> {
-  const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const dateStr = orderNumberDate();
   const year = parseInt(dateStr.slice(0, 4), 10);
 
-  // Contador atómico anual (compartido entre prefijos VLP + ADM). El
+  // Contador atómico anual (compartido entre todos los prefijos). El
   // INSERT ... ON CONFLICT DO UPDATE serializa las inserciones concurrentes y
   // devuelve un valor único, evitando el race del COUNT(*) que generaba
   // order_number duplicados (ver migración 035).
@@ -43,15 +75,25 @@ export async function generateOrderNumber(
 
   const sequence = result.rows[0].last_value.toString().padStart(6, '0');
 
-  return `${prefix}-${dateStr}-${sequence}`;
+  return `${ORDER_NUMBER_PREFIX[channel]}-${dateStr}-${sequence}`;
 }
 
 /**
  * Find orders with filters and pagination
  */
-export async function findOrders(
-  filters: OrderFilters
-): Promise<{ orders: Order[]; total: number }> {
+export interface FindOrdersResult {
+  orders: Order[];
+  /** null en páginas con cursor: el total solo se calcula en la primera página. */
+  total: number | null;
+  /** Solo modo cursor: hay otra página después de esta. */
+  hasMore: boolean;
+  /** Solo modo cursor: cursor de la página siguiente (null si no hay más). */
+  nextCursor: string | null;
+}
+
+const ORDERS_SORT_TAG = 'created_desc';
+
+export async function findOrders(filters: OrderFilters): Promise<FindOrdersResult> {
   const {
     user_id,
     status,
@@ -59,12 +101,16 @@ export async function findOrders(
     to_date,
     order_number,
     search,
-    page = 1,
+    page,
+    cursor,
     limit = 20,
     includeItems = false
   } = filters;
 
-  const offset = (page - 1) * limit;
+  // Sin `page` se pagina por cursor (keyset); con `page` queda el OFFSET de siempre
+  // (pickers, impresión del día y clientes que saltan a una página).
+  const useKeyset = page === undefined;
+  const offset = useKeyset ? 0 : (page - 1) * limit;
   const conditions: string[] = [];
   const params: unknown[] = [];
   let paramIndex = 1;
@@ -81,14 +127,15 @@ export async function findOrders(
     paramIndex++;
   }
 
+  // Rango semiabierto en hora de Argentina para `YYYY-MM-DD`; el índice por created_at sirve de acceso
   if (from_date) {
-    conditions.push(`o.created_at >= $${paramIndex}`);
+    conditions.push(fromBoundSql('o.created_at', from_date, `$${paramIndex}`));
     params.push(from_date);
     paramIndex++;
   }
 
   if (to_date) {
-    conditions.push(`o.created_at <= $${paramIndex}`);
+    conditions.push(toBoundSql('o.created_at', to_date, `$${paramIndex}`));
     params.push(to_date);
     paramIndex++;
   }
@@ -111,94 +158,115 @@ export async function findOrders(
   // Need the users join in the count query when search is active (references u.first_name etc.)
   const countJoin = search ? 'LEFT JOIN users u ON o.user_id = u.id' : '';
 
-  // Count total
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM orders o ${countJoin} WHERE ${whereClause}`,
-    params
-  );
-
-  const total = parseInt(countResult.rows[0].count, 10);
-
-  // Get orders with user info (and optionally embedded items)
-  let ordersRows: Order[];
-
-  if (includeItems) {
-    const result = await query<Order>(
-      `SELECT o.*,
-              CASE WHEN u.id IS NOT NULL THEN
-                json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
-              END as user,
-              CASE WHEN o.shipping_street IS NOT NULL THEN
-                json_build_object(
-                  'id', COALESCE(o.shipping_address_id, o.id),
-                  'alias', 'Dirección de entrega',
-                  'street', o.shipping_street,
-                  'street_number', o.shipping_street_number,
-                  'floor', o.shipping_floor,
-                  'apartment', o.shipping_apartment,
-                  'city', o.shipping_city,
-                  'province', o.shipping_province,
-                  'postcode', o.shipping_postcode
-                )
-              END as shipping_address,
-              COALESCE(
-                json_agg(
-                  json_build_object(
-                    'id', oi.id,
-                    'product_id', oi.product_id,
-                    'product_name', p.name,
-                    'product_sku', p.sku,
-                    'quantity', oi.quantity,
-                    'unit_price', oi.unit_price,
-                    'subtotal', oi.subtotal
-                  ) ORDER BY oi.created_at
-                ) FILTER (WHERE oi.id IS NOT NULL),
-                '[]'
-              ) as items
-       FROM orders o
-       LEFT JOIN users u ON o.user_id = u.id
-       LEFT JOIN order_items oi ON oi.order_id = o.id
-       LEFT JOIN products p ON p.id = oi.product_id
-       WHERE ${whereClause}
-       GROUP BY o.id, u.id, u.first_name, u.last_name, u.email, u.phone
-       ORDER BY o.created_at DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      [...params, limit, offset]
+  // Total: siempre con OFFSET; con cursor solo en la primera página (sin cursor), sobre los
+  // mismos filtros pero sin el predicado del cursor, que cambia en cada página.
+  let total: number | null = null;
+  if (!useKeyset || !cursor) {
+    const countResult = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM orders o ${countJoin} WHERE ${whereClause}`,
+      params
     );
-    ordersRows = result.rows;
-  } else {
-    const result = await query<Order>(
-      `SELECT o.*,
-              CASE WHEN u.id IS NOT NULL THEN
-                json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
-              END as user,
-              CASE WHEN o.shipping_street IS NOT NULL THEN
-                json_build_object(
-                  'id', COALESCE(o.shipping_address_id, o.id),
-                  'alias', 'Dirección de entrega',
-                  'street', o.shipping_street,
-                  'street_number', o.shipping_street_number,
-                  'floor', o.shipping_floor,
-                  'apartment', o.shipping_apartment,
-                  'city', o.shipping_city,
-                  'province', o.shipping_province,
-                  'postcode', o.shipping_postcode
-                )
-              END as shipping_address
-       FROM orders o
-       LEFT JOIN users u ON o.user_id = u.id
-       WHERE ${whereClause}
-       ORDER BY o.created_at DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      [...params, limit, offset]
-    );
-    ordersRows = result.rows;
+    total = parseInt(countResult.rows[0].count, 10);
   }
 
-  return {
-    orders: ordersRows,
-    total
-  };
+  // Predicado del cursor: (created_at, id) < último visto. Va al final: no entra en el count.
+  let pageWhere = whereClause;
+  const pageParams = [...params];
+  let pageParamIndex = paramIndex;
+  if (useKeyset && cursor) {
+    const [createdAt, id] = decodeCursor(cursor, ORDERS_SORT_TAG, 2);
+    pageWhere = `${whereClause} AND ${keysetPredicate(
+      ['o.created_at', 'o.id'],
+      'DESC',
+      ['timestamptz', 'uuid'],
+      pageParamIndex
+    )}`;
+    pageParams.push(createdAt, id);
+    pageParamIndex += 2;
+  }
+  // Con cursor se pide una fila de más para saber si hay otra página
+  const pageLimit = useKeyset ? limit + 1 : limit;
+
+  // Paginar primero (solo ids) y recién después traer usuario e items: antes el GROUP BY + json_agg
+  // se calculaba para TODOS los pedidos que matcheaban y luego se descartaban con LIMIT/OFFSET.
+  // `o.id DESC` desempata: sin él el orden no es determinista y las páginas pueden repetir filas.
+  const itemsSelect = includeItems ? ', it.items' : '';
+  const itemsJoin = includeItems
+    ? `LEFT JOIN LATERAL (
+         SELECT COALESCE(
+                  json_agg(
+                    json_build_object(
+                      'id', oi.id,
+                      'product_id', oi.product_id,
+                      'product_name', oi.product_name,
+                      'product_sku', oi.product_sku,
+                      'quantity', oi.quantity,
+                      'unit_price', oi.unit_price,
+                      'subtotal', oi.subtotal
+                    ) ORDER BY oi.created_at
+                  ),
+                  '[]'
+                ) AS items
+         FROM order_items oi
+         WHERE oi.order_id = o.id
+       ) it ON true`
+    : '';
+
+  const result = await query<Order & { _k0: string }>(
+    `WITH paged AS (
+       SELECT o.id, ${tsKey('o.created_at')} AS k0
+       FROM orders o ${countJoin}
+       WHERE ${pageWhere}
+       ORDER BY o.created_at DESC, o.id DESC
+       LIMIT $${pageParamIndex} OFFSET $${pageParamIndex + 1}
+     )
+     SELECT o.*, paged.k0 AS _k0, ash.active_shipment,
+            CASE WHEN u.id IS NOT NULL THEN
+              json_build_object('id', u.id, 'first_name', u.first_name, 'last_name', u.last_name, 'email', u.email, 'phone', u.phone)
+            END as user,
+            CASE WHEN o.shipping_street IS NOT NULL THEN
+              json_build_object(
+                'id', COALESCE(o.shipping_address_id, o.id),
+                'alias', 'Dirección de entrega',
+                'street', o.shipping_street,
+                'street_number', o.shipping_street_number,
+                'floor', o.shipping_floor,
+                'apartment', o.shipping_apartment,
+                'city', o.shipping_city,
+                'province', o.shipping_province,
+                'postcode', o.shipping_postcode
+              )
+            END as shipping_address${itemsSelect}
+     FROM paged
+     JOIN orders o ON o.id = paged.id
+     LEFT JOIN users u ON u.id = o.user_id
+     ${itemsJoin}
+     LEFT JOIN LATERAL (
+       SELECT json_build_object('id', sh.id, 'status', sh.status, 'tracking_number', sh.tracking_number) AS active_shipment
+       FROM shipments sh
+       WHERE sh.order_id = o.id AND sh.status <> ALL($${pageParamIndex + 2}::text[])
+       ORDER BY sh.created_at DESC
+       LIMIT 1
+     ) ash ON true
+     ORDER BY o.created_at DESC, o.id DESC`,
+    [...pageParams, pageLimit, offset, INACTIVE_SHIPMENT_STATUSES]
+  );
+
+  const { rows, hasMore } = useKeyset
+    ? sliceKeysetPage(result.rows, limit)
+    : { rows: result.rows, hasMore: false };
+
+  const last = rows[rows.length - 1];
+  const nextCursor =
+    useKeyset && hasMore && last ? encodeCursor(ORDERS_SORT_TAG, [last._k0, last.id]) : null;
+
+  // _k0 es solo para armar el cursor: no se expone en la respuesta
+  const orders = rows.map(({ _k0, ...order }) => {
+    void _k0;
+    return order as Order;
+  });
+
+  return { orders, total, hasMore, nextCursor };
 }
 
 /**
@@ -217,6 +285,23 @@ export async function findOrderByNumber(orderNumber: string): Promise<Order | nu
   const result = await query<Order>('SELECT * FROM orders WHERE order_number = $1', [orderNumber]);
 
   return result.rows[0] || null;
+}
+
+/**
+ * Orden creada con una clave de idempotencia de un canal externo (índice único parcial).
+ */
+export async function findOrderByClientReference(clientReference: string): Promise<Order | null> {
+  const result = await query<Order>('SELECT * FROM orders WHERE client_reference = $1', [
+    clientReference
+  ]);
+
+  return result.rows[0] || null;
+}
+
+/** Violación del índice único de client_reference (dos requests concurrentes con la misma clave). */
+export function isClientReferenceConflict(error: unknown): boolean {
+  const pgError = error as { code?: string; constraint?: string };
+  return pgError?.code === '23505' && pgError?.constraint === 'idx_orders_client_reference';
 }
 
 /**
@@ -243,14 +328,15 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
   if (!order) return null;
 
   // Get items, user, status history and carrier in parallel
-  const [itemsResult, userResult, historyResult, carrierResult] = await Promise.all([
-    // Columnas explícitas: cost_price_snapshot y revenue (margen) nunca
-    // salen en el detalle — esta query la ven también los clientes.
-    query(
-      `SELECT
+  const [itemsResult, userResult, historyResult, carrierResult, shipmentsResult] =
+    await Promise.all([
+      // Columnas explícitas: cost_price_snapshot y revenue (margen) nunca
+      // salen en el detalle — esta query la ven también los clientes.
+      query(
+        `SELECT
         oi.id, oi.order_id, oi.product_id, oi.product_image_url,
         oi.quantity, oi.bundle_size_snapshot, oi.real_quantity,
-        oi.unit_price, oi.subtotal, oi.price_list_id,
+        oi.unit_price, oi.subtotal, oi.price_list_id, oi.presentation_label_snapshot,
         oi.created_at, oi.updated_at,
         p.name as product_name,
         p.sku as product_sku,
@@ -259,28 +345,42 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
        JOIN products p ON oi.product_id = p.id
        WHERE oi.order_id = $1
        ORDER BY oi.created_at`,
-      [id]
-    ),
-    query<Omit<User, 'passwordHash'>>(
-      `SELECT id, email, username, phone, first_name, last_name, role,
+        [id]
+      ),
+      query<Omit<User, 'passwordHash'>>(
+        `SELECT id, email, username, phone, first_name, last_name, role,
               is_active, email_verified, phone_verified, created_at, updated_at, deleted_at
        FROM users
        WHERE id = $1`,
-      [order.user_id]
-    ),
-    query<OrderStatusHistory>(
-      `SELECT * FROM order_status_history
+        [order.user_id]
+      ),
+      query<OrderStatusHistory>(
+        `SELECT * FROM order_status_history
        WHERE order_id = $1
        ORDER BY created_at DESC`,
-      [id]
-    ),
-    // Carrier externo: la dirección de entrega del pedido no se puede modificar
-    order.shipping_carrier_id
-      ? query<{ is_external: boolean }>('SELECT is_external FROM shipping_carriers WHERE id = $1', [
-          order.shipping_carrier_id
-        ])
-      : null
-  ]);
+        [id]
+      ),
+      // Carrier externo: la dirección de entrega del pedido no se puede modificar
+      order.shipping_carrier_id
+        ? query<{ is_external: boolean }>(
+            'SELECT is_external FROM shipping_carriers WHERE id = $1',
+            [order.shipping_carrier_id]
+          )
+        : null,
+      // Envíos con sus eventos (más nuevo primero): una sola query, sin consultas por envío
+      query<ShipmentWithEvents>(
+        `SELECT s.*, COALESCE(ev.events, '[]'::json) AS events
+       FROM shipments s
+       LEFT JOIN LATERAL (
+         SELECT json_agg(e ORDER BY e.occurred_at DESC, e.id DESC) AS events
+         FROM shipment_events e
+         WHERE e.shipment_id = s.id
+       ) ev ON true
+       WHERE s.order_id = $1
+       ORDER BY s.created_at DESC`,
+        [id]
+      )
+    ]);
 
   // Build shipping_address object from denormalized columns
   const shipping_address = order.shipping_street
@@ -313,7 +413,8 @@ export async function findOrderWithDetails(id: string): Promise<OrderWithDetails
     status_history: historyResult.rows,
     user: userResult.rows[0] ?? undefined,
     shipping_address,
-    shipping_carrier_is_external: carrierResult?.rows[0]?.is_external ?? false
+    shipping_carrier_is_external: carrierResult?.rows[0]?.is_external ?? false,
+    shipments: shipmentsResult.rows
   };
 }
 
@@ -335,17 +436,32 @@ export interface OrderShippingSnapshot {
   carrier_name: string;
 }
 
+export interface CreateOrderChannelOptions {
+  /** Canal de venta: define el prefijo del número y orders.sales_channel. Default 'web'. */
+  channel?: Exclude<OrderChannel, 'admin'>;
+  /** Clave de idempotencia de un canal externo (único en la tabla). */
+  clientReference?: string | null;
+}
+
+const ORDER_CREATED_NOTE: Record<Exclude<OrderChannel, 'admin'>, string> = {
+  web: 'Orden creada',
+  whatsapp: 'Orden creada (WhatsApp)'
+};
+
 export async function createOrder(
   userId: string,
   data: CreateOrderInput,
   subtotal: number,
   shippingCost: number,
   total: number,
-  snapshot: OrderShippingSnapshot
+  snapshot: OrderShippingSnapshot,
+  options: CreateOrderChannelOptions = {}
 ): Promise<Order> {
+  const channel = options.channel ?? 'web';
+
   return transaction(async (client) => {
     // Generate order number
-    const orderNumber = await generateOrderNumber('VLP', client);
+    const orderNumber = await generateOrderNumber(channel, client);
 
     // Create order — incluye el snapshot de envío (columnas NOT NULL) y usa
     // customer_notes (la tabla orders no tiene columna `notes`).
@@ -355,9 +471,9 @@ export async function createOrder(
         shipping_address_id, shipping_carrier_id,
         shipping_street, shipping_street_number, shipping_floor, shipping_apartment,
         shipping_city, shipping_province, shipping_postcode,
-        carrier_name, payment_method, customer_notes
+        carrier_name, payment_method, customer_notes, sales_channel, client_reference
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *`,
       [
         orderNumber,
@@ -377,7 +493,9 @@ export async function createOrder(
         snapshot.shipping_postcode,
         snapshot.carrier_name,
         data.payment_method,
-        data.notes || null
+        data.notes || null,
+        channel,
+        options.clientReference ?? null
       ]
     );
 
@@ -392,9 +510,9 @@ export async function createOrder(
         `INSERT INTO order_items (
           order_id, product_id, product_name, product_sku,
           quantity, real_quantity, bundle_size_snapshot,
-          unit_price, subtotal, price_list_id
+          unit_price, subtotal, price_list_id, presentation_label_snapshot
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           order.id,
           it.product_id,
@@ -405,7 +523,8 @@ export async function createOrder(
           it.bundle_size_snapshot,
           it.unit_price,
           it.subtotal,
-          it.price_list_id ?? null
+          it.price_list_id ?? null,
+          it.presentation_label_snapshot ?? null
         ]
       );
     }
@@ -414,7 +533,7 @@ export async function createOrder(
     await client.query(
       `INSERT INTO order_status_history (order_id, status, notes, changed_by)
        VALUES ($1, $2, $3, $4)`,
-      [order.id, 'pending_payment', 'Orden creada', userId]
+      [order.id, 'pending_payment', ORDER_CREATED_NOTE[channel], userId]
     );
 
     return order;
@@ -431,9 +550,17 @@ interface EnrichedAdminOrderItem {
   quantity: number; // bundles
   bundle_size_snapshot: number;
   real_quantity: number; // quantity × bundle_size_snapshot
+  /** Precio por bulto (unitPrice × bundle_size_snapshot), igual que en el checkout web */
   unit_price: number;
   price_list_id: string;
+  /** Costo por bulto (cost_price × bundle_size_snapshot): revenue = (unit_price - cost) × quantity */
   cost_price_snapshot: number;
+  presentation_label_snapshot?: string | null;
+}
+
+/** Subtotal de una línea: precio por bulto × bultos, redondeado a centavos (sin ruido de float). */
+function adminItemSubtotal(item: Pick<EnrichedAdminOrderItem, 'unit_price' | 'quantity'>): number {
+  return Math.round(item.unit_price * item.quantity * 100) / 100;
 }
 
 export async function createAdminOrder(
@@ -452,7 +579,7 @@ export async function createAdminOrder(
   }
 ): Promise<Order> {
   return transaction(async (client) => {
-    const orderNumber = await generateOrderNumber('ADM', client);
+    const orderNumber = await generateOrderNumber('admin', client);
 
     const orderResult = await client.query<Order>(
       `INSERT INTO orders (
@@ -460,9 +587,9 @@ export async function createAdminOrder(
         shipping_address_id,
         shipping_street, shipping_street_number, shipping_floor, shipping_apartment,
         shipping_city, shipping_province, shipping_postcode,
-        payment_method, customer_notes
+        payment_method, customer_notes, sales_channel
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'admin')
       RETURNING *`,
       [
         orderNumber,
@@ -487,11 +614,11 @@ export async function createAdminOrder(
     const order = orderResult.rows[0];
 
     for (const item of data.items) {
-      const itemSubtotal = Math.trunc(item.unit_price * item.real_quantity * 100) / 100;
+      const itemSubtotal = adminItemSubtotal(item);
       await client.query(
         `INSERT INTO order_items
-           (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+           (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot, presentation_label_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           order.id,
           item.product_id,
@@ -503,7 +630,8 @@ export async function createAdminOrder(
           item.unit_price,
           itemSubtotal,
           item.price_list_id ?? null,
-          item.cost_price_snapshot ?? null
+          item.cost_price_snapshot ?? null,
+          item.presentation_label_snapshot ?? null
         ]
       );
     }
@@ -524,42 +652,158 @@ export async function createAdminOrder(
 export async function updateOrderStatus(
   orderId: string,
   data: UpdateOrderStatusInput,
-  changedBy: string
+  changedBy: string | null,
+  opts?: UpdateOrderStatusOptions
 ): Promise<Order | null> {
-  return transaction(async (client) => {
-    // Update order
-    const updates: string[] = ['status = $1', 'updated_at = NOW()'];
-    const params: unknown[] = [data.status];
-    let paramIndex = 2;
+  return transaction((client) => updateOrderStatusTx(client, orderId, data, changedBy, opts));
+}
 
-    if (data.payment_id !== undefined) {
-      updates.push(`payment_id = $${paramIndex}`);
-      params.push(data.payment_id);
-      paramIndex++;
-    }
+/** Camino feliz de una orden pagada; advanceOrderTo solo avanza sobre este orden. */
+export const ORDER_FORWARD_PATH: OrderStatus[] = [
+  'payment_confirmed',
+  'processing',
+  'ready_to_ship',
+  'shipped',
+  'delivered'
+];
 
-    params.push(orderId);
+export interface UpdateOrderStatusOptions {
+  /** Compare-and-swap: solo actualiza si el estado actual es (uno de) estos. */
+  expectedStatus?: OrderStatus | OrderStatus[];
+  trackingNumber?: string;
+}
 
-    const orderResult = await client.query<Order>(
-      `UPDATE orders
-       SET ${updates.join(', ')}
-       WHERE id = $${paramIndex}
-       RETURNING *`,
-      params
+/**
+ * Update order status dentro de una transacción existente. Devuelve null cuando no se
+ * actualizó ninguna fila (orden inexistente o el estado actual no coincide con expectedStatus).
+ */
+export async function updateOrderStatusTx(
+  client: PoolClient,
+  orderId: string,
+  data: UpdateOrderStatusInput,
+  changedBy: string | null,
+  opts: UpdateOrderStatusOptions = {}
+): Promise<Order | null> {
+  const updates: string[] = ['status = $1', 'updated_at = NOW()'];
+  const params: unknown[] = [data.status];
+  let paramIndex = 2;
+
+  if (data.payment_id !== undefined) {
+    updates.push(`payment_id = $${paramIndex}`);
+    params.push(data.payment_id);
+    paramIndex++;
+  }
+
+  if (data.status === 'payment_confirmed') updates.push('paid_at = COALESCE(paid_at, NOW())');
+  if (data.status === 'shipped') updates.push('shipped_at = COALESCE(shipped_at, NOW())');
+  if (data.status === 'delivered') updates.push('delivered_at = COALESCE(delivered_at, NOW())');
+  if (data.status === 'cancelled') updates.push('cancelled_at = COALESCE(cancelled_at, NOW())');
+
+  if (opts.trackingNumber) {
+    updates.push(`tracking_number = COALESCE($${paramIndex}, tracking_number)`);
+    params.push(opts.trackingNumber);
+    paramIndex++;
+  }
+
+  params.push(orderId);
+  const idIndex = paramIndex;
+  paramIndex++;
+
+  let casClause = '';
+  if (opts.expectedStatus !== undefined) {
+    const expected = Array.isArray(opts.expectedStatus)
+      ? opts.expectedStatus
+      : [opts.expectedStatus];
+    casClause = ` AND status = ANY($${paramIndex}::order_status[])`;
+    params.push(expected);
+  }
+
+  const orderResult = await client.query<Order>(
+    `UPDATE orders
+     SET ${updates.join(', ')}
+     WHERE id = $${idIndex}${casClause}
+     RETURNING *`,
+    params
+  );
+
+  const order = orderResult.rows[0];
+  if (!order) return null;
+
+  await client.query(
+    // clock_timestamp(): NOW() es el inicio de la transacción y los pasos de advanceOrderTo
+    // quedarían con el mismo created_at (timeline desordenado).
+    `INSERT INTO order_status_history (order_id, status, notes, changed_by, created_at)
+     VALUES ($1, $2, $3, $4, clock_timestamp())`,
+    [orderId, data.status, data.notes || null, changedBy]
+  );
+
+  return order;
+}
+
+/**
+ * Avanza la orden por ORDER_FORWARD_PATH hasta `target`, registrando cada paso intermedio.
+ * No-op (devuelve la orden tal cual) si el estado actual está fuera del camino
+ * (cancelled/refunded/failed/pending_payment) o ya está en/después de `target`.
+ */
+export async function advanceOrderTo(
+  client: PoolClient,
+  orderId: string,
+  target: 'processing' | 'ready_to_ship' | 'shipped' | 'delivered',
+  note: string,
+  opts: { trackingNumber?: string } = {}
+): Promise<Order | null> {
+  const current = await client.query<Order>('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [
+    orderId
+  ]);
+  const order = current.rows[0];
+  if (!order) return null;
+
+  const currentIdx = ORDER_FORWARD_PATH.indexOf(order.status);
+  const targetIdx = ORDER_FORWARD_PATH.indexOf(target);
+  if (currentIdx === -1 || currentIdx >= targetIdx) return order;
+
+  let latest: Order = order;
+  let previous: OrderStatus = order.status;
+  for (let i = currentIdx + 1; i <= targetIdx; i++) {
+    const next = ORDER_FORWARD_PATH[i];
+    const updated = await updateOrderStatusTx(
+      client,
+      orderId,
+      { status: next, notes: note },
+      null,
+      { expectedStatus: previous, trackingNumber: opts.trackingNumber }
     );
+    if (!updated) return latest;
+    latest = updated;
+    previous = next;
+  }
+  return latest;
+}
 
-    const order = orderResult.rows[0];
-    if (!order) return null;
-
-    // Add to status history
+/**
+ * Vuelve el pedido a 'processing' si seguía en 'ready_to_ship' (compare-and-swap; no-op en
+ * cualquier otro estado). Si el tracking del pedido es el del envío revertido, lo limpia.
+ */
+export async function revertOrderToProcessing(
+  client: PoolClient,
+  orderId: string,
+  note: string,
+  shipmentTrackingNumber?: string | null
+): Promise<Order | null> {
+  const updated = await updateOrderStatusTx(
+    client,
+    orderId,
+    { status: 'processing', notes: note },
+    null,
+    { expectedStatus: 'ready_to_ship' }
+  );
+  if (updated && shipmentTrackingNumber) {
     await client.query(
-      `INSERT INTO order_status_history (order_id, status, notes, changed_by)
-       VALUES ($1, $2, $3, $4)`,
-      [orderId, data.status, data.notes || null, changedBy]
+      'UPDATE orders SET tracking_number = NULL WHERE id = $1 AND tracking_number = $2',
+      [orderId, shipmentTrackingNumber]
     );
-
-    return order;
-  });
+  }
+  return updated;
 }
 
 /**
@@ -594,9 +838,10 @@ export async function findOrderStatusHistory(orderId: string): Promise<OrderStat
 export async function cancelOrder(
   orderId: string,
   notes: string,
-  changedBy: string
+  changedBy: string | null,
+  opts?: UpdateOrderStatusOptions
 ): Promise<Order | null> {
-  return updateOrderStatus(orderId, { status: 'cancelled', notes }, changedBy);
+  return updateOrderStatus(orderId, { status: 'cancelled', notes }, changedBy, opts);
 }
 
 /**
@@ -635,12 +880,10 @@ export async function isOrderOwnedByUser(orderId: string, userId: string): Promi
 
 /** Subtotal de un pedido admin: precio unitario × unidades reales, truncado a centavos. */
 export function calculateAdminOrderSubtotal(
-  items: Pick<EnrichedAdminOrderItem, 'unit_price' | 'real_quantity'>[]
+  items: Pick<EnrichedAdminOrderItem, 'unit_price' | 'quantity'>[]
 ): number {
-  return (
-    Math.trunc(items.reduce((sum, item) => sum + item.unit_price * item.real_quantity, 0) * 100) /
-    100
-  );
+  // Suma de subtotales por línea, igual que lo que persiste el trigger (quantity × unit_price)
+  return Math.round(items.reduce((sum, item) => sum + adminItemSubtotal(item) * 100, 0)) / 100;
 }
 
 interface UpdateAdminOrderData {
@@ -729,11 +972,11 @@ export async function updateAdminOrder(
     await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
 
     for (const item of data.items) {
-      const itemSubtotal = Math.trunc(item.unit_price * item.real_quantity * 100) / 100;
+      const itemSubtotal = adminItemSubtotal(item);
       await client.query(
         `INSERT INTO order_items
-           (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+           (order_id, product_id, product_name, product_sku, quantity, bundle_size_snapshot, real_quantity, unit_price, subtotal, price_list_id, cost_price_snapshot, presentation_label_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           orderId,
           item.product_id,
@@ -745,7 +988,8 @@ export async function updateAdminOrder(
           item.unit_price,
           itemSubtotal,
           item.price_list_id ?? null,
-          item.cost_price_snapshot ?? null
+          item.cost_price_snapshot ?? null,
+          item.presentation_label_snapshot ?? null
         ]
       );
     }

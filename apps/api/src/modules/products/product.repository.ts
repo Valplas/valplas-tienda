@@ -1,5 +1,13 @@
 import type { PoolClient } from 'pg';
 import { query } from '../../infrastructure/database/client.js';
+import {
+  decodeCursor,
+  encodeCursor,
+  keysetPredicate,
+  sliceKeysetPage,
+  tsKey,
+  type SortDirection
+} from '../../shared/utils/keyset.js';
 import type { Product } from '@valplas/shared/types';
 import type {
   ProductFilters,
@@ -7,6 +15,11 @@ import type {
   CreateProductData,
   UpdateProductData
 } from './product.types.js';
+
+/** '' (input en blanco) equivale a "sin valor": se guarda como null; undefined se conserva. */
+export function emptyToNull(value: string | null | undefined): string | null | undefined {
+  return value === '' ? null : value;
+}
 
 // Tiers activos del producto con precio de venta derivado (costo × margen de lista).
 // Lo usan listado y detalle para que el front calcule el precio efectivo.
@@ -16,6 +29,7 @@ const PRICE_TIERS_SQL = `COALESCE(
             'priceListId', ppt.price_list_id,
             'priceListName', pl.name,
             'minQuantity', ppt.min_quantity,
+            'label', ppt.label,
             'unitPrice', TRUNC(p.cost_price * (1 + pl.margin / 100) * 100) / 100
           ) ORDER BY pl.name ASC
         )
@@ -28,12 +42,74 @@ const PRICE_TIERS_SQL = `COALESCE(
         '[]'
       ) as price_tiers`;
 
+interface ProductSortSpec {
+  expr: string;
+  dir: SortDirection;
+  /** Cast SQL del valor en el predicado del cursor */
+  type: string;
+  /** Expresión (texto) con el valor de orden que viaja en el cursor */
+  value: string;
+}
+
+const AVAILABLE_STOCK = '(p.stock - p.reserved_stock)';
+
+const PRODUCT_SORTS: Record<string, ProductSortSpec> = {
+  name_asc: { expr: 'p.name', dir: 'ASC', type: 'text', value: 'p.name' },
+  name_desc: { expr: 'p.name', dir: 'DESC', type: 'text', value: 'p.name' },
+  price_asc: { expr: 'p.cost_price', dir: 'ASC', type: 'numeric', value: 'p.cost_price::text' },
+  price_desc: { expr: 'p.cost_price', dir: 'DESC', type: 'numeric', value: 'p.cost_price::text' },
+  newest: { expr: 'p.created_at', dir: 'DESC', type: 'timestamptz', value: tsKey('p.created_at') },
+  oldest: { expr: 'p.created_at', dir: 'ASC', type: 'timestamptz', value: tsKey('p.created_at') },
+  updated_desc: {
+    expr: 'p.updated_at',
+    dir: 'DESC',
+    type: 'timestamptz',
+    value: tsKey('p.updated_at')
+  },
+  updated_asc: {
+    expr: 'p.updated_at',
+    dir: 'ASC',
+    type: 'timestamptz',
+    value: tsKey('p.updated_at')
+  },
+  stock_asc: {
+    expr: AVAILABLE_STOCK,
+    dir: 'ASC',
+    type: 'integer',
+    value: `${AVAILABLE_STOCK}::text`
+  },
+  stock_desc: {
+    expr: AVAILABLE_STOCK,
+    dir: 'DESC',
+    type: 'integer',
+    value: `${AVAILABLE_STOCK}::text`
+  }
+};
+
 /**
- * Buscar productos con filtros y paginación
+ * Elige el orden por comparación con las claves conocidas: el SQL sale siempre de las constantes
+ * de PRODUCT_SORTS y nunca del texto recibido (un valor desconocido cae en name_asc).
  */
-export async function findProducts(
-  filters: ProductFilters
-): Promise<{ products: ProductWithDetails[]; total: number }> {
+function resolveProductSort(sort: string): ProductSortSpec {
+  const match = Object.entries(PRODUCT_SORTS).find(([key]) => key === sort);
+  return match ? match[1] : PRODUCT_SORTS.name_asc;
+}
+
+export interface FindProductsResult {
+  products: ProductWithDetails[];
+  /** null en páginas con cursor: el total solo se calcula en la primera página. */
+  total: number | null;
+  /** La respuesta se pagina por cursor (si no, OFFSET con total). */
+  keyset: boolean;
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+/**
+ * Buscar productos con filtros y paginación.
+ * Sin `page` se pagina por cursor (keyset); con `page`, OFFSET clásico.
+ */
+export async function findProducts(filters: ProductFilters): Promise<FindProductsResult> {
   const {
     search,
     categoryId,
@@ -44,12 +120,14 @@ export async function findProducts(
     featured,
     isActive,
     requireActiveTier,
-    page = 1,
+    page,
+    cursor,
     limit = 24,
     sort = 'newest'
   } = filters;
 
-  const offset = (page - 1) * limit;
+  const useKeyset = page === undefined;
+  const offset = useKeyset ? 0 : (page - 1) * limit;
   // isActive undefined = sin filtro de visibilidad (solo llega así para
   // admin/owner: el controller lo fuerza a true para el resto).
   const conditions: string[] = ['p.deleted_at IS NULL'];
@@ -111,59 +189,72 @@ export async function findProducts(
     conditions.push('p.is_featured = true');
   }
 
-  // Determinar ordenamiento
-  let orderBy = 'p.name ASC'; // alfabético por defecto
-  switch (sort) {
-    case 'price_asc':
-      orderBy = 'p.cost_price ASC';
-      break;
-    case 'price_desc':
-      orderBy = 'p.cost_price DESC';
-      break;
-    case 'name_desc':
-      orderBy = 'p.name DESC';
-      break;
-    case 'newest':
-      orderBy = 'p.created_at DESC';
-      break;
-    case 'oldest':
-      orderBy = 'p.created_at ASC';
-      break;
-    case 'stock_asc':
-      orderBy = '(p.stock - p.reserved_stock) ASC';
-      break;
-    case 'stock_desc':
-      orderBy = '(p.stock - p.reserved_stock) DESC';
-      break;
-    case 'updated_desc':
-      orderBy = 'p.updated_at DESC';
-      break;
-    case 'updated_asc':
-      orderBy = 'p.updated_at ASC';
-      break;
-  }
+  // Orden: una sola expresión + p.id con la MISMA dirección (requisito del cursor: el predicado es
+  // un único row value). `name_asc` es el orden alfabético por defecto.
+  const sortSpec = resolveProductSort(sort);
 
   const whereClause = conditions.join(' AND ');
 
-  // Query para contar total (necesita el JOIN con brands cuando se busca por marca)
-  const countResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count
-     FROM products p
-     LEFT JOIN brands b ON p.brand_id = b.id
-     WHERE ${whereClause}`,
-    params
-  );
+  // El JOIN con brands solo hace falta cuando se busca por marca (el filtro referencia b.name)
+  const brandJoin = search ? 'LEFT JOIN brands b ON p.brand_id = b.id' : '';
 
-  const total = parseInt(countResult.rows[0].count, 10);
+  // Total: con cursor solo en la primera página (el predicado del cursor no entra en el count)
+  let total: number | null = null;
+  if (!useKeyset || !cursor) {
+    const countResult = await query<{ count: string }>(
+      `SELECT COUNT(*) as count
+       FROM products p
+       ${brandJoin}
+       WHERE ${whereClause}`,
+      params
+    );
+    total = parseInt(countResult.rows[0].count, 10);
+  }
 
-  // Query principal con joins
+  let pageWhere = whereClause;
+  const pageParams = [...params];
+  let pageParamIndex = paramIndex;
+  const sortTag = `products_${sort}`;
+  if (useKeyset && cursor) {
+    const values = decodeCursor(cursor, sortTag, 2);
+    pageWhere = `${whereClause} AND ${keysetPredicate(
+      [sortSpec.expr, 'p.id'],
+      sortSpec.dir,
+      [sortSpec.type, 'uuid'],
+      pageParamIndex
+    )}`;
+    pageParams.push(...values);
+    pageParamIndex += 2;
+  }
+  const pageLimit = useKeyset ? limit + 1 : limit;
+
+  // Paginar primero (solo ids) y recién después traer categoría, marca, imágenes y tiers:
+  // antes el GROUP BY + json_agg de imágenes corría sobre TODOS los productos filtrados y
+  // luego se descartaba con LIMIT/OFFSET. `p.id` desempata para que las páginas no se repitan.
+  const stableOrder = `${sortSpec.expr} ${sortSpec.dir}, p.id ${sortSpec.dir}`;
   const productsResult = await query(
-    `SELECT
+    `WITH page AS (
+       SELECT p.id, ${sortSpec.value} AS k0
+       FROM products p
+       ${brandJoin}
+       WHERE ${pageWhere}
+       ORDER BY ${stableOrder}
+       LIMIT $${pageParamIndex} OFFSET $${pageParamIndex + 1}
+     )
+     SELECT
       p.*,
+      page.k0 AS _k0,
       c.name as category_name,
       b.name as brand_name,
       (p.stock - p.reserved_stock) as available_stock,
-      COALESCE(
+      img.images as images,
+      ${PRICE_TIERS_SQL}
+    FROM page
+    JOIN products p ON p.id = page.id
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN brands b ON p.brand_id = b.id
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(
         json_agg(
           json_build_object(
             'id', pi.id,
@@ -174,24 +265,30 @@ export async function findProducts(
             'width', pi.width,
             'height', pi.height
           ) ORDER BY pi.display_order
-        ) FILTER (WHERE pi.id IS NOT NULL),
+        ),
         '[]'
-      ) as images,
-      ${PRICE_TIERS_SQL}
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.id
-    LEFT JOIN brands b ON p.brand_id = b.id
-    LEFT JOIN product_images pi ON p.id = pi.product_id
-    WHERE ${whereClause}
-    GROUP BY p.id, c.id, b.id
-    ORDER BY ${orderBy}
-    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-    [...params, limit, offset]
+      ) AS images
+      FROM product_images pi
+      WHERE pi.product_id = p.id
+    ) img ON true
+    ORDER BY ${stableOrder}`,
+    [...pageParams, pageLimit, offset]
   );
 
-  const products = productsResult.rows.map(transformProductRow);
+  const { rows, hasMore } = useKeyset
+    ? sliceKeysetPage(productsResult.rows as Record<string, unknown>[], limit)
+    : { rows: productsResult.rows as Record<string, unknown>[], hasMore: false };
 
-  return { products, total };
+  const last = rows[rows.length - 1];
+  const nextCursor =
+    useKeyset && hasMore && last
+      ? encodeCursor(sortTag, [String(last._k0), String(last.id)])
+      : null;
+
+  // transformProductRow arma el objeto campo a campo: _k0 (solo para el cursor) no se expone
+  const products = rows.map(transformProductRow);
+
+  return { products, total, keyset: useKeyset, hasMore, nextCursor };
 }
 
 /**
@@ -362,9 +459,10 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
       sku, name, slug, description, category_id, brand_id,
       cost_price, stock,
       weight, width, length, height, origin,
-      is_featured, is_active
+      is_featured, is_active,
+      unit_label, unit_content_quantity, unit_content_label, tags
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
     RETURNING *`,
     [
       data.sku,
@@ -381,7 +479,11 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
       data.height ?? null,
       data.origin || null,
       data.isFeatured || false,
-      true
+      true,
+      emptyToNull(data.unitLabel) ?? null,
+      data.unitContentQuantity ?? null,
+      emptyToNull(data.unitContentLabel) ?? null,
+      data.tags ?? []
     ]
   );
 
@@ -391,7 +493,11 @@ export async function createProduct(data: CreateProductData, client: PoolClient)
 /**
  * Actualizar producto
  */
-export async function updateProduct(id: string, data: UpdateProductData): Promise<Product | null> {
+export async function updateProduct(
+  id: string,
+  data: UpdateProductData,
+  client?: PoolClient
+): Promise<Product | null> {
   const updates: string[] = [];
   const params: unknown[] = [];
   let paramIndex = 1;
@@ -480,17 +586,41 @@ export async function updateProduct(id: string, data: UpdateProductData): Promis
     paramIndex++;
   }
 
+  if (data.unitLabel !== undefined) {
+    updates.push(`unit_label = $${paramIndex}`);
+    params.push(emptyToNull(data.unitLabel));
+    paramIndex++;
+  }
+
+  if (data.unitContentQuantity !== undefined) {
+    updates.push(`unit_content_quantity = $${paramIndex}`);
+    params.push(data.unitContentQuantity);
+    paramIndex++;
+  }
+
+  if (data.unitContentLabel !== undefined) {
+    updates.push(`unit_content_label = $${paramIndex}`);
+    params.push(emptyToNull(data.unitContentLabel));
+    paramIndex++;
+  }
+
+  if (data.tags !== undefined) {
+    updates.push(`tags = $${paramIndex}`);
+    params.push(data.tags);
+    paramIndex++;
+  }
+
   if (updates.length === 0) return null;
 
   params.push(id);
 
-  const result = await query<Product>(
-    `UPDATE products
+  const sql = `UPDATE products
      SET ${updates.join(', ')}
      WHERE id = $${paramIndex} AND deleted_at IS NULL
-     RETURNING *`,
-    params
-  );
+     RETURNING *`;
+  const result = client
+    ? await client.query<Product>(sql, params)
+    : await query<Product>(sql, params);
 
   return result.rows[0] || null;
 }
@@ -532,8 +662,13 @@ function transformProductRow(row: Record<string, unknown>): ProductWithDetails {
     length: row.length ?? null,
     height: row.height ?? null,
     origin: row.origin ?? null,
+    unitLabel: row.unit_label ?? null,
+    unitContentQuantity:
+      row.unit_content_quantity == null ? null : Number(row.unit_content_quantity),
+    unitContentLabel: row.unit_content_label ?? null,
     isFeatured: row.is_featured,
     isActive: row.is_active,
+    tags: (row.tags as string[] | null) ?? [],
     images: (row.images as ProductWithDetails['images']) || [],
     priceTiers: (row.price_tiers as ProductWithDetails['priceTiers']) || [],
     createdAt: row.created_at as string,

@@ -12,6 +12,19 @@ export function isMpWebhookRequest(req: Request): boolean {
   return req.method === 'POST' && req.path === '/payments/webhook';
 }
 
+/** Push de Andreani: server-to-server, protegido por Basic auth; no debe recibir 429. */
+export function isAndreaniWebhookRequest(req: Request): boolean {
+  return req.method === 'POST' && req.path === '/webhooks/andreani';
+}
+
+/**
+ * La API del bot tiene su propio limiter (botRateLimiter): todo el tráfico de WhatsApp sale
+ * de la IP del servidor del bot y con 100/min por IP se cortaría con pocos clientes a la vez.
+ */
+export function isBotApiRequest(req: Request): boolean {
+  return req.path.startsWith('/bot/');
+}
+
 /**
  * General API rate limiter: 100 requests per minute per IP
  */
@@ -20,12 +33,30 @@ export const apiRateLimiter = rateLimit({
   max: 100,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  skip: isMpWebhookRequest,
+  skip: (req) => isMpWebhookRequest(req) || isAndreaniWebhookRequest(req) || isBotApiRequest(req),
   message: {
     success: false,
     error: {
       code: 'RATE_LIMIT_EXCEEDED',
       message: 'Demasiadas solicitudes. Intente nuevamente en un minuto.'
+    }
+  }
+});
+
+/**
+ * Limiter de la API del bot: 600 requests por minuto por IP. Va antes de la validación de la
+ * API key, así también frena intentos con keys inválidas.
+ */
+export const botRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Demasiadas solicitudes del bot. Intente nuevamente en un minuto.'
     }
   }
 });

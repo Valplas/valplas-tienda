@@ -10,6 +10,7 @@ export const categorySchema = z.object({
   displayOrder: z.number().min(0),
   description: z.string().optional().or(z.literal('')),
   isActive: z.boolean(),
+  tags: z.array(z.string()),
   imageUrl: z.string().url('URL inválida').optional().or(z.literal(''))
 });
 

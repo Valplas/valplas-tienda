@@ -12,6 +12,10 @@ vi.mock('../../modules/products/product.repository.js', () => ({
   findProductBySlug: vi.fn()
 }));
 
+vi.mock('../../modules/attributes/attribute.repository.js', () => ({
+  findValuesByProductIds: vi.fn().mockResolvedValue(new Map())
+}));
+
 import { toPublicProduct } from '../../modules/products/product.service.js';
 import { getProductBySlug } from '../../modules/products/product.controller.js';
 import * as productRepository from '../../modules/products/product.repository.js';
@@ -57,6 +61,61 @@ describe('toPublicProduct', () => {
     );
 
     expect(result.price).toBe(150);
+  });
+
+  it('tiers ordenados por minQuantity y sin priceListName (el nombre expone el margen)', () => {
+    const result = toPublicProduct(
+      buildProduct({
+        priceTiers: [
+          { priceListId: 'pl-10', priceListName: 'Lista 10%', minQuantity: 50, unitPrice: 110 },
+          { priceListId: 'pl-30', priceListName: 'Lista 30%', minQuantity: 5, unitPrice: 130 },
+          { priceListId: 'pl-u', priceListName: 'Unidad', minQuantity: 1, unitPrice: 150 }
+        ]
+      })
+    );
+
+    expect(result.priceTiers.map((t) => t.priceListId)).toEqual(['pl-u', 'pl-30', 'pl-10']);
+    expect(result.priceTiers.map((t) => t.minQuantity)).toEqual([1, 5, 50]);
+    expect(result.priceTiers.map((t) => t.unitPrice)).toEqual([150, 130, 110]);
+    for (const tier of result.priceTiers) {
+      expect(tier).not.toHaveProperty('priceListName');
+    }
+  });
+
+  it('priceTiers suma bundlePrice, label, contains, savingsPercent y description; unit como el bot', () => {
+    const result = toPublicProduct(
+      buildProduct({
+        unitLabel: 'caja',
+        unitContentQuantity: 100,
+        unitContentLabel: 'unidades',
+        priceTiers: [
+          {
+            priceListId: 'pl-10',
+            priceListName: 'L',
+            minQuantity: 10,
+            label: 'Bulto',
+            unitPrice: 120
+          },
+          { priceListId: 'pl-u', priceListName: 'U', minQuantity: 1, label: null, unitPrice: 150 }
+        ]
+      })
+    );
+
+    expect(result.unit).toEqual({ label: 'caja', contains: { quantity: 100, of: 'unidades' } });
+    expect(result.priceTiers[1]).toEqual({
+      priceListId: 'pl-10',
+      minQuantity: 10,
+      unitPrice: 120,
+      bundlePrice: 1200,
+      label: 'Bulto',
+      contains: '10 cajas (1.000 unidades)',
+      savingsPercent: 20,
+      description: 'Bulto de 10 cajas (1.000 unidades): $1.200 ($120 c/caja, 20% menos)'
+    });
+  });
+
+  it('sin unidad definida: unit null', () => {
+    expect(toPublicProduct(buildProduct()).unit).toBeNull();
   });
 
   it('price cae a costPrice cuando el producto no tiene lista asignada', () => {

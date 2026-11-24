@@ -61,7 +61,8 @@ export async function listProducts(req: Request, res: Response, next: NextFuncti
     }
 
     const result = await catalogRepository.findPublicProducts({
-      search,
+      // ?search=a&search=b llega como array: solo se acepta un string
+      search: typeof search === 'string' ? search : undefined,
       category_id,
       brand_id,
       min_price: parsePrice(min_price),

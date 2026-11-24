@@ -23,6 +23,49 @@ Base URL: `http://localhost:3001/api` (desarrollo) / `https://valplas-tienda-dev
 | PUT    | `/products/:id`        | ✅   | admin, owner | Actualizar producto        |
 | DELETE | `/products/:id`        | ✅   | admin, owner | Eliminar producto          |
 
+### Unidad de venta (admin, camelCase)
+
+`POST /products` y `PUT /products/:id` aceptan tres campos opcionales que describen la unidad de venta
+(sirven para armar los textos de las presentaciones en el catálogo, el carrito y el bot):
+
+| Campo                 | Tipo             | Descripción                                                            |
+| --------------------- | ---------------- | ---------------------------------------------------------------------- |
+| `unitLabel`           | string ≤ 30/null | Nombre de la unidad: `"paquete"`, `"caja"`. `""` se guarda como `null` |
+| `unitContentQuantity` | number > 0/null  | Cantidad que trae cada unidad: `100`                                   |
+| `unitContentLabel`    | string ≤ 40/null | Qué contiene: `"bolsas"`. Va junto con `unitContentQuantity`           |
+
+`unitContentQuantity` y `unitContentLabel` se envían **juntos** (ambos con valor o ambos vacíos); si no,
+`400 VALIDATION_ERROR`.
+
+### Atributos y tags (admin, camelCase)
+
+`POST /products` y `PUT /products/:id` aceptan dos campos opcionales más:
+
+| Campo        | Tipo                                       | Descripción                                                                                                                                                                |
+| ------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `attributes` | `[{ attributeId, value }]` (máx. 100)      | Valores de atributos del diccionario (sección Atributos más abajo). **Reemplaza** todos los valores del producto (`[]` los borra). `value` es número o texto según el tipo |
+| `tags`       | string[] (máx. 30 tags, 40 caracteres c/u) | Sinónimos de búsqueda. Se normalizan (minúscula, espacios colapsados, sin vacíos ni duplicados). Reemplaza los anteriores                                                  |
+
+- Un valor que no cumple su definición (tipo, opción inexistente) responde `400 INVALID_ATTRIBUTE_VALUE`
+  con el detalle por atributo en `error.details`.
+- El detalle admin del producto devuelve `attributes: [{ attributeId, key, label, value, unit, valueType }]`
+  y `tags`.
+- El catálogo público (`/products`, `/products/slug/:slug`) devuelve `attributes: [{ key, label, value, unit }]`
+  y **nunca** `tags`. El bot recibe `attributes` y `tags` (los del producto más los de su categoría y
+  ancestros): ver [BOT_API.md](./BOT_API.md).
+
+### Precios por cantidad (presentaciones, admin)
+
+- `GET /products/:id/price-tiers` y `PUT /products/:id/price-tiers` (reemplaza todas las presentaciones del
+  producto). Cada tier: `{ priceListId, minQuantity, label? }`.
+- `label` (opcional, ≤ 40 caracteres, `""` se guarda como `null`): nombre de la presentación, por ejemplo
+  `"Bulto de 10 paquetes"`. Si falta, se usa un nombre por defecto (`Bulto`, `Bulto x12`, o la unidad de venta
+  para la presentación base).
+- **Validación:** no puede haber dos presentaciones con la misma `priceListId` en un mismo producto
+  (`400 VALIDATION_ERROR`, "No puede haber dos presentaciones con la misma lista de precios"). Lo mismo
+  aplica a `POST /products/price-tiers/bulk-preview` y `bulk-confirm`. Motivo: el precio se busca por
+  (producto, lista) y con listas repetidas la línea podría resolverse a otro bulto.
+
 ## 📂 Categories
 
 | Method | Endpoint                        | Auth | Roles        | Description                  |
@@ -34,6 +77,42 @@ Base URL: `http://localhost:3001/api` (desarrollo) / `https://valplas-tienda-dev
 | DELETE | `/categories/:id`               | ✅   | admin, owner | Eliminar categoría           |
 | PATCH  | `/categories/:id/toggle-active` | ✅   | admin, owner | Activar/desactivar categoría |
 
+- `POST /categories` y `PUT /categories/:id` aceptan `tags` (string[], mismas reglas y límites que en
+  productos). Los tags de una categoría se heredan a sus productos y subcategorías en la búsqueda del bot.
+- `GET /categories` y `GET /categories/:id` tienen **auth opcional**: los `tags` solo se devuelven si el
+  request viene autenticado como `admin` u `owner`; para el resto de los usuarios y el público se omiten.
+
+## 🧩 Atributos
+
+Diccionario de características de producto (ancho, alto, micrones, color…). Solo `admin` y `owner`. Los
+requests van en **snake_case** (a diferencia de `attributes`/`tags` de productos, que van en camelCase); las
+respuestas, en camelCase.
+
+| Method | Endpoint                               | Auth | Roles        | Description                                                                     |
+| ------ | -------------------------------------- | ---- | ------------ | ------------------------------------------------------------------------------- |
+| GET    | `/attributes`                          | ✅   | admin, owner | Listar definiciones con sus categorías (`page`, `limit` ≤ 200; 200 por defecto) |
+| GET    | `/attributes/for-category/:categoryId` | ✅   | admin, owner | Atributos activos de la categoría y sus ancestros, sin duplicados               |
+| POST   | `/attributes`                          | ✅   | admin, owner | Crear definición                                                                |
+| PATCH  | `/attributes/:id`                      | ✅   | admin, owner | Editar definición (`key` y `value_type` son inmutables)                         |
+| DELETE | `/attributes/:id`                      | ✅   | admin, owner | Eliminar una definición sin valores cargados                                    |
+| PUT    | `/attributes/:id/categories`           | ✅   | admin, owner | Reemplazar las categorías asignadas: `{ category_ids: string[] }`               |
+
+- **Crear (`POST`)**: `key` (`^[a-z][a-z0-9_]{1,39}$`), `label` (≤ 60), `value_type` (`number` · `text` ·
+  `option`), `unit` (≤ 20, opcional), `options` (obligatorio y no vacío solo para `option`; prohibido para
+  los otros tipos), `aliases` (≤ 30 sinónimos en minúscula), `display_order`, `is_active`.
+- **Editar (`PATCH`)**: `label`, `unit`, `options`, `aliases`, `display_order`, `is_active` (al menos uno).
+  Mandar `key` o `value_type` responde `400 VALIDATION_ERROR`.
+- `for-category` devuelve los atributos de la categoría y de todas sus ancestras, ordenados por
+  `display_order` de la asignación y luego de la definición.
+- **Errores:**
+  - `404 ATTRIBUTE_NOT_FOUND`, `404 CATEGORY_NOT_FOUND` (categoría inexistente en `for-category` o en
+    `category_ids`).
+  - `409 ATTRIBUTE_KEY_EXISTS`: ya existe un atributo con esa `key`.
+  - `409 ATTRIBUTE_IN_USE` (`DELETE`): tiene valores cargados en productos; desactivarlo con
+    `PATCH { "is_active": false }`.
+  - `409 ATTRIBUTE_OPTION_IN_USE` (`PATCH`): se quiso quitar una opción que usan productos; `error.details`
+    lista los valores en uso.
+
 ## 🏷️ Brands
 
 | Method | Endpoint             | Auth | Roles        | Description             |
@@ -44,6 +123,12 @@ Base URL: `http://localhost:3001/api` (desarrollo) / `https://valplas-tienda-dev
 | POST   | `/brands`            | ✅   | admin, owner | Crear marca             |
 | PUT    | `/brands/:id`        | ✅   | admin, owner | Actualizar marca        |
 | DELETE | `/brands/:id`        | ✅   | admin, owner | Eliminar marca          |
+
+## 🗂️ Catalog
+
+| Method | Endpoint            | Auth | Description                                                            |
+| ------ | ------------------- | ---- | ---------------------------------------------------------------------- |
+| GET    | `/catalog/products` | ❌   | Catálogo público: productos activos con stock, precio y presentaciones |
 
 ## 🛒 Cart
 
@@ -99,6 +184,25 @@ Base URL: `http://localhost:3001/api` (desarrollo) / `https://valplas-tienda-dev
 | PATCH  | `/shipping/rates/:id`    | ✅   | admin, owner | Actualizar tarifa        |
 | DELETE | `/shipping/rates/:id`    | ✅   | admin, owner | Eliminar tarifa          |
 
+## 📦 Shipments (Andreani)
+
+Backoffice de envíos. Todas las rutas son solo `admin`/`owner`. Detalle y flujos: [ANDREANI_INTEGRATION.md](./ANDREANI_INTEGRATION.md).
+Si `ANDREANI_MODE=disabled` responden 503.
+
+| Method | Endpoint                             | Auth  | Roles        | Description                                                    |
+| ------ | ------------------------------------ | ----- | ------------ | -------------------------------------------------------------- |
+| POST   | `/shipments/branches/search`         | ✅    | admin, owner | Sucursales de retiro cerca de un CP (body `postcode`, `limit`) |
+| GET    | `/shipments/orders/:orderId/preview` | ✅    | admin, owner | Bultos, contrato, localidad y warnings antes de crear el envío |
+| POST   | `/shipments/orders/:orderId`         | ✅    | admin, owner | Crear envío en Andreani (pre-envío + etiqueta)                 |
+| POST   | `/shipments/:id/cancel`              | ✅    | admin, owner | Cancelar envío (asíncrono; confirma el job)                    |
+| POST   | `/shipments/:id/refresh`             | ✅    | admin, owner | Actualizar tracking ahora                                      |
+| GET    | `/shipments/:id/label`               | ✅    | admin, owner | Descargar etiqueta (PDF)                                       |
+| POST   | `/webhooks/andreani`                 | Basic | Andreani     | Novedades PUSH (opcional; 404 si no hay credenciales PUSH)     |
+
+Notas de pedidos: `GET /orders/:id` incluye `shipments` (con eventos) y `GET /orders` incluye `active_shipment`;
+`PATCH /orders/:id/status` es solo admin/owner y devuelve 409 `ORDER_STATUS_CONFLICT` si el estado cambió en el medio;
+los clientes solo pueden cancelar pedidos `pending_payment`; cancelar un pedido con envío activo da 409 `SHIPMENT_ACTIVE`.
+
 ## 👥 Users
 
 | Method | Endpoint                | Auth | Roles        | Description              |
@@ -113,6 +217,50 @@ Base URL: `http://localhost:3001/api` (desarrollo) / `https://valplas-tienda-dev
 | DELETE | `/users/:id`            | ✅   | owner        | Eliminar usuario         |
 | POST   | `/users/:id/activate`   | ✅   | admin, owner | Activar usuario          |
 | POST   | `/users/:id/deactivate` | ✅   | admin, owner | Desactivar usuario       |
+
+## 🤖 Bot de WhatsApp
+
+Auth por header `X-Api-Key` (server-to-server, sin cookies ni CSRF). Contrato completo, ejemplos y
+webhook saliente: [BOT_API.md](./BOT_API.md).
+
+| Method | Endpoint                                | Description                                   |
+| ------ | --------------------------------------- | --------------------------------------------- |
+| GET    | `/bot/catalog/categories`               | Árbol de categorías activas                   |
+| GET    | `/bot/catalog/status`                   | Versión del catálogo (para detectar cambios)  |
+| GET    | `/bot/store/info`                       | Info del negocio (horarios, pagos, contacto)  |
+| GET    | `/bot/catalog/products`                 | Buscar productos con stock y presentaciones   |
+| GET    | `/bot/catalog/products/:id`             | Detalle de producto (precio y stock actuales) |
+| GET    | `/bot/customers/by-phone/:phone`        | Buscar cliente por teléfono                   |
+| POST   | `/bot/customers`                        | Buscar o crear cliente por teléfono           |
+| GET    | `/bot/customers/:id/addresses`          | Direcciones del cliente                       |
+| POST   | `/bot/customers/:id/addresses`          | Agregar dirección                             |
+| GET    | `/bot/customers/:id/orders`             | Órdenes del cliente                           |
+| POST   | `/bot/quote`                            | Cotizar carrito (precio, stock y envío)       |
+| POST   | `/bot/orders`                           | Crear orden `WSP-` y link de Mercado Pago     |
+| GET    | `/bot/orders/:orderNumber`              | Estado y detalle de la orden                  |
+| POST   | `/bot/orders/:orderNumber/payment-link` | Regenerar link de pago                        |
+| POST   | `/bot/orders/:orderNumber/cancel`       | Cancelar orden pendiente de pago              |
+
+## 🏪 Info del negocio (admin)
+
+Datos que consume el bot en `GET /bot/store/info` (ver [BOT_API.md](./BOT_API.md)). Roles: `admin`, `owner`.
+
+| Method | Endpoint               | Auth | Roles        | Description                                              |
+| ------ | ---------------------- | ---- | ------------ | -------------------------------------------------------- |
+| GET    | `/settings/store-info` | ✅   | admin, owner | Info del negocio. Respuesta envuelta: `{ storeInfo }`    |
+| PUT    | `/settings/store-info` | ✅   | admin, owner | Reemplaza todo: los campos omitidos o vacíos quedan null |
+
+Body del `PUT` en **snake_case** (todos opcionales; `''`/omitido → null):
+
+- `business_hours` (texto, máx. 2000), `additional_info` (máx. 5000), `pickup_address` (máx. 500).
+- `delivery_days`: array de `monday`…`sunday` (los duplicados se eliminan sin avisar; un array vacío se guarda y se devuelve como `null`). `delivery_zones`: array de textos (máx. 50, 100 c/u).
+- `payment_methods`: array de `mercadopago`, `transfer`, `cash_on_delivery`, `cash_pickup`.
+- `minimum_order`, `free_shipping_from`: número >= 0.
+- `transfer_alias` (máx. 40), `transfer_cbu` (exactamente 22 dígitos), `transfer_holder` (máx. 100), `transfer_bank` (máx. 60).
+- `price_list_url`: URL `https://` (máx. 500). `contact_phone`: se normaliza a E.164 (inválido → 400). `contact_email`: email válido, en minúsculas.
+- Errores de validación: `400 VALIDATION_ERROR`. `0` es un monto válido (no equivale a "sin dato"). Guardar invalida el caché de 60 s del bot, que es por instancia de la API.
+
+Respuesta (camelCase): `{ success: true, data: { storeInfo: { businessHours, deliveryDays, deliveryZones, minimumOrder, freeShippingFrom, paymentMethods, transferDetails: { alias, cbu, holder, bank } | null, pickupAddress, priceListUrl, contactPhone, contactEmail, additionalInfo, updatedAt } } }`.
 
 ## 🔑 Roles y Permisos
 

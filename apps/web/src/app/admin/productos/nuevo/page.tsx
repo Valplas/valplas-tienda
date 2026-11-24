@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { createProduct } from '@/lib/services/products.service';
 import { parsePriceInput } from '@/lib/formatters';
 import type { ProductFormData } from '@/lib/validations/product';
+import type { ProductFormExtras } from '@/components/admin/product-form';
+import { apiErrorDescription } from '@/lib/api-error';
 
 /**
  * Generate slug from product name
@@ -29,9 +31,7 @@ export default function NewProductPage() {
   });
   const router = useRouter();
 
-  const handleSubmit = async (
-    data: ProductFormData & { tempId?: string; tempImageOrder?: string[] }
-  ) => {
+  const handleSubmit = async (data: ProductFormData & ProductFormExtras) => {
     try {
       await createProduct({
         name: data.name,
@@ -47,17 +47,21 @@ export default function NewProductPage() {
         length: data.length,
         height: data.height,
         origin: data.origin,
+        unitLabel: data.unitLabel?.trim() || null,
+        unitContentQuantity: data.unitContentQuantity ?? null,
+        unitContentLabel: data.unitContentLabel?.trim() || null,
         isFeatured: data.isFeatured,
         isActive: data.isActive ?? true,
         tempId: data.tempId,
-        tempImageOrder: data.tempImageOrder
+        tempImageOrder: data.tempImageOrder,
+        attributes: data.attributes,
+        tags: data.tags
       });
       toast.success('Producto creado correctamente');
       router.push('/admin/productos');
     } catch (error: unknown) {
       console.error('Error creating product:', error);
-      const message = error instanceof Error ? error.message : undefined;
-      toast.error(message || 'Error al crear producto. Intentá de nuevo.');
+      toast.error('Error al crear producto', { description: apiErrorDescription(error) });
     }
   };
 

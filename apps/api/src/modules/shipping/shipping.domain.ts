@@ -188,10 +188,15 @@ export async function getShippingQuote(request: ShippingQuoteRequest): Promise<S
     throw new Error('No hay opciones de envío disponibles para este monto');
   }
 
-  // Get carrier details for each rate
+  // Carriers de todas las tarifas en un solo query (antes: uno por tarifa)
+  const carriers = await shippingRepository.findCarriersByIds([
+    ...new Set(rates.map((r) => r.carrier_id))
+  ]);
+  const carrierById = new Map(carriers.map((c) => [c.id, c]));
+
   const quotes: ShippingQuote[] = [];
   for (const rate of rates) {
-    const carrier = await shippingRepository.findCarrierById(rate.carrier_id);
+    const carrier = carrierById.get(rate.carrier_id);
     if (!carrier || !carrier.is_active) continue;
 
     const price = rateShippingPrice(rate, cart_total);

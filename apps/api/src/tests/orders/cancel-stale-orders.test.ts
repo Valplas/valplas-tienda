@@ -46,7 +46,8 @@ describe('cancelStaleOrders', () => {
     expect(orderRepository.updateOrderStatus).toHaveBeenCalledWith(
       '1',
       expect.objectContaining({ status: 'cancelled' }),
-      'user-1'
+      'user-1',
+      { expectedStatus: 'pending_payment' }
     );
   });
 
